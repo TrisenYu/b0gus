@@ -1,0 +1,27 @@
+[server_config]
+listen_addr = "localhost"
+listen_port = 22
+service_name = "ssh"
+max_client_num = 32
+
+# only record `ip, username, password`
+permit_login = true
+# a shell unable to interact
+empty_shell = true
+# just repeat what user inputs back to the terminal
+# TODO: add more response types later
+response_type = "repeater"
+
+is_local_database = true
+
+# TODO: 对于postgresql就需要先生成脚本检查，然后再去连接，不然做不到
+# 两个选一个出来用
+database_name = ""
+database_addr = "localhost"
+database_port = 5432
+# this domain is 
+database_path = ""
+
+has_database_admin = true
+admin_name = "Literally,Postgres"
+admin_pass = "YouPassw0rdShouldBeStrongAndInvisible2Others"

@@ -1,0 +1,10 @@
+*.env
+*.exe
+*.dll
+*.so
+b0gus
+*.bak
+
+configs/*
+!configs/.gitkeep
+!configs/example.toml
