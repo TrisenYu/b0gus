@@ -1,26 +1,36 @@
 [server_config]
+# will store pem in `configs` directory
+pem_name = "ssh_host_pem"
 listen_addr = "localhost"
-listen_port = 22
+# it might be identical to run this program in port 22 as a bogus ssh server
+# but for non-root user, binding to port < 1024 is not allowed
+# so we will use docker in the future
+listen_port = 2333
 service_name = "ssh"
 max_client_num = 32
+client_conn_timeout = 180  # in seconds
 
-# only record `ip, username, password`
+# only store `ip, username, password, access time and public key` info
 permit_login = true
-# a shell unable to interact
 empty_shell = true
 # just repeat what user inputs back to the terminal
 # TODO: add more response types later
 response_type = "repeater"
 
+# have not deployed in Distributed database yet
+# leave this field as true at present
 is_local_database = true
 
-# TODO: 对于postgresql就需要先生成脚本检查，然后再去连接，不然做不到
-# 两个选一个出来用
+# Yet to have a checking/filtering mechnism to determine 
+# whether database_addr:database_port is requried
 database_name = ""
 database_addr = "localhost"
 database_port = 5432
-# this domain is 
-database_path = ""
+
+# this domain is used for different sql like SQLite
+# Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
+# explictly given
+database_path = "/home/bot/Projects/SQLite/nasty-ssh-client.db"
 
 has_database_admin = true
 admin_name = "Literally,Postgres"
