@@ -12,22 +12,25 @@ import (
 	"path/filepath"
 	"time"
 
-	postgres "github.com/go-pg/pg/v10"
-	postgres_orm "github.com/go-pg/pg/v10/orm"
+	pg "github.com/go-pg/pg/v10"
+	pg_orm "github.com/go-pg/pg/v10/orm"
 	logrus "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
-)
+	ssh "golang.org/x/crypto/ssh"
 
-var logger = logrus.New()
+	b0gus_config "b0gus/configs"
+	b0gus_crypto_aux "b0gus/crypto_aux"
+	b0gus_datatypes "b0gus/datatypes"
+	b0gus_services "b0gus/services"
+)
 
 /*- bogus ssh server.
  * inParam: conf_path string; absolute path to configuration file
  * 		   config_content *LocalConfig; pointer to LocalConfig object
- * 		   db *postgres.DB; pointer to connected database object
+ * 		   db *pg.DB; pointer to connected database object
  */
-func b0gus_ssh_server(conf_path string, config_content *LocalConfig, db *postgres.DB) {
+func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig, db *pg.DB) {
 	// Fill SSH Server Configuration from config file
-	ssh_server_conf := SSHserverConf{
+	ssh_server_conf := b0gus_services.SSHserverConf{
 		Addr:              config_content.ServerConfig.ListenAddr,
 		Port:              config_content.ServerConfig.ListenPort,
 		MaxClientNum:      config_content.ServerConfig.MaxClientNum,
@@ -38,30 +41,30 @@ func b0gus_ssh_server(conf_path string, config_content *LocalConfig, db *postgre
 
 	var host_key ssh.Signer
 	pem_path, _ := filepath.Abs(filepath.Join(conf_path, config_content.ServerConfig.PemName))
-	pem_obj, err := LoadHostPem(pem_path)
+	pem_obj, err := b0gus_crypto_aux.LoadHostPem(pem_path)
 	if err != nil {
 		// Consider generate a new host key when PEM file is invalid/corrupted or not exists
 		// TODO: also make this configurable
-		logger.WithField("Err", err).Warn("Pem seems to be invalid or unsupported")
+		b0gus_config.Logger.WithField("Err", err).Warn("Pem seems to be invalid or unsupported")
 		host_pem, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 		if err != nil {
-			logger.Error("Failed to generate host private key!")
+			b0gus_config.Logger.Error("Failed to generate host private key!")
 			return
 		}
 		host_key, err = ssh.NewSignerFromKey(host_pem)
 		if err != nil {
-			logger.Error("Failed to set private key for ssh!")
+			b0gus_config.Logger.Error("Failed to set private key for ssh!")
 			return
 		}
 		pem_file, err := os.Create(pem_path)
 		if err != nil {
-			logger.WithField("pem_path:", pem_path).
+			b0gus_config.Logger.WithField("pem_path:", pem_path).
 				Error("Failed to create pem file!\n")
 			return
 		}
 		host_pem_bytes, err := x509.MarshalPKCS8PrivateKey(host_pem)
 		if err != nil {
-			logger.Error("Failed to marshal pem bytes!\n")
+			b0gus_config.Logger.Error("Failed to marshal pem bytes!\n")
 			return
 		}
 		host_pem_block := pem.Block{
@@ -70,7 +73,7 @@ func b0gus_ssh_server(conf_path string, config_content *LocalConfig, db *postgre
 		}
 		err = pem.Encode(pem_file, &host_pem_block)
 		if err != nil {
-			logger.Error("Failed to encode pem bytes into pem file!\n")
+			b0gus_config.Logger.Error("Failed to encode pem bytes into pem file!\n")
 			return
 		}
 		pem_file.Close()
@@ -81,9 +84,9 @@ func b0gus_ssh_server(conf_path string, config_content *LocalConfig, db *postgre
 	ssh_server_conf.SSHMaliciousClientHandler(host_key)
 }
 
-type serviceHandler func(conf_path string, config_content *LocalConfig, db *postgres.DB)
+type serviceHandleFunc func(conf_path string, config_content *b0gus_config.LocalConfig, db *pg.DB)
 
-func servicesBrancher(service_name string) serviceHandler {
+func servicesBrancher(service_name string) serviceHandleFunc {
 	// TODO: add branch for different bogus service instead of only SSH server
 	switch service_name {
 	case "ssh":
@@ -93,26 +96,21 @@ func servicesBrancher(service_name string) serviceHandler {
 	case "ftp":
 		fallthrough
 	default:
-		logger.WithField("name", service_name).
+		b0gus_config.Logger.WithField("name", service_name).
 			Fatal("unsupported protocol service was found:")
-		// In fact, Fatal will cease the program by os.exit(1).
+		// In fact, Fatal will cease the program by executing os.exit(1).
 		return nil
 	}
 }
 
 func main() {
-	logrus.SetFormatter(
-		&logrus.TextFormatter{
-			TimestampFormat: time.StampMilli,
-		},
-	)
-	conf_path, err := filepath.Abs(Config_path_as_str)
+	conf_path, err := filepath.Abs(b0gus_config.Config_path_as_str)
 	if err != nil {
-		logger.Info("Failed to get absolute path of config file")
+		b0gus_config.Logger.Info("Failed to get absolute path of config file")
 		return
 	}
-	config_content := TomlConfigReader(conf_path)
-	logger.WithFields(
+	config_content := b0gus_config.TomlConfigReader(conf_path)
+	b0gus_config.Logger.WithFields(
 		logrus.Fields{
 			"config_path":    conf_path,
 			"server_addr":    config_content.ServerConfig.ListenAddr,
@@ -127,7 +125,7 @@ func main() {
 			"admin_name":     config_content.ServerConfig.AdminName,
 		},
 	).Info("Current configuration:\n")
-	// TODO: judge the type of database for correctly usage
+	// TODO: judge the type of database for correct usage
 	// 1. local database running as a service or generating db file for further interaction;
 	// 2. an online distributed database cluster
 
@@ -135,7 +133,7 @@ func main() {
 	if config_content.ServerConfig.HasDatabaseAdmin {
 
 	}
-	db := postgres.Connect(&postgres.Options{
+	db := pg.Connect(&pg.Options{
 		Addr: fmt.Sprintf(
 			"%s:%d",
 			config_content.ServerConfig.DatabaseAddr,
@@ -147,31 +145,31 @@ func main() {
 	})
 	defer db.Close()
 	var (
-		infoDef AttackerInfoDef
-		cmdDef  AttackerCmdDef
+		infoDef b0gus_datatypes.PGattackerInfoDef
+		cmdDef  b0gus_datatypes.PGattackerCmdDef
 	)
 	err = db.Model(&infoDef).
-		CreateTable(&postgres_orm.CreateTableOptions{
+		CreateTable(&pg_orm.CreateTableOptions{
 			IfNotExists:   true,
 			Temp:          false,
 			FKConstraints: false,
 		})
 	if err != nil {
-		logger.WithField("err", err.Error()).
+		b0gus_config.Logger.WithField("err", err.Error()).
 			Error("Failed to create AttackerInfoTable in database due to ")
 		return
 	}
 	err = db.Model(&cmdDef).
-		CreateTable(&postgres_orm.CreateTableOptions{
+		CreateTable(&pg_orm.CreateTableOptions{
 			IfNotExists:   true,
 			Temp:          false,
 			FKConstraints: true,
 		})
 	if err != nil {
-		logger.WithField("err:", err.Error()).
+		b0gus_config.Logger.WithField("err:", err.Error()).
 			Error("Failed to create AttackerCmdTable in database due to ")
 		return
 	}
-	conf_dir_str, _ := filepath.Abs(Config_dir_as_str)
+	conf_dir_str, _ := filepath.Abs(b0gus_config.Config_dir_as_str)
 	servicesBrancher(config_content.ServerConfig.ServiceName)(conf_dir_str, &config_content, db)
 }

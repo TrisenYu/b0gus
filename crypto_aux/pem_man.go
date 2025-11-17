@@ -1,4 +1,4 @@
-package main
+package crypto_aux
 
 import (
 	"crypto/x509"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	b0gus_config "b0gus/configs"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -17,18 +19,18 @@ import (
 func LoadHostPem(pem_path string) (ssh.Signer, error) {
 	pem_fd, err := os.Open(pem_path)
 	if err != nil {
-		logger.WithField("pem_path", pem_path).Error("Failed to open PEM file for SSH host key!\n")
+		b0gus_config.Logger.WithField("pem_path", pem_path).Error("Failed to open PEM file for SSH host key!\n")
 		return nil, err
 	}
 	pem_bytes, err := io.ReadAll(pem_fd)
 	if err != nil {
-		logger.Error("Failed to read PEM file for SSH host key!\n")
+		b0gus_config.Logger.Error("Failed to read PEM file for SSH host key!\n")
 		return nil, err
 	}
 	pem_fd.Close()
 	pem_block, _ := pem.Decode(pem_bytes)
 	if pem_block == nil {
-		logger.Error("Failed to decode PEM block for SSH host key!\n")
+		b0gus_config.Logger.Error("Failed to decode PEM block for SSH host key!\n")
 		return nil, err
 	}
 

@@ -5,6 +5,10 @@
 b0gus
 *.bak
 
+.vscode/
+.idea
+
 configs/*
 !configs/.gitkeep
 !configs/example.toml
+!configs/*.go

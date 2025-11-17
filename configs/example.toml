@@ -17,17 +17,17 @@ empty_shell = true
 # TODO: add more response types later
 response_type = "repeater"
 
-# have not deployed in Distributed database yet
+# have not deployed in distributed database yet
 # leave this field as true at present
 is_local_database = true
 
-# Yet to have a checking/filtering mechnism to determine 
+# yet to have a checking/filtering mechanism to determine 
 # whether database_addr:database_port is requried
 database_name = ""
 database_addr = "localhost"
 database_port = 5432
 
-# this domain is used for different sql like SQLite
+# this domain is used for different sql like SQLite.
 # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
 # explictly given
 database_path = "/home/bot/Projects/SQLite/nasty-ssh-client.db"

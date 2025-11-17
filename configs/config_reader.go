@@ -4,7 +4,7 @@
 // / (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // / Created at 2025/11/15 星期六 20:05:01
 // / Last modified at 2025/11/15 星期六 20:10:19
-package main
+package configs
 
 import (
 	"io"
@@ -19,7 +19,7 @@ const (
 )
 
 type LocalConfig struct {
-	// This field should refer the toml config defined in assets/configs.toml
+	// This field should refer the toml config defined in configs/config.toml
 	ServerConfig struct {
 		ListenAddr        string `toml:"listen_addr"`
 		ListenPort        uint16 `toml:"listen_port"`
@@ -47,20 +47,20 @@ type LocalConfig struct {
 func TomlConfigReader(abs_path string) LocalConfig {
 	file, err := os.Open(abs_path)
 	if err != nil {
-		logger.Fatal(string(err.Error()))
+		Logger.Fatal(string(err.Error()))
 	}
 	defer file.Close()
 	bytes, err := io.ReadAll(file)
 	if err != nil {
-		logger.Fatal(string(err.Error()))
+		Logger.Fatal(string(err.Error()))
 	}
 	if len(bytes) == 0 {
-		logger.Fatal("Empty config file!")
+		Logger.Fatal("Empty config file!")
 	}
 	var curr_config LocalConfig
 	err = toml.Unmarshal(bytes, &curr_config)
 	if err != nil {
-		logger.Fatal(string(err.Error()))
+		Logger.Fatal(string(err.Error()))
 	}
 	return curr_config
 }
