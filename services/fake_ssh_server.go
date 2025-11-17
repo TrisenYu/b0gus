@@ -20,34 +20,13 @@ import (
 // SSH-protoversion-softwareversion SP comments CR LF
 var (
 	sshSoftwareArr = []string{
-		"OpenSSH",
-		"libssh",
-		"libssh2",
-		"billsSSHP",
-		"PuTTY",
-		"paramiko",
-		"FlowSSH",
-		"check_ssh",
+		"OpenSSH", "libssh", "libssh2", "billsSSHP", "PuTTY", "paramiko", "FlowSSH", "check_ssh",
 	}
 	// TODO: fake operating system version in the near future
 	sshOSCommentArr = []string{
-		"Debian-10",
-		"Debian-11",
-		"Ubuntu-18.04",
-		"Ubuntu-20.04",
-		"Ubuntu-22.04",
-		"Fedora-34",
-		"Fedora-35",
-		"Fedora-36",
-		"Alpine-3.14",
-		"Alpine-3.15",
-		"Alpine-3.16",
-		"FreeBSD-12",
-		"FreeBSD-13",
-		"OpenWrt-21.02",
-		"OpenWrt-22.03",
-		"Windows-10",
-		"macOS-10.15",
+		"Debian-10", "Debian-11", "Ubuntu-18.04", "Ubuntu-20.04", "Ubuntu-22.04", "Fedora-34",
+		"Fedora-35", "Fedora-36", "Alpine-3.14", "Alpine-3.15", "Alpine-3.16", "FreeBSD-12",
+		"FreeBSD-13", "OpenWrt-21.02", "OpenWrt-22.03", "Windows-10", "macOS-10.15",
 	}
 )
 
@@ -102,8 +81,8 @@ func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel, client_sig_chan chan s
 
 	select {
 	case sig_str := <-client_sig_chan:
-		// TODO:
-		// control + C: cease current command and return -1
+		// TODO: we should implement those which maintain the most basic operation
+		// control + C: cease current command
 		// control + U: clean buf
 		// control + D: exit
 		// control + A: move cursor to head
@@ -118,35 +97,51 @@ func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel, client_sig_chan chan s
 		// case "W":
 		// default:
 		// }
+		b0gus_config.Logger.Info(sig_str)
 		ssh_chan.Write([]byte(sig_str + "\r\n"))
 	default:
 	}
-	var last_char = ""
+Rewind:
+	last_char := ""
 	for {
 		lena, err := ssh_chan.Read(buf)
 		if err != nil {
 			b0gus_config.Logger.WithField("Err", err).
 				Info("An error happend during interaction with Client")
-			break
+			return
 		}
 		inp := string(buf[:lena])
+		if lena == 0 || inp == "\r" {
+			// empty string or a new line, just keep reading
+			continue
+		} else if inp == "\n" {
+			// we need a new dollar sign for fake interaction
+			if last_char == "\\" {
+				// still in one command, but the prompt should change to `>`
+				last_char = ""
+				ssh_chan.Write([]byte("\n\r>"))
+				payload += " "
+				continue
+			} else {
+				// still need record command and print
+				break
+			}
+		}
+		last_char = inp
 		ssh_chan.Write(buf[:lena])
 		// TODO...
-		if len(inp) == 0 {
-			continue
-		}
-		b0gus_config.Logger.Info(last_char)
+		b0gus_config.Logger.Debug(last_char)
 		payload += inp
 		last_char = inp
 	}
-	// _, ok := term_str[string(payload)]
-	// if ok {
-	// 	ssh_chan.Write([]byte("Exit"))
-	// 	ssh_chan.CloseWrite()
-	// 	return
-	// }
-	ssh_chan.CloseWrite()
-
+	_, ok := term_str[payload]
+	if ok {
+		ssh_chan.Write([]byte("Exit"))
+		ssh_chan.CloseWrite()
+		return
+	}
+	b0gus_config.Logger.Debug(payload)
+	goto Rewind
 	// ssh_chan.Write([]byte(payload + "\r\n$"))
 }
 
@@ -155,7 +150,6 @@ func (s *SSHserverConf) requestsHandler(
 	ssh_chan ssh.Channel,
 	reqs <-chan *ssh.Request,
 ) {
-
 	client_signal_chan := make(chan string, 1)
 	defer close(client_signal_chan)
 	defer ssh_chan.Close()
@@ -237,14 +231,14 @@ func (s *SSHserverConf) ClientConnHandler(
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		return &ssh.Permissions{}, nil
 	}
-	privateKey_fn := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	pubkey_func := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 		return nil, fmt.Errorf("public key authentication is not allowed")
 	}
 
 	ssh_config := &ssh.ServerConfig{
 		ServerVersion:     getRandomSSHVersion(),
 		PasswordCallback:  password_fn,
-		PublicKeyCallback: privateKey_fn,
+		PublicKeyCallback: pubkey_func,
 		NoClientAuth:      true, // so-called honeypot
 	}
 
@@ -291,41 +285,41 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 
 	go s.checkOSsignal()
 	// TODO: not quit after ctrl+C, yet to find bug
-	for {
+still_run:
+	if stop_flag.Load() {
+		return
+	}
+	select {
+	case <-s.shouldTerminate:
+		stop_flag.Store(true)
+		b0gus_config.Logger.Info(
+			"catch an signal requests for shuting down b0gus SSH server.\n",
+		)
+		// close only when receive any termination signal
+		// TODO: wait for all client and close all channels
+		return
+	default:
+		in_conn, err := listener.Accept()
+		if err != nil {
+			b0gus_config.Logger.Error(
+				"Failed to accept incoming connection due to error:\n",
+				err.Error(),
+			)
+			goto still_run
+		}
 		if stop_flag.Load() {
-			break
+			in_conn.Close()
+			return
 		}
 		select {
-		case <-s.shouldTerminate:
-			stop_flag.Store(true)
-			b0gus_config.Logger.Info(
-				"catch an signal requests for shuting down b0gus SSH server.\n",
-			)
-			// close only when receive any termination signal
-			// TODO: wait for all client and close all channels
-			return
+		case s.clientLimitChan <- struct{}{}:
+			go s.ClientConnHandler(in_conn, host_key)
 		default:
-			in_conn, err := listener.Accept()
-			if err != nil {
-				b0gus_config.Logger.Error(
-					"Failed to accept incoming connection due to error:\n",
-					err.Error(),
-				)
-				continue
-			}
-			if stop_flag.Load() {
-				in_conn.Close()
-				return
-			}
-			select {
-			case s.clientLimitChan <- struct{}{}:
-				go s.ClientConnHandler(in_conn, host_key)
-			default:
-				b0gus_config.Logger.Info(
-					"No available slot for new connection at present, shut down connection immediately",
-				)
-				in_conn.Close()
-			}
+			b0gus_config.Logger.Info(
+				"No available slot for new connection at present, shut down connection immediately",
+			)
+			in_conn.Close()
 		}
 	}
+	goto still_run
 }
