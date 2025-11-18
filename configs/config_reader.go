@@ -1,9 +1,9 @@
-// / Last modified at 2025/11/15 星期六 22:24:47
-// / SPDX-LICENSE-IDENTIFIER: GPL2.0
-// /
-// / (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
-// / Created at 2025/11/15 星期六 20:05:01
-// / Last modified at 2025/11/15 星期六 20:10:19
+// Last modified at 2025/11/15 星期六 22:24:47
+// SPDX-LICENSE-IDENTIFIER: GPL2.0
+//
+// (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
+// Created at 2025/11/15 星期六 20:05:01
+// Last modified at 2025/11/15 星期六 20:10:19
 package configs
 
 import (
@@ -21,22 +21,22 @@ const (
 type LocalConfig struct {
 	// This field should refer the toml config defined in configs/config.toml
 	ServerConfig struct {
-		ListenAddr        string `toml:"listen_addr"`
-		ListenPort        uint16 `toml:"listen_port"`
-		ServiceName       string `toml:"service_name"`
-		MaxClientNum      uint32 `toml:"max_client_num"`
-		ClientConnTimeout uint32 `toml:"client_conn_timeout"`
-		PemName           string `toml:"pem_name"`
-		PermitLogin       bool   `toml:"permit_login"`
-		EmptyShell        bool   `toml:"empty_shell"`
-		ResponseType      string `toml:"response_type"`
-		DatabaseName      string `toml:"database_name"`
-		DatabasePath      string `toml:"database_path"`
-		DatabaseAddr      string `toml:"database_addr"`
-		DatabasePort      uint16 `toml:"database_port"`
-		HasDatabaseAdmin  bool   `toml:"has_database_admin"`
-		AdminName         string `toml:"admin_name"`
-		AdminPass         string `toml:"admin_pass"`
+		ListenAddr            string `toml:"listen_addr"`
+		ListenPort            uint16 `toml:"listen_port"`
+		ServiceName           string `toml:"service_name"`
+		MaxClientNum          uint32 `toml:"max_client_num"`
+		ClientConnTimeout     uint32 `toml:"client_conn_timeout"`
+		PemName               string `toml:"pem_name"`
+		PermitLogin           bool   `toml:"permit_login"`
+		EmptyShell            bool   `toml:"empty_shell"`
+		ResponseType          string `toml:"response_type"`
+		DatabaseType          string `toml:"database_type"`
+		DatabaseName          string `toml:"database_name"`
+		DatabasePath          string `toml:"database_path"`
+		DatabaseAddr          string `toml:"database_addr"`
+		DatabasePort          uint16 `toml:"database_port"`
+		DatabaseAdminName     string `toml:"database_admin_name"`
+		DatabaseAdminPassword string `toml:"database_admin_password"`
 	} `toml:"server_config"`
 }
 

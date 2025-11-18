@@ -1,15 +1,11 @@
-// / Last modified at 2025/11/15 星期六 22:22:42
+// Last modified at 2025/11/15 星期六 22:22:42
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
-	"os"
+	"net"
 	"path/filepath"
+	"strings"
 	"time"
 
 	pg "github.com/go-pg/pg/v10"
@@ -43,40 +39,17 @@ func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig
 	pem_path, _ := filepath.Abs(filepath.Join(conf_path, config_content.ServerConfig.PemName))
 	pem_obj, err := b0gus_crypto_aux.LoadHostPem(pem_path)
 	if err != nil {
-		// Consider generate a new host key when PEM file is invalid/corrupted or not exists
-		// TODO: also make this configurable
 		b0gus_config.Logger.WithField("Err", err).Warn("Pem seems to be invalid or unsupported")
-		host_pem, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		host_key, err = b0gus_crypto_aux.CreatePem(pem_path)
 		if err != nil {
-			b0gus_config.Logger.Error("Failed to generate host private key!")
+			b0gus_config.Logger.
+				WithFields(logrus.Fields{
+					"Err":  err,
+					"path": pem_path,
+				}).
+				Error("Unable to create pem")
 			return
 		}
-		host_key, err = ssh.NewSignerFromKey(host_pem)
-		if err != nil {
-			b0gus_config.Logger.Error("Failed to set private key for ssh!")
-			return
-		}
-		pem_file, err := os.Create(pem_path)
-		if err != nil {
-			b0gus_config.Logger.WithField("pem_path:", pem_path).
-				Error("Failed to create pem file!\n")
-			return
-		}
-		host_pem_bytes, err := x509.MarshalPKCS8PrivateKey(host_pem)
-		if err != nil {
-			b0gus_config.Logger.Error("Failed to marshal pem bytes!\n")
-			return
-		}
-		host_pem_block := pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: host_pem_bytes,
-		}
-		err = pem.Encode(pem_file, &host_pem_block)
-		if err != nil {
-			b0gus_config.Logger.Error("Failed to encode pem bytes into pem file!\n")
-			return
-		}
-		pem_file.Close()
 	} else {
 		host_key = pem_obj
 	}
@@ -109,6 +82,7 @@ func main() {
 		b0gus_config.Logger.Info("Failed to get absolute path of config file")
 		return
 	}
+	conf_dir_str, _ := filepath.Abs(b0gus_config.Config_dir_as_str)
 	config_content := b0gus_config.TomlConfigReader(conf_path)
 	b0gus_config.Logger.WithFields(
 		logrus.Fields{
@@ -122,54 +96,60 @@ func main() {
 			"database_addr":  config_content.ServerConfig.DatabaseAddr,
 			"database_port":  config_content.ServerConfig.DatabasePort,
 			"database_name":  config_content.ServerConfig.DatabaseName,
-			"admin_name":     config_content.ServerConfig.AdminName,
+			"admin_name":     config_content.ServerConfig.DatabaseAdminName,
 		},
 	).Info("Current configuration:\n")
-	// TODO: judge the type of database for correct usage
-	// 1. local database running as a service or generating db file for further interaction;
-	// 2. an online distributed database cluster
 
 	// Connect to Database and Create Table
-	if config_content.ServerConfig.HasDatabaseAdmin {
+	switch strings.ToLower(config_content.ServerConfig.DatabaseType) {
+	case "postgresql":
+		// 1. check IP
+		db_addr := config_content.ServerConfig.DatabaseAddr
+		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
+			b0gus_config.Logger.
+				WithField("database addr", db_addr).
+				Fatal("invalid database address was gained from configuration!")
+		}
+		db := pg.Connect(&pg.Options{
+			Addr: fmt.Sprintf(
+				"%s:%d", db_addr,
+				config_content.ServerConfig.DatabasePort,
+			),
+			User:     config_content.ServerConfig.DatabaseAdminName,
+			Password: config_content.ServerConfig.DatabaseAdminPassword,
+			Database: config_content.ServerConfig.DatabaseName,
+		})
+		defer db.Close()
+		err = db.Model(&b0gus_datatypes.PGattackerInfoDef{}).
+			CreateTable(&pg_orm.CreateTableOptions{
+				IfNotExists:   true,
+				Temp:          false,
+				FKConstraints: false,
+			})
+		if err != nil {
+			b0gus_config.Logger.WithField("err", err.Error()).
+				Error("Failed to create AttackerInfoTable in database due to ")
+			return
+		}
+		err = db.Model(&b0gus_datatypes.PGattackerCmdDef{}).
+			CreateTable(&pg_orm.CreateTableOptions{
+				IfNotExists:   true,
+				Temp:          false,
+				FKConstraints: true,
+			})
+		if err != nil {
+			b0gus_config.Logger.WithField("err:", err.Error()).
+				Error("Failed to create AttackerCmdTable in database due to ")
+			return
+		}
+		// TODO: generic abstraction for database handler
+		servicesBrancher(config_content.ServerConfig.ServiceName)(conf_dir_str, &config_content, db)
+	case "sqlite":
+		fallthrough
+	default:
+		b0gus_config.Logger.
+			WithField("database", config_content.ServerConfig.DatabaseType).
+			Fatal("Unknow and unsupported database type was found")
+	}
 
-	}
-	db := pg.Connect(&pg.Options{
-		Addr: fmt.Sprintf(
-			"%s:%d",
-			config_content.ServerConfig.DatabaseAddr,
-			config_content.ServerConfig.DatabasePort,
-		),
-		User:     config_content.ServerConfig.AdminName,
-		Password: config_content.ServerConfig.AdminPass,
-		Database: config_content.ServerConfig.DatabaseName,
-	})
-	defer db.Close()
-	var (
-		infoDef b0gus_datatypes.PGattackerInfoDef
-		cmdDef  b0gus_datatypes.PGattackerCmdDef
-	)
-	err = db.Model(&infoDef).
-		CreateTable(&pg_orm.CreateTableOptions{
-			IfNotExists:   true,
-			Temp:          false,
-			FKConstraints: false,
-		})
-	if err != nil {
-		b0gus_config.Logger.WithField("err", err.Error()).
-			Error("Failed to create AttackerInfoTable in database due to ")
-		return
-	}
-	err = db.Model(&cmdDef).
-		CreateTable(&pg_orm.CreateTableOptions{
-			IfNotExists:   true,
-			Temp:          false,
-			FKConstraints: true,
-		})
-	if err != nil {
-		b0gus_config.Logger.WithField("err:", err.Error()).
-			Error("Failed to create AttackerCmdTable in database due to ")
-		return
-	}
-	conf_dir_str, _ := filepath.Abs(b0gus_config.Config_dir_as_str)
-	servicesBrancher(config_content.ServerConfig.ServiceName)(conf_dir_str, &config_content, db)
 }

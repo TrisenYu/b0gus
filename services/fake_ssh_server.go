@@ -71,35 +71,38 @@ var term_str = map[string]any{
 }
 
 func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel) {
-	// TODO: break until any \n but not one char each time we type
-	// TODO: what if user stop inputing and send a SIGINT?
-	// there should be a corresponding mechanism for message clean
-
-	payload := ""
 	buf := make([]byte, 1)
 	defer ssh_chan.Close()
 Rewind:
-	payload = ""
+	payload := ""
 	last_char := ""
+	prompt_chr := "$ "
 	for {
+		if len(payload) > 2048 {
+			ssh_chan.Write([]byte("\r\nExceed the maximum input limit\r\n"))
+			ssh_chan.CloseWrite()
+			return
+		}
 		lena, err := ssh_chan.Read(buf)
 		if err != nil {
 			b0gus_config.Logger.WithField("Err", err).
 				Info("An error happend during interaction with Client")
 			return
+		} else if lena == 0 {
+			// empty string or a new line, just keep reading
+			b0gus_config.Logger.Info("An empty char")
+			continue
 		}
 		// ctrl+c := \x03
 		inp := string(buf[:lena])
-		if lena == 0 {
-			// empty string or a new line, just keep reading
-			b0gus_config.Logger.Info(inp)
-			continue
-		} else if inp == "\r" {
+		if inp == "\r" {
+			// "\r" has been observed as the new line sign in linux terminal
 			// we need a new dollar sign for fake interaction
 			if last_char == "\\" {
 				// still in one command, but the prompt should change to `>`
 				last_char = ""
-				ssh_chan.Write([]byte("\r\n> "))
+				prompt_chr = "dquote> "
+				ssh_chan.Write([]byte("\r\n" + prompt_chr))
 				continue
 			} else {
 				// still need record command and print
@@ -108,29 +111,54 @@ Rewind:
 		} else if inp == "\x03" {
 			// ctrl + C
 			payload = ""
-			ssh_chan.Write([]byte("\r\n$ "))
+			prompt_chr = "$ "
+			ssh_chan.Write([]byte("\r\n" + prompt_chr))
+			b0gus_config.Logger.Info("CTRL+C")
 			continue
+		} else if inp == "\x08" || inp == "\x7F" {
+			// The ascii code of backspace and delete key, refer to ANSI protocol
+			// simplify the handling logic by forbidden the usage of arrow keys
+			// and other control key representations used for shifting the cursor
+			ssh_chan.Write([]byte("\r\x1b[1001K"))
+			payload_len := len(payload)
+			payload = payload[:max(0, payload_len-1)]
+			if len(payload) == 0 {
+				last_char = ""
+			} else {
+				last_char = string(payload[len(payload)-1])
+			}
+			ssh_chan.Write([]byte(prompt_chr + payload + " \x1b[1D"))
+			continue
+		} else if inp == "\x05" || inp == "\x11" {
+			// ctrl + {E, Q}, treat it as exit/quit signal
+			payload = "exit"
+			break
 		} else if inp == "\x17" {
+			// ctrl + U
+			b0gus_config.Logger.Info("CTRL+U")
 			continue
 		}
+		b0gus_config.Logger.Info(len(inp), []byte(inp))
 		last_char = inp
-		ssh_chan.Write(buf[:lena])
-		if lena == 1 && buf[0] < 0x20 {
-			b0gus_config.Logger.Info("last_char is: " + last_char)
-		}
-		if last_char == "\\" {
+		if buf[0] < 0x20 {
+			b0gus_config.Logger.Info("last_char is: ", []byte(last_char))
+			continue
+		} else if last_char == "\\" && inp != "\\" {
 			continue
 		}
 		payload += inp
+		ssh_chan.Write([]byte(inp))
 	}
 	_, ok := term_str[payload]
 	if ok {
-		ssh_chan.Write([]byte("Exit"))
+		ssh_chan.Write([]byte("\r\nExit\r\n"))
 		ssh_chan.CloseWrite()
 		return
 	}
 	b0gus_config.Logger.Info(payload)
-	ssh_chan.Write([]byte("\r\n" + payload + "\r\n$ "))
+	prompt_chr = "$ "
+	// TODO: Add hook for specific commands output like `uname -a`
+	ssh_chan.Write([]byte("\r\n" + payload + "\r\n" + prompt_chr))
 	goto Rewind
 }
 
@@ -164,10 +192,8 @@ func (s *SSHserverConf) requestsHandler(
 			ssh_chan.Write([]byte(welcomeMsg))
 			s.cmdRepeater(ssh_chan)
 		case "exec":
-			// interacation commands
-			_ = req.Reply(true, nil)
-			ssh_chan.Write([]byte(string(req.Payload[4:]) + "\r\n"))
-			_ = ssh_chan.CloseWrite()
+			// abort this
+			fallthrough
 		default:
 			// reject all other requests
 			_ = req.Reply(false, nil)
@@ -254,7 +280,6 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 	s.signalChan = make(chan os.Signal, 1)
 	s.shouldTerminate = make(chan bool, 1)
 	// signal notification to terminate the ssh server gracefully
-	// TODO: BUT not knowing why the program still hang and not free after sending SIGINT or SIGTERM
 	signal.Notify(s.signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	defer close(s.clientLimitChan)
@@ -265,24 +290,22 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 
 	go func() {
 		sig := <-s.signalChan
-		// stuck here until receive any possible signal
+		// stuck here until receiving any possible signal
 		b0gus_config.Logger.WithField("signal", sig.String()).
 			Warn("Catch an OS signal for terminating b0gus SSH server.\n")
 		stop_flag.Store(true)
 		listener.Close()
 		s.shouldTerminate <- true
 		close(s.shouldTerminate)
+		// close only when receiving any termination signal
 	}()
 
-	// TODO: not quit after ctrl+C, yet to find bug
 still_run:
 	select {
 	case <-s.shouldTerminate:
 		b0gus_config.Logger.Info(
 			"catch an signal requests for shuting down b0gus SSH server.\n",
 		)
-		// close only when receive any termination signal
-		// TODO: wait for all client and close all channels
 		return
 	default:
 		if stop_flag.Load() {
