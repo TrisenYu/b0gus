@@ -1,6 +1,7 @@
 // Last modified at 2025/11/15 星期六 22:22:42
 package main
 
+// PG stands for PostGreSQL
 import (
 	"fmt"
 	"net"
@@ -8,10 +9,13 @@ import (
 	"strings"
 	"time"
 
-	pg "github.com/go-pg/pg/v10"
-	pg_orm "github.com/go-pg/pg/v10/orm"
+	// pg "github.com/go-pg/pg/v10"
+	// pg_orm "github.com/go-pg/pg/v10/orm"
 	logrus "github.com/sirupsen/logrus"
 	ssh "golang.org/x/crypto/ssh"
+	gorm_pg "gorm.io/driver/postgres"
+	gorm_sqlite "gorm.io/driver/sqlite"
+	gorm "gorm.io/gorm"
 
 	b0gus_config "b0gus/configs"
 	b0gus_crypto_aux "b0gus/crypto_aux"
@@ -24,7 +28,7 @@ import (
  * 		   config_content *LocalConfig; pointer to LocalConfig object
  * 		   db *pg.DB; pointer to connected database object
  */
-func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig, db *pg.DB) {
+func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig, db *gorm.DB) {
 	// Fill SSH Server Configuration from config file
 	ssh_server_conf := b0gus_services.SSHserverConf{
 		Addr:              config_content.ServerConfig.ListenAddr,
@@ -57,7 +61,7 @@ func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig
 	ssh_server_conf.SSHMaliciousClientHandler(host_key)
 }
 
-type serviceHandleFunc func(conf_path string, config_content *b0gus_config.LocalConfig, db *pg.DB)
+type serviceHandleFunc func(conf_path string, config_content *b0gus_config.LocalConfig, db *gorm.DB)
 
 func servicesBrancher(service_name string) serviceHandleFunc {
 	// TODO: add branch for different bogus service instead of only SSH server
@@ -99,7 +103,7 @@ func main() {
 			"admin_name":     config_content.ServerConfig.DatabaseAdminName,
 		},
 	).Info("Current configuration:\n")
-
+	var db *gorm.DB = nil
 	// Connect to Database and Create Table
 	switch strings.ToLower(config_content.ServerConfig.DatabaseType) {
 	case "postgresql":
@@ -110,46 +114,38 @@ func main() {
 				WithField("database addr", db_addr).
 				Fatal("invalid database address was gained from configuration!")
 		}
-		db := pg.Connect(&pg.Options{
-			Addr: fmt.Sprintf(
-				"%s:%d", db_addr,
-				config_content.ServerConfig.DatabasePort,
-			),
-			User:     config_content.ServerConfig.DatabaseAdminName,
-			Password: config_content.ServerConfig.DatabaseAdminPassword,
-			Database: config_content.ServerConfig.DatabaseName,
-		})
-		defer db.Close()
-		err = db.Model(&b0gus_datatypes.PGattackerInfoDef{}).
-			CreateTable(&pg_orm.CreateTableOptions{
-				IfNotExists:   true,
-				Temp:          false,
-				FKConstraints: false,
-			})
+		pg_db_config := fmt.Sprintf(
+			"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable ",
+			db_addr, config_content.ServerConfig.DatabasePort,
+			config_content.ServerConfig.DatabaseAdminName,
+			config_content.ServerConfig.DatabaseAdminPassword,
+			config_content.ServerConfig.DatabaseName,
+		) // "TimeZone=Asia/Shanghai"
+
+		db, err = gorm.Open(gorm_pg.Open(pg_db_config), &gorm.Config{})
 		if err != nil {
-			b0gus_config.Logger.WithField("err", err.Error()).
-				Error("Failed to create AttackerInfoTable in database due to ")
+			b0gus_config.Logger.WithField("err:", err).
+				Error("Failed to connect to PostgreSQL due to ")
 			return
 		}
-		err = db.Model(&b0gus_datatypes.PGattackerCmdDef{}).
-			CreateTable(&pg_orm.CreateTableOptions{
-				IfNotExists:   true,
-				Temp:          false,
-				FKConstraints: true,
-			})
-		if err != nil {
-			b0gus_config.Logger.WithField("err:", err.Error()).
-				Error("Failed to create AttackerCmdTable in database due to ")
-			return
-		}
-		// TODO: generic abstraction for database handler
-		servicesBrancher(config_content.ServerConfig.ServiceName)(conf_dir_str, &config_content, db)
 	case "sqlite":
-		fallthrough
+		db, err = gorm.Open(gorm_sqlite.Open(config_content.ServerConfig.DatabasePath), &gorm.Config{})
+		if err != nil {
+			b0gus_config.Logger.WithField("err:", err).
+				Error("Failed to connect to SQLlite due to ")
+			return
+		}
+
 	default:
 		b0gus_config.Logger.
 			WithField("database", config_content.ServerConfig.DatabaseType).
 			Fatal("Unknow and unsupported database type was found")
 	}
+	if db == nil {
+		b0gus_config.Logger.Fatal("Empty database file descriptor")
+	}
 
+	db.AutoMigrate(&b0gus_datatypes.AttackerInfoDef{})
+	db.AutoMigrate(&b0gus_datatypes.AttackerCmdDef{})
+	servicesBrancher(config_content.ServerConfig.ServiceName)(conf_dir_str, &config_content, db)
 }
