@@ -63,14 +63,14 @@ type SSHserverConf struct {
 	ClientConnTimeout time.Duration
 }
 
-var term_str = map[string]int8{
-	"exit": 1,
-	"quit": 1,
-	"EXIT": 1,
-	"QUIT": 1,
+var term_str = map[string]any{
+	"exit": nil,
+	"quit": nil,
+	"EXIT": nil,
+	"QUIT": nil,
 }
 
-func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel, client_sig_chan chan string) {
+func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel) {
 	// TODO: break until any \n but not one char each time we type
 	// TODO: what if user stop inputing and send a SIGINT?
 	// there should be a corresponding mechanism for message clean
@@ -78,30 +78,8 @@ func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel, client_sig_chan chan s
 	payload := ""
 	buf := make([]byte, 1)
 	defer ssh_chan.Close()
-
-	select {
-	case sig_str := <-client_sig_chan:
-		// TODO: we should implement those which maintain the most basic operation
-		// control + C: cease current command
-		// control + U: clean buf
-		// control + D: exit
-		// control + A: move cursor to head
-		// control + shift + c: copy
-		// control + shift + v: paste
-		// control + l: clean all, but this program won't do anything
-		// switch sig_str {
-		// case "C":
-		// case "U":
-		// case "A":
-		// case "L":
-		// case "W":
-		// default:
-		// }
-		b0gus_config.Logger.Info(sig_str)
-		ssh_chan.Write([]byte(sig_str + "\r\n"))
-	default:
-	}
 Rewind:
+	payload = ""
 	last_char := ""
 	for {
 		lena, err := ssh_chan.Read(buf)
@@ -110,29 +88,40 @@ Rewind:
 				Info("An error happend during interaction with Client")
 			return
 		}
+		// ctrl+c := \x03
 		inp := string(buf[:lena])
-		if lena == 0 || inp == "\r" {
+		if lena == 0 {
 			// empty string or a new line, just keep reading
+			b0gus_config.Logger.Info(inp)
 			continue
-		} else if inp == "\n" {
+		} else if inp == "\r" {
 			// we need a new dollar sign for fake interaction
 			if last_char == "\\" {
 				// still in one command, but the prompt should change to `>`
 				last_char = ""
-				ssh_chan.Write([]byte("\n\r>"))
-				payload += " "
+				ssh_chan.Write([]byte("\r\n> "))
 				continue
 			} else {
 				// still need record command and print
 				break
 			}
+		} else if inp == "\x03" {
+			// ctrl + C
+			payload = ""
+			ssh_chan.Write([]byte("\r\n$ "))
+			continue
+		} else if inp == "\x17" {
+			continue
 		}
 		last_char = inp
 		ssh_chan.Write(buf[:lena])
-		// TODO...
-		b0gus_config.Logger.Debug(last_char)
+		if lena == 1 && buf[0] < 0x20 {
+			b0gus_config.Logger.Info("last_char is: " + last_char)
+		}
+		if last_char == "\\" {
+			continue
+		}
 		payload += inp
-		last_char = inp
 	}
 	_, ok := term_str[payload]
 	if ok {
@@ -140,9 +129,9 @@ Rewind:
 		ssh_chan.CloseWrite()
 		return
 	}
-	b0gus_config.Logger.Debug(payload)
+	b0gus_config.Logger.Info(payload)
+	ssh_chan.Write([]byte("\r\n" + payload + "\r\n$ "))
 	goto Rewind
-	// ssh_chan.Write([]byte(payload + "\r\n$"))
 }
 
 func (s *SSHserverConf) requestsHandler(
@@ -155,17 +144,8 @@ func (s *SSHserverConf) requestsHandler(
 	defer ssh_chan.Close()
 
 	for req := range reqs {
+		b0gus_config.Logger.Info("here is the req: ", req.Type)
 		switch req.Type {
-		case "signal":
-			sig := string(req.Payload)
-			_ = req.Reply(true, nil)
-			select {
-			case client_signal_chan <- sig:
-			default:
-				b0gus_config.Logger.Info("invalid signal: ", sig)
-				// invalid signal, won't do anything
-				continue
-			}
 		case "pty-req":
 			// just accept without action
 			fallthrough
@@ -181,26 +161,18 @@ func (s *SSHserverConf) requestsHandler(
 				time.Now().Format(time.ANSIC),
 				ssh_conn.RemoteAddr().String(),
 			)
-			_, _ = ssh_chan.Write([]byte(welcomeMsg))
-			s.cmdRepeater(ssh_chan, client_signal_chan)
+			ssh_chan.Write([]byte(welcomeMsg))
+			s.cmdRepeater(ssh_chan)
 		case "exec":
 			// interacation commands
 			_ = req.Reply(true, nil)
-			_, _ = ssh_chan.Write([]byte(string(req.Payload[4:]) + "\r\n"))
+			ssh_chan.Write([]byte(string(req.Payload[4:]) + "\r\n"))
 			_ = ssh_chan.CloseWrite()
 		default:
 			// reject all other requests
 			_ = req.Reply(false, nil)
 		}
 	}
-}
-
-func (s *SSHserverConf) checkOSsignal() {
-	sig := <-s.signalChan
-	// stuck here until receive any signal
-	b0gus_config.Logger.WithField("signal", sig.String()).
-		Warn("Catch an OS signal for terminating b0gus SSH server.\n")
-	s.shouldTerminate <- true
 }
 
 func (s *SSHserverConf) handle_new_ssh_chan(ssh_conn *ssh.ServerConn, new_chan ssh.NewChannel) {
@@ -227,7 +199,16 @@ func (s *SSHserverConf) ClientConnHandler(
 		<-s.clientLimitChan
 		conn.Close()
 	}()
-	_ = conn.SetDeadline(time.Now().Add(s.ClientConnTimeout))
+	err := conn.SetDeadline(time.Now().Add(s.ClientConnTimeout))
+	if err != nil {
+		b0gus_config.Logger.WithFields(logrus.Fields{
+			"err": err,
+		}).Error("Failed to set timeout for incomming connection")
+		return
+	}
+	b0gus_config.Logger.WithFields(logrus.Fields{
+		"timeout": s.ClientConnTimeout,
+	}).Info("Set")
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		return &ssh.Permissions{}, nil
 	}
@@ -239,7 +220,6 @@ func (s *SSHserverConf) ClientConnHandler(
 		ServerVersion:     getRandomSSHVersion(),
 		PasswordCallback:  password_fn,
 		PublicKeyCallback: pubkey_func,
-		NoClientAuth:      true, // so-called honeypot
 	}
 
 	ssh_config.AddHostKey(host_key)
@@ -255,6 +235,7 @@ func (s *SSHserverConf) ClientConnHandler(
 	}
 	go ssh.DiscardRequests(relay_reqs)
 	for new_chan := range chans {
+
 		go s.handle_new_ssh_chan(ssh_conn, new_chan)
 	}
 }
@@ -278,20 +259,25 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 
 	defer close(s.clientLimitChan)
 	defer close(s.signalChan)
-	defer close(s.shouldTerminate)
 
 	var stop_flag atomic.Bool
 	stop_flag.Store(false)
 
-	go s.checkOSsignal()
+	go func() {
+		sig := <-s.signalChan
+		// stuck here until receive any possible signal
+		b0gus_config.Logger.WithField("signal", sig.String()).
+			Warn("Catch an OS signal for terminating b0gus SSH server.\n")
+		stop_flag.Store(true)
+		listener.Close()
+		s.shouldTerminate <- true
+		close(s.shouldTerminate)
+	}()
+
 	// TODO: not quit after ctrl+C, yet to find bug
 still_run:
-	if stop_flag.Load() {
-		return
-	}
 	select {
 	case <-s.shouldTerminate:
-		stop_flag.Store(true)
 		b0gus_config.Logger.Info(
 			"catch an signal requests for shuting down b0gus SSH server.\n",
 		)
@@ -299,7 +285,11 @@ still_run:
 		// TODO: wait for all client and close all channels
 		return
 	default:
-		in_conn, err := listener.Accept()
+		if stop_flag.Load() {
+			return
+		}
+		b0gus_config.Logger.Info("incomming connection...")
+		in_conn, err := listener.Accept() // seems to stuck at this line
 		if err != nil {
 			b0gus_config.Logger.Error(
 				"Failed to accept incoming connection due to error:\n",
