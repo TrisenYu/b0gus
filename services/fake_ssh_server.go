@@ -65,14 +65,15 @@ func getRandomSSHVersion() string {
 }
 
 type SSHserverConf struct {
-	Addr              string         // b0gus ssh server addr
-	Port              uint16         // b0gus ssh server port number
-	MaxClientNum      uint32         // maximum clients number handling in real time
-	clientLimitChan   chan struct{}  // channel uses for inflow control
-	signalChan        chan os.Signal // OS terminating control signal channel
-	shouldTerminate   chan bool      // once being notisfied, push a `true` to the channel
-	ClientConnTimeout time.Duration  // initiated timeout setting
-	DB_fd             *gorm.DB       // database for writing data
+	Addr               string         // b0gus ssh server addr
+	Port               uint16         // b0gus ssh server port number
+	MaxClientNum       uint32         // maximum clients number handling in real time
+	clientLimitChan    chan struct{}  // channel uses for inflow control
+	signalChan         chan os.Signal // OS terminating control signal channel
+	shouldTerminate    chan bool      // once being notisfied, push a `true` to the channel
+	ClientConnTimeout  time.Duration  // initiated timeout setting
+	DB_fd              *gorm.DB       // database for writing data
+	InspectCommandHook any            // use for replacing command in repeat mode
 }
 
 var (
@@ -192,7 +193,7 @@ Rewind:
 		/* } */
 		if buf[0] < 0x20 {
 			b0gus_config.Logger.Warn(
-				"current control char was not handled: ",
+				"Current control char was not well handled: ",
 				[]byte(last_char),
 			)
 			continue
@@ -307,7 +308,7 @@ func (s *SSHserverConf) ClientConnHandler(
 	)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-		var password_record = datatypes.AttackerPassInfoDef{
+		password_record := datatypes.AttackerPassInfoDef{
 			Password: string(password),
 		}
 		s.DB_fd.Where(password_record).FirstOrCreate(&password_record)
@@ -315,7 +316,7 @@ func (s *SSHserverConf) ClientConnHandler(
 	}
 
 	pubkey_func := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-		var pubkey_record = datatypes.AttackerPubInfoDef{
+		pubkey_record := datatypes.AttackerPubInfoDef{
 			PubKeyFingerprint: crypto_aux.PubKeyDeserialize(key.Marshal()),
 		}
 		s.DB_fd.Where(pubkey_record).FirstOrCreate(&pubkey_record)
@@ -342,7 +343,7 @@ func (s *SSHserverConf) ClientConnHandler(
 	// only can we handle so that the table is writable
 	s.DB_fd.Where(attacker_addr_query_cond).FirstOrCreate(&attacker_addr_query_cond)
 	attacker_port_query_cond.AttackerID = attacker_addr_query_cond.ID
-	s.DB_fd.Where(attacker_addr_query_cond).FirstOrCreate(&attacker_port_query_cond)
+	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
 
 	// reject all relay requests since all clients are untrusted
 	go ssh.DiscardRequests(relay_reqs)
@@ -385,11 +386,11 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 		// close only when receiving any termination signal
 	}()
 
-keep_running:
+keep_spinning:
 	select {
 	case <-s.shouldTerminate:
 		b0gus_config.Logger.Info(
-			"catch an signal requests for shuting down b0gus SSH server.\n",
+			"Catch an signal requests for shuting down b0gus SSH server.\n",
 		)
 		return
 	default:
@@ -403,7 +404,7 @@ keep_running:
 				"Failed to accept incoming connection due to error:\n",
 				err.Error(),
 			)
-			goto keep_running
+			goto keep_spinning
 		}
 		if stop_flag.Load() {
 			in_conn.Close()
@@ -419,5 +420,5 @@ keep_running:
 			in_conn.Close()
 		}
 	}
-	goto keep_running
+	goto keep_spinning
 }

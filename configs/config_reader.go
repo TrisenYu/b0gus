@@ -15,6 +15,7 @@ import (
 
 const (
 	Config_dir_as_str  string = "./configs/"
+	Assets_dir_as_str  string = "./assets/"
 	Config_path_as_str string = Config_dir_as_str + "config.toml"
 )
 

@@ -1,23 +1,32 @@
+############################### NOTICE ###############################
+# This is an example. You should create your own `config.toml` in the
+# same directory so that b0gus can run as what you want it to obey.
+############################### NOTICE ###############################
 [server_config]
-# will store pem in the same `configs` directory
+# Will store pem in the same `configs` directory
 pem_name = "ssh-host.pem"
-listen_addr = "localhost"
-# it might be identical to run this program in port 22 as a bogus ssh server
+
+# It might be identical to run this program in port 22 as a b0gus ssh server
 # but for non-root user, binding to port < 1024 is not allowed
-# so we will use docker in the future
+# so we will use docker in the future to achieve such goal
+listen_addr = "localhost"
 listen_port = 2333
 service_name = "ssh"
 max_client_num = 32
-client_conn_timeout = 180  # in seconds
+client_conn_timeout = 180 # time-unit is second
 
-# only store `ip, username, password, access time and public key` info
+
+# only store `ip, username, password, access time and public key` information
+# TODO: set them as strategy
 permit_login = true
 empty_shell = true
+
 # just repeat what user inputs back to the terminal
-# TODO: add more response types later
+# TODO: add more response types which represent certain strategy 
+# for interacting with malicious clients later
 response_type = "repeater"
 
-# yet to have a checking/filtering mechanism to determine 
+# Yet to have a checking/filtering mechanism to determine 
 # whether database_addr:database_port is requried
 database_type = "PostgreSQL"
 database_name = "postgres"
@@ -29,6 +38,7 @@ database_admin_pass = "YouPassw0rdShouldBeStrongAndInvisible2Others"
 
 # this domain is used for different sql like SQLite.
 # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
-# explictly given
-database_path = "/home/bot/Projects/SQLite/nasty-ssh-client.db"
-
+# explictly given. And default directory is set to `assets`, where stores the database
+# file that **have to be created** manually or by automated scripts
+# Lastly, the corresponding dataname should fill with `sqlite`, `SQLITE`, or `SQLite`
+database_path = "nasty-ssh-client.db"

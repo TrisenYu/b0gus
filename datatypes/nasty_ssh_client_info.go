@@ -17,7 +17,7 @@ type AttackerAddrDef struct {
 type AttackerPortInfoDef struct {
 	// treat IP as a seperate field to decouple port and other infomation
 	APIid         uint64 `gorm:"primaryKey;autoIncrement;not null"`
-	StartTime     string `gorm:"autoUpdateTime:nano;comment: start time that attacker lanuched an attack"`
+	StartTime     int64  `gorm:"autoUpdateTime:nano;comment: start time that attacker lanuched an attack"`
 	ClientVersion string // SSH client version string
 
 	// foreign key definition zone
@@ -35,7 +35,7 @@ type AttackerPassInfoDef struct {
 }
 
 type AttackerPubInfoDef struct {
-	PubKeyFingerprint string // public key fingerprint used by attacker
+	PubKeyFingerprint string `gorm:"unique;not null;index: public_key_idx"` // public key fingerprint used by attacker
 }
 
 type AttackerCmdDef struct {
