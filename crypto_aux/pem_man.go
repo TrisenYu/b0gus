@@ -12,7 +12,7 @@ import (
 
 	b0gus_config "b0gus/configs"
 
-	"golang.org/x/crypto/ssh"
+	ssh "golang.org/x/crypto/ssh"
 )
 
 /*- Load ssh pem from given path
@@ -71,6 +71,9 @@ func LoadHostPem(pem_path string) (ssh.Signer, error) {
 // is invalid/corrupted or not exists
 // TODO: also make this configurable
 func CreatePem(pem_path string) (ssh.Signer, error) {
+	// elliptic.P256, elliptic.P384, elliptic.P521, or RSA2048, RSA4096, RSA8192
+	// yet they can be defined in configuration file, even though
+	// different api needs invoking
 	// rsa.GenerateKey(rand.Reader, 4096)
 	host_pem, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {

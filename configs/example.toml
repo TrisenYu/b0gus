@@ -20,7 +20,7 @@ response_type = "repeater"
 # yet to have a checking/filtering mechanism to determine 
 # whether database_addr:database_port is requried
 database_type = "PostgreSQL"
-database_name = ""
+database_name = "postgres"
 database_addr = "localhost"
 database_port = 5432
 database_admin_name = "postgres"

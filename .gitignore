@@ -12,3 +12,6 @@ configs/*
 !configs/.gitkeep
 !configs/example.toml
 !configs/*.go
+
+assets/*
+!assets/.gitkeep

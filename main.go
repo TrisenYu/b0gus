@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -25,25 +26,37 @@ import (
 
 /*- bogus ssh server.
  * inParam: conf_path string; absolute path to configuration file
- * 		   config_content *LocalConfig; pointer to LocalConfig object
- * 		   db *pg.DB; pointer to connected database object
+ * 		   config_content *b0gus_config.LocalConfig; pointer to LocalConfig object
+ * 		   db *gorm.DB; pointer to connected database object
  */
-func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig, db *gorm.DB) {
+func b0gusSSHserver(
+	conf_path string,
+	config_content *b0gus_config.LocalConfig,
+	db *gorm.DB,
+) {
+	// ssh-related tables
+	db.AutoMigrate(
+		&b0gus_datatypes.AttackerAddrDef{}, &b0gus_datatypes.AttackerPortInfoDef{},
+		&b0gus_datatypes.AttackerPubInfoDef{}, &b0gus_datatypes.AttackerPassInfoDef{},
+		&b0gus_datatypes.AttackerCmdDef{},
+	)
+
+	ssh_conf_obj := config_content.ServerConfig
 	// Fill SSH Server Configuration from config file
 	ssh_server_conf := b0gus_services.SSHserverConf{
-		Addr:              config_content.ServerConfig.ListenAddr,
-		Port:              config_content.ServerConfig.ListenPort,
-		MaxClientNum:      config_content.ServerConfig.MaxClientNum,
-		ClientConnTimeout: time.Duration(config_content.ServerConfig.ClientConnTimeout) * time.Second,
+		Addr:              ssh_conf_obj.ListenAddr,
+		Port:              ssh_conf_obj.ListenPort,
+		MaxClientNum:      ssh_conf_obj.MaxClientNum,
+		ClientConnTimeout: time.Duration(ssh_conf_obj.ClientConnTimeout) * time.Second,
+		DB_fd:             db,
 	}
-	// elliptic.P256, elliptic.P384, or elliptic.P521
-	// yet provide as configuration
-
 	var host_key ssh.Signer
-	pem_path, _ := filepath.Abs(filepath.Join(conf_path, config_content.ServerConfig.PemName))
+	pem_path, _ := filepath.Abs(filepath.Join(conf_path, ssh_conf_obj.PemName))
 	pem_obj, err := b0gus_crypto_aux.LoadHostPem(pem_path)
 	if err != nil {
-		b0gus_config.Logger.WithField("Err", err).Warn("Pem seems to be invalid or unsupported")
+		b0gus_config.Logger.
+			WithField("Err", err).
+			Warn("Pem seems to be invalid or unsupported")
 		host_key, err = b0gus_crypto_aux.CreatePem(pem_path)
 		if err != nil {
 			b0gus_config.Logger.
@@ -61,13 +74,17 @@ func b0gus_ssh_server(conf_path string, config_content *b0gus_config.LocalConfig
 	ssh_server_conf.SSHMaliciousClientHandler(host_key)
 }
 
-type serviceHandleFunc func(conf_path string, config_content *b0gus_config.LocalConfig, db *gorm.DB)
+type serviceHandleFunc func(
+	conf_path string,
+	config_content *b0gus_config.LocalConfig,
+	db *gorm.DB,
+)
 
 func servicesBrancher(service_name string) serviceHandleFunc {
 	// TODO: add branch for different bogus service instead of only SSH server
 	switch service_name {
 	case "ssh":
-		return b0gus_ssh_server
+		return b0gusSSHserver
 	case "telnet":
 		fallthrough
 	case "ftp":
@@ -80,6 +97,9 @@ func servicesBrancher(service_name string) serviceHandleFunc {
 	}
 }
 
+/*- The entry of b0gus
+ * configuration in `./configs/` should be set up before executing
+ */
 func main() {
 	conf_path, err := filepath.Abs(b0gus_config.Config_path_as_str)
 	if err != nil {
@@ -107,7 +127,6 @@ func main() {
 	// Connect to Database and Create Table
 	switch strings.ToLower(config_content.ServerConfig.DatabaseType) {
 	case "postgresql":
-		// 1. check IP
 		db_addr := config_content.ServerConfig.DatabaseAddr
 		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
 			b0gus_config.Logger.
@@ -115,13 +134,13 @@ func main() {
 				Fatal("invalid database address was gained from configuration!")
 		}
 		pg_db_config := fmt.Sprintf(
-			"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable ",
+			"host=%s port=%d user=%s password=%s dbname=%s",
+			// sslmode=disable TimeZone=Asia/Shanghai
 			db_addr, config_content.ServerConfig.DatabasePort,
 			config_content.ServerConfig.DatabaseAdminName,
 			config_content.ServerConfig.DatabaseAdminPassword,
 			config_content.ServerConfig.DatabaseName,
-		) // "TimeZone=Asia/Shanghai"
-
+		)
 		db, err = gorm.Open(gorm_pg.Open(pg_db_config), &gorm.Config{})
 		if err != nil {
 			b0gus_config.Logger.WithField("err:", err).
@@ -129,7 +148,14 @@ func main() {
 			return
 		}
 	case "sqlite":
-		db, err = gorm.Open(gorm_sqlite.Open(config_content.ServerConfig.DatabasePath), &gorm.Config{})
+		sqlite_path := config_content.ServerConfig.DatabasePath
+		if _, err := os.Stat(sqlite_path); err != nil {
+			b0gus_config.Logger.
+				WithField("err:", err).
+				Error("Path of database seems to be invalid, while an error happended")
+			return
+		}
+		db, err = gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
 		if err != nil {
 			b0gus_config.Logger.WithField("err:", err).
 				Error("Failed to connect to SQLlite due to ")
@@ -141,11 +167,12 @@ func main() {
 			WithField("database", config_content.ServerConfig.DatabaseType).
 			Fatal("Unknow and unsupported database type was found")
 	}
+
 	if db == nil {
 		b0gus_config.Logger.Fatal("Empty database file descriptor")
 	}
 
-	db.AutoMigrate(&b0gus_datatypes.AttackerInfoDef{})
-	db.AutoMigrate(&b0gus_datatypes.AttackerCmdDef{})
-	servicesBrancher(config_content.ServerConfig.ServiceName)(conf_dir_str, &config_content, db)
+	servicesBrancher(config_content.ServerConfig.ServiceName)(
+		conf_dir_str, &config_content, db,
+	)
 }
