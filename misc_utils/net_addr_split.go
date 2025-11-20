@@ -28,7 +28,7 @@ func IPaddrSplit(ip_port string) (string, uint16) {
 		}
 	}
 	res_ip = ip_port[:i]
-	res_port, err := strconv.ParseUint(ip_port[min(i+1, len(ip_port)):], 10, 16)
+	res_port, err := strconv.ParseUint(ip_port[min(i+1, len(ip_port)-1):], 10, 16)
 	if err != nil {
 		b0gus_config.Logger.Error(err, i, ip_port)
 		return "", 0

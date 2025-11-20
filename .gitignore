@@ -15,3 +15,5 @@ configs/*
 
 assets/*
 !assets/.gitkeep
+
+__debug_bin*

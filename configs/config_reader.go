@@ -22,26 +22,36 @@ const (
 type LocalConfig struct {
 	// This field should refer the toml config defined in configs/config.toml
 	ServerConfig struct {
-		ListenAddr            string `toml:"listen_addr"`
-		ListenPort            uint16 `toml:"listen_port"`
-		ServiceName           string `toml:"service_name"`
-		MaxClientNum          uint32 `toml:"max_client_num"`
-		ClientConnTimeout     uint32 `toml:"client_conn_timeout"`
-		PemName               string `toml:"pem_name"`
-		PermitLogin           bool   `toml:"permit_login"`
-		EmptyShell            bool   `toml:"empty_shell"`
-		ResponseType          string `toml:"response_type"`
-		DatabaseType          string `toml:"database_type"`
-		DatabaseName          string `toml:"database_name"`
-		DatabasePath          string `toml:"database_path"`
-		DatabaseAddr          string `toml:"database_addr"`
-		DatabasePort          uint16 `toml:"database_port"`
-		DatabaseAdminName     string `toml:"database_admin_name"`
-		DatabaseAdminPassword string `toml:"database_admin_password"`
+		PemName string `toml:"pem_name"`
+
+		SSH struct {
+			ListenAddr        string `toml:"listen_addr"`
+			ListenPort        uint16 `toml:"listen_port"`
+			MaxClientNum      uint32 `toml:"max_client_num"`
+			ClientConnTimeout uint32 `toml:"client_conn_timeout"`
+			PermitLogin       bool   `toml:"permit_login"`
+			EmptyShell        bool   `toml:"empty_shell"`
+			ResponseType      string `toml:"response_type"`
+		} `toml:"ssh"`
+
+		Telnet struct {
+			ListenAddr string `toml:"listen_addr"`
+			ListenPort uint16 `toml:"listen_port"`
+		} `toml:"telnet"`
+
+		Database struct {
+			DatabaseType          string `toml:"database_type"`
+			DatabaseName          string `toml:"database_name"`
+			DatabasePath          string `toml:"database_path"`
+			DatabaseAddr          string `toml:"database_addr"`
+			DatabasePort          uint16 `toml:"database_port"`
+			DatabaseAdminName     string `toml:"database_admin_name"`
+			DatabaseAdminPassword string `toml:"database_admin_password"`
+		} `toml:"database"`
 	} `toml:"server_config"`
 }
 
-/*- Read config from giben toml file
+/*- Read config from given toml file
  * inParam: abs_path, absolute path to configuration
  * Return:  LocalConfig
  */

@@ -120,7 +120,8 @@ func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel) {
 Rewind:
 	payload, last_char, prompt_char := "", "", "$ "
 	for {
-		if len(payload) > 1536 { // 1024 + 512, if long then abort this
+		if len(payload) > 1536 {
+			// 1024 + 512, if longger than this threshold, then abort this
 			ssh_chan.Write([]byte("\r\nExceed the maximum input limit\r\n"))
 			ssh_chan.CloseWrite()
 			return
@@ -211,7 +212,7 @@ Rewind:
 	prompt_char = "$ "
 	// TODO: Add hook for specific commands output like `uname -a`
 	// 0. check if the configuration needs such modification
-	// 1. inspect command, determine whether it matches the request
+	// 1. inspect command, determine whether it matches the request or not
 	// 2. once match, modify the return pattern
 
 	_, err := ssh_chan.Write([]byte("\r\n" + payload + "\r\n" + prompt_char))
@@ -250,7 +251,7 @@ func (s *SSHserverConf) requestsHandler(
 			//	`uint32(rows)#uint32(cols)#uint32(width)#uint32(height)`
 			// `#` means concatenate the information
 			// reject/abort all other requests like "exec"
-			// like scp will send subsystem as its pre-executed request
+			// meanwhile, scp will send subsystem as its pre-executed request
 			b0gus_config.Logger.Info("client try to " + req.Type)
 
 			_ = req.Reply(
@@ -363,7 +364,7 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 	}
 	defer listener.Close()
 
-	// make channels for inflow control and notifying termination
+	// make channels for inflow control and termination determinant
 	s.clientLimitChan = make(chan struct{}, s.MaxClientNum)
 	s.signalChan, s.shouldTerminate = make(chan os.Signal, 1), make(chan bool, 1)
 	// signal notification to terminate the ssh server gracefully
@@ -398,7 +399,7 @@ keep_spinning:
 			return
 		}
 		b0gus_config.Logger.Info("incomming connection...")
-		in_conn, err := listener.Accept() // seems to stuck at this line
+		in_conn, err := listener.Accept()
 		if err != nil {
 			b0gus_config.Logger.Error(
 				"Failed to accept incoming connection due to error:\n",
