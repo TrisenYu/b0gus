@@ -5,7 +5,7 @@
 // Last modified at 2025/11/15 星期六 22:22:34
 package datatypes
 
-// recommands for struct tags:
+// recommends for struct tags:
 // 	1. multiple struct tags in one field should split by space key
 // 	2. read manual and code, or debug multiple times
 
@@ -49,12 +49,12 @@ type PortInfoDef struct {
 	AddrRelated AddrInfoDef `gorm:"foreignKey:AddrID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	/* defined for outer foreign key */
 	CommandRelated          []PortCmdRelated    `gorm:"foreignKey:LoginedID;"`
-	PortRelated             []PortPassRelated   `gorm:"foreignKey:APIid;"`
-	PubKeyRelated           []PortPubKeyRelated `gorm:"foreignKey:APIid;"`
-	SSHClientVersionRelated []PortVerRelated    `gorm:"foreignKey:APIid;"`
+	PassRelated             []PortPassRelated   `gorm:"foreignKey:PassID;"`
+	PubKeyRelated           []PortPubKeyRelated `gorm:"foreignKey:PubKeyID;"`
+	SSHClientVersionRelated []PortVerRelated    `gorm:"foreignKey:SSHClientVersionID;"`
 	/* For minimize the adjusting count of memory */
 	// -=-=-=-=-=-=-=-=-=-=-=-
-	Port uint16 // remote port
+	Port uint16 /* remote port */
 	// -=-=-=-=-=-=-=-=-=-=-=-
 }
 
@@ -106,7 +106,6 @@ type CommandTextDef struct {
 	CommandRelated []PortCmdRelated `gorm:"foreignKey:CmdID"`
 }
 
-// Holy shxt!
 type PortVerRelated struct {
 	APIid                   uint64
 	PortRelated             PortInfoDef `gorm:"foreignKey:APIid;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

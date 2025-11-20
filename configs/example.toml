@@ -19,7 +19,7 @@ pem_name = "host.pem"
     # only store `ip, username, password, access time and public key` information
     # TODO: set them as strategy
     permit_login = true
-    empty_shell = true
+    empty_shell = false # if you type, just enter a new line
     # just repeat what user inputs back to the terminal
     # TODO: add more response types which represent certain strategy 
     # for interacting with malicious clients later

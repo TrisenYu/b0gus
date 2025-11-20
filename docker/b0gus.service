@@ -1,25 +1,15 @@
 [Unit]
 Description=Fake SSH Server (Docker Container)
 Documentation=none
-After=docker.service  # 依赖docker服务，docker启动后再启动本服务
-
-Requires=docker.service  # 若docker未启动，本服务也无法启动
-Wants=network-online.target  # 确保网络就绪后启动
+After=docker.service
+Requires=docker.serviceWants=network-online.target
 
 [Service]
-
-Type=simple  # 简单类型（前台运行，systemd会监控进程）
-# 启动命令：创建并运行容器（--rm：容器停止后自动删除；-p 22:22：端口映射；--name：固定容器名）
-ExecStart=/usr/bin/docker run --rm -p 22:22 --name fake-ssh-container fake-ssh-server:v1
-
-# 停止命令：停止容器
+Type=simpleExecStart=/usr/bin/docker run --rm -p 22:22 --name fake-ssh-container fake-ssh-server:v1
 ExecStop=/usr/bin/docker stop fake-ssh-container
-
-# 重启策略：容器退出时自动重启（按需调整）
 Restart=on-failure
-RestartSec=5s  # 重启间隔5秒
+RestartSec=5s
 
-# 日志输出：重定向到journald（可通过journalctl查看）
 StandardOutput=journal+console
 StandardError=journal+console
 

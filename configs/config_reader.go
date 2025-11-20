@@ -51,7 +51,7 @@ type LocalConfig struct {
 	} `toml:"server_config"`
 }
 
-/*- Read config from given toml file
+/*  Read config from given toml file
  * inParam: abs_path, absolute path to configuration
  * Return:  LocalConfig
  */

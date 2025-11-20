@@ -60,6 +60,7 @@ func b0gusSSHserver(
 		MaxClientNum:      ssh_conf_obj.MaxClientNum,
 		ClientConnTimeout: time.Duration(ssh_conf_obj.ClientConnTimeout) * time.Second,
 		DB_fd:             db,
+		PermitLogin:       ssh_conf_obj.PermitLogin,
 	}
 	var host_key ssh.Signer
 	pem_path, _ := filepath.Abs(filepath.Join(conf_path, bogus_conf.ServerConfig.PemName))
@@ -188,7 +189,7 @@ func servicesBrancher(
 	wait_group.Wait()
 }
 
-/*- The entry of b0gus
+/*  The entry of b0gus
  * configuration in `./configs/` should be set up before executing
  */
 func main() {

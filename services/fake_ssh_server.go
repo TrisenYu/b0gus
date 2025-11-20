@@ -74,6 +74,7 @@ type SSHserverConf struct {
 	DB_fd             *gorm.DB       // database for writing data
 	CommandHook       any            // use for replacing command in repeat mode, if not nil, then this field should be `func(string) string`
 	Port              uint16         // b0gus ssh server port number
+	PermitLogin       bool           // whether reject or not
 }
 
 var (
@@ -353,12 +354,26 @@ func (s *SSHserverConf) ClientConnHandler(
 			Username: conn.User(),
 		}
 		s.DB_fd.Where(username_record).FirstOrCreate(&username_record)
-		var port_name_related = b0gus_datatypes.PortNameRelated{
+		port_name_related := b0gus_datatypes.PortNameRelated{
 			APIid:      attacker_port_query_cond.APIid,
 			UsernameID: username_record.UserID,
 		}
 		s.DB_fd.Where(port_name_related).FirstOrCreate(&port_name_related)
-		// port_related_username := b0gus_datatypes.
+		client_ssh_version := b0gus_datatypes.SSHClientversionStrDef{
+			ClientVersion: string(conn.ClientVersion()),
+		}
+		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
+		port_pass_related := b0gus_datatypes.PortPassRelated{
+			APIid:  attacker_port_query_cond.APIid,
+			PassID: password_record.PasswordID,
+		}
+		s.DB_fd.Where(port_pass_related).FirstOrCreate(&port_pass_related)
+		port_ver_related := b0gus_datatypes.PortVerRelated{
+			APIid:              attacker_port_query_cond.APIid,
+			SSHClientVersionID: client_ssh_version.VerID,
+		}
+		s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
+
 		return &ssh.Permissions{}, nil
 	}
 
@@ -368,11 +383,11 @@ func (s *SSHserverConf) ClientConnHandler(
 			PubKeyFingerprint: b0gus_crypto_aux.PubKeyDeserialize(key.Marshal()),
 		}
 		s.DB_fd.Where(pubkey_record).FirstOrCreate(&pubkey_record)
-		var client_ssh_version = b0gus_datatypes.SSHClientversionStrDef{
+		client_ssh_version := b0gus_datatypes.SSHClientversionStrDef{
 			ClientVersion: string(conn.ClientVersion()),
 		}
 		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
-		var port_ver_related = b0gus_datatypes.PortVerRelated{
+		port_ver_related := b0gus_datatypes.PortVerRelated{
 			APIid:              attacker_port_query_cond.APIid,
 			SSHClientVersionID: client_ssh_version.VerID,
 		}
@@ -384,6 +399,8 @@ func (s *SSHserverConf) ClientConnHandler(
 		ServerVersion:     getRandomSSHVersion(),
 		PasswordCallback:  password_fn,
 		PublicKeyCallback: pubkey_func,
+		NoClientAuth:      false, // request basic authentication
+		MaxAuthTries:      3,
 	}
 
 	ssh_config.AddHostKey(host_key)
@@ -405,6 +422,10 @@ func (s *SSHserverConf) ClientConnHandler(
 	// reject all relay requests since all clients are untrusted
 	go ssh.DiscardRequests(relay_reqs)
 	for new_chan := range chans {
+		if !s.PermitLogin {
+			new_chan.Reject(ssh.Prohibited, "Access Denied")
+			continue
+		}
 		go s.handle_new_ssh_chan(attacker_port_query_cond.APIid, ssh_conn, new_chan)
 	}
 }

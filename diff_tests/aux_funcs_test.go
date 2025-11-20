@@ -1,12 +1,14 @@
 package diff_tests
 
 import (
-	b0gus_config "b0gus/configs"
-	b0gus_misc_utils "b0gus/misc_utils"
 	"fmt"
-
 	"path/filepath"
 	"testing"
+
+	b0gus_config "b0gus/configs"
+	b0gus_misc_utils "b0gus/misc_utils"
+
+	assert "github.com/stretchr/testify/assert"
 )
 
 func TestConfigReader(t *testing.T) {
@@ -32,5 +34,51 @@ func TestConfigReader(t *testing.T) {
 		default:
 			t.Errorf("not matched fields %s were found in `local_conf`", k)
 		}
+	}
+}
+
+func TestIPvXparser(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected struct {
+			Addr string
+			Port uint16
+		}
+	}{
+		{
+			"127.0.0.1:1234",
+			struct {
+				Addr string
+				Port uint16
+			}{"127.0.0.1", 1234},
+		},
+		{
+			"::1:1234",
+			struct {
+				Addr string
+				Port uint16
+			}{"::1", 1234},
+		},
+		{
+			"::1:123444",
+			struct {
+				Addr string
+				Port uint16
+			}{"", 0},
+		},
+		{
+			"3.1.4.5:26",
+			struct {
+				Addr string
+				Port uint16
+			}{"3.1.4.5", 26},
+		},
+	}
+	for idx, tt := range tests {
+		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+			str, num := b0gus_misc_utils.IPaddrSplit(tt.input)
+			assert.Equal(t, tt.expected.Addr, str, "wrong addr")
+			assert.Equal(t, tt.expected.Port, num, "wrong port")
+		})
 	}
 }
