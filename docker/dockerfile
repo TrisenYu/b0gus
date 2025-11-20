@@ -1,0 +1,20 @@
+# TODO, b0gus service like ssh server should be isolated inside a container or a sandbox
+# For mitigation of security issues.
+FROM golang:latest
+
+WORKDIR /bogus_servives
+COPY . .
+
+# install dependancies
+# For Chinese users, it will be better to modify the sources.list
+
+RUN apt update && apt upgrade
+RUN apt get -y postgresql sqlite3
+
+RUN make build
+# configuration for configs
+# here we will create and try to modify the port number
+
+RUN make run
+
+EXPOSE 22

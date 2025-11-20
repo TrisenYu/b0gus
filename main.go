@@ -34,13 +34,22 @@ func b0gusSSHserver(
 	wait_group *sync.WaitGroup,
 ) {
 	defer wait_group.Done()
+
 	// ssh-related tables
 	db.AutoMigrate(
-		&b0gus_datatypes.AttackerAddrDef{},
-		&b0gus_datatypes.AttackerPortInfoDef{},
-		&b0gus_datatypes.AttackerPubInfoDef{},
-		&b0gus_datatypes.AttackerPassInfoDef{},
-		&b0gus_datatypes.AttackerCmdDef{},
+		&b0gus_datatypes.AddrInfoDef{},
+		&b0gus_datatypes.PortInfoDef{},
+		&b0gus_datatypes.UsernameDef{},
+		&b0gus_datatypes.SSHClientversionStrDef{},
+		&b0gus_datatypes.PubInfoDef{},
+		&b0gus_datatypes.PassInfoDef{},
+		&b0gus_datatypes.CommandTextDef{},
+		// relation table
+		&b0gus_datatypes.PortNameRelated{},
+		&b0gus_datatypes.PortVerRelated{},
+		&b0gus_datatypes.PortPubKeyRelated{},
+		&b0gus_datatypes.PortPassRelated{},
+		&b0gus_datatypes.PortCmdRelated{},
 	)
 
 	ssh_conf_obj := bogus_conf.ServerConfig.SSH
@@ -74,6 +83,22 @@ func b0gusSSHserver(
 	}
 
 	ssh_server_conf.SSHMaliciousClientHandler(host_key)
+}
+
+func b0gusTelnetServer(
+	conf_path string,
+	bogus_conf *b0gus_config.LocalConfig,
+	db *gorm.DB,
+	wait_group *sync.WaitGroup,
+) {
+	wait_group.Done()
+}
+
+func checkTelnetConfig(
+	server_conf *b0gus_config.LocalConfig,
+	v map[string]any,
+) bool {
+	return false
 }
 
 func checkSSHconfig(
@@ -125,11 +150,9 @@ func servicesBrancher(
 	conf_mapper := b0gus_misc_utils.TurnStruct2Map(*server_conf)
 	if conf_mapper == nil {
 		b0gus_config.Logger.
-			Fatal("Unable to reflect config to map[string]any!")
+			Fatal("Unable to reflect config to `map[string]any`!")
 	}
 	server_conf_mapper := conf_mapper["ServerConfig"]
-
-	wait_group.Add(1)
 
 	// we can run go routine in this `for loop`
 	for k, v := range server_conf_mapper.(map[string]any) {
@@ -141,30 +164,35 @@ func servicesBrancher(
 		case "SSH":
 			flag := checkSSHconfig(server_conf, v.(map[string]any))
 			if !flag {
-				return
+				continue
 			}
+			wait_group.Add(1)
 			// run given service in different go routine if the necessary fields are not empty
 			go b0gusSSHserver(conf_path, server_conf, db, wait_group)
-			wait_group.Wait()
 			// Understanding how `wait_group.Go()` work
 		case "Telnet":
 			b0gus_config.Logger.Warn("Yet to implement b0gus telnet shell!")
+			if !checkTelnetConfig(server_conf, v.(map[string]any)) {
+				continue
+			}
+			wait_group.Add(1)
+			go b0gusTelnetServer(conf_path, server_conf, db, wait_group)
 		default:
 			b0gus_config.Logger.
-				Fatal("Unable to reflect config to map[string]any!")
+				Fatal("unknown field in configuration")
 				// In fact, Fatal will cease the program by executing os.exit(1).
 			return
 		}
 	}
-	// TODO: wait for all child routine
 
+	wait_group.Wait()
 }
 
 /*- The entry of b0gus
  * configuration in `./configs/` should be set up before executing
  */
 func main() {
-	// TODO: neccessary executable binary files/dependencies check
+	// TODO: neccessary executable binary files/dependencies imediate check inside b0gus
 	conf_path, err := filepath.Abs(b0gus_config.Config_path_as_str)
 	if err != nil {
 		b0gus_config.Logger.Info("Failed to get absolute path of config file")
@@ -179,7 +207,11 @@ func main() {
 			"telnet_server_conf": bogus_conf.ServerConfig.Telnet,
 		},
 	).Info("Current configuration:\n")
-	var db *gorm.DB = nil
+
+	var (
+		db     *gorm.DB = nil
+		db_str string   = ""
+	)
 
 	// **Connect** to Database and Create Table
 	switch strings.ToLower(bogus_conf.ServerConfig.Database.DatabaseType) {
@@ -198,22 +230,15 @@ func main() {
 			bogus_conf.ServerConfig.Database.DatabaseName,
 		)
 		db, err = gorm.Open(gorm_pg.Open(pg_db_config), &gorm.Config{})
-		if err != nil {
-			b0gus_config.Logger.WithField("err:", err).
-				Error("Failed to connect to PostgreSQL due to ")
-			return
-		}
+		db_str = "postgresql"
+
 	case "sqlite":
 		abs_assets_dir_path, _ := filepath.Abs(b0gus_config.Assets_dir_as_str)
 		sqlite_path := bogus_conf.ServerConfig.Database.DatabasePath
 		sqlite_path = filepath.Join(abs_assets_dir_path, sqlite_path)
 		b0gus_config.Logger.Info(sqlite_path)
 		db, err = gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
-		if err != nil {
-			b0gus_config.Logger.WithField("err:", err).
-				Error("Failed to connect to SQLlite due to ")
-			return
-		}
+		db_str = "sqlite"
 
 	default:
 		b0gus_config.Logger.
@@ -224,9 +249,16 @@ func main() {
 			"Unknown and unsupported database type was found, only support PostgreSQL and SQLite at present...",
 		)
 	}
-
-	if db == nil {
-		b0gus_config.Logger.Fatal("Empty database file descriptor")
+	if err != nil {
+		b0gus_config.Logger.Errorf(
+			"Failed to connect to %s due to %s",
+			db_str, err.Error(),
+		)
+		return
+	} else if db == nil {
+		b0gus_config.Logger.Fatal(
+			"Empty database file descriptor",
+		)
 	}
 	var wait_group sync.WaitGroup
 	servicesBrancher(conf_dir_str, &bogus_conf, db, &wait_group)

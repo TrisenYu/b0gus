@@ -15,9 +15,9 @@ import (
 	gorm "gorm.io/gorm"
 
 	b0gus_config "b0gus/configs"
-	crypto_aux "b0gus/crypto_aux"
-	datatypes "b0gus/datatypes"
-	misc_utils "b0gus/misc_utils"
+	b0gus_crypto_aux "b0gus/crypto_aux"
+	b0gus_datatypes "b0gus/datatypes"
+	b0gus_misc_utils "b0gus/misc_utils"
 )
 
 // https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
@@ -65,15 +65,15 @@ func getRandomSSHVersion() string {
 }
 
 type SSHserverConf struct {
-	Addr               string         // b0gus ssh server addr
-	Port               uint16         // b0gus ssh server port number
-	MaxClientNum       uint32         // maximum clients number handling in real time
-	clientLimitChan    chan struct{}  // channel uses for inflow control
-	signalChan         chan os.Signal // OS terminating control signal channel
-	shouldTerminate    chan bool      // once being notisfied, push a `true` to the channel
-	ClientConnTimeout  time.Duration  // initiated timeout setting
-	DB_fd              *gorm.DB       // database for writing data
-	InspectCommandHook any            // use for replacing command in repeat mode
+	Addr              string         // b0gus ssh server addr
+	MaxClientNum      uint32         // maximum clients number handling in real time
+	clientLimitChan   chan struct{}  // channel uses for inflow control
+	signalChan        chan os.Signal // OS terminating control signal channel
+	shouldTerminate   chan bool      // once being notisfied, push a `true` to the channel
+	ClientConnTimeout time.Duration  // initiated timeout setting
+	DB_fd             *gorm.DB       // database for writing data
+	CommandHook       any            // use for replacing command in repeat mode, if not nil, then this field should be `func(string) string`
+	Port              uint16         // b0gus ssh server port number
 }
 
 var (
@@ -97,6 +97,7 @@ var (
 		"\x0a": "J", // ctrl+j
 		"\x0b": "K", // ctrl+k
 		"\x0c": "L", // ctrl+l
+		"\x0d": "M", // ctrl+m
 		"\x0e": "N", // ctrl+n
 		"\x0f": "O", // ctrl+o
 		"\x10": "P", // ctrl+p
@@ -114,110 +115,142 @@ var (
 	}
 )
 
-func (s *SSHserverConf) cmdRepeater(ssh_chan ssh.Channel) {
+func (s *SSHserverConf) cmdRepeater(
+	api_id uint64,
+	ssh_chan ssh.Channel,
+) {
 	buf := make([]byte, 1)
 	defer ssh_chan.Close()
-Rewind:
+
+	// Do not try to identify what I am doing
+	// 2-nested while True loop, but use label and goto for less ident
+rewind:
 	payload, last_char, prompt_char := "", "", "$ "
-	for {
-		if len(payload) > 1536 {
-			// 1024 + 512, if longger than this threshold, then abort this
-			ssh_chan.Write([]byte("\r\nExceed the maximum input limit\r\n"))
-			ssh_chan.CloseWrite()
-			return
-		}
-		lena, err := ssh_chan.Read(buf)
-		if err != nil {
-			b0gus_config.Logger.WithField("Err", err).
-				Info("An error happend during interaction with Client")
-			return
-		} else if lena == 0 {
-			// empty string or a new line, just keep reading
-			b0gus_config.Logger.Info("An empty char")
-			continue
-		}
-		// ctrl+c := \x03
-		inp := string(buf[:lena])
-		if inp == "\r" {
-			// "\r" has been observed as the new line sign in linux terminal
-			// we need a new dollar sign for fake interaction
-			if last_char == "\\" {
-				// still in one command, but the prompt should change to `dquote>`
-				last_char = ""
-				prompt_char = "dquote> "
-				ssh_chan.Write([]byte("\r\n" + prompt_char))
-				continue
-			} else { // still need record command and print
-				break
-			}
-		} else if inp == "\x03" { // ctrl + C
-			payload, prompt_char = "", "$ "
-			ssh_chan.Write([]byte("\r\n" + prompt_char))
-			continue
-		} else if inp == "\x08" || inp == "\x7F" {
-			// The ascii code of `backspace` and `delete` key, refer to ANSI protocol
-			// simplify the handling logic by forbidden the usage of arrow keys
-			// and other control key representations used for shifting the cursor
-			ssh_chan.Write([]byte("\r\x1b[1001K"))
-			payload = payload[:max(0, len(payload)-1)]
-			if len(payload) == 0 {
-				last_char = ""
-			} else {
-				last_char = string(payload[len(payload)-1])
-			}
-			ssh_chan.Write([]byte(prompt_char + payload + " \x1b[1D"))
-			continue
-		} else if inp == "\x09" {
-			// tab key
-			payload += " "
-			ssh_chan.Write([]byte("	"))
-			continue
-		} else if inp == "\x05" || inp == "\x11" {
-			// ctrl + {E, Q}, treat it as exit/quit signal
-			payload = "exit"
-			break
-		} else if char, ok := ctrl_seq[inp]; ok {
-			b0gus_config.Logger.Warn("ctrl+" + char)
-			continue
-		} else if inp == "\\" {
-			if last_char == "\\" {
-				payload += "\\"
-				last_char = ""
-			} else {
-				last_char = "\\"
-			}
-			ssh_chan.Write([]byte("\\"))
-			continue
-		}
-		/* else { */
-		last_char = inp
-		/* } */
-		if buf[0] < 0x20 {
-			b0gus_config.Logger.Warn(
-				"Current control char was not well handled: ",
-				[]byte(last_char),
-			)
-			continue
-		}
-		payload += inp
-		ssh_chan.Write([]byte(inp))
+
+inner_loop:
+	if len(payload) > 256 {
+		// 256, if longger than this threshold, then abort this
+		ssh_chan.Write([]byte("\r\nExceed the maximum input limit\r\n"))
+		ssh_chan.CloseWrite()
+		return
 	}
+	lena, err := ssh_chan.Read(buf)
+	if err != nil {
+		b0gus_config.Logger.Error(err)
+		return
+	} else if lena == 0 {
+		// empty string or a new line, just keep reading
+		// b0gus_config.Logger.Info("An empty char")
+		goto inner_loop
+	}
+
+	// ctrl+c := \x03
+	inp := string(buf[:lena])
+	if inp == "\r" {
+		// "\r" has been observed as the new line sign in linux terminal
+		// we need a new dollar sign for fake interaction
+		if last_char == "\\" {
+			// still in one command, but the prompt should change to `dquote>`
+			last_char = ""
+			prompt_char = "dquote> "
+			ssh_chan.Write([]byte("\r\n" + prompt_char))
+			goto inner_loop
+
+		}
+		// break and record command
+		goto jump_out
+
+	} else if inp == "\x03" { // ctrl + C
+		payload, last_char, prompt_char = "", "", "$ "
+		ssh_chan.Write([]byte("\r\n" + prompt_char))
+		goto inner_loop
+
+	} else if inp == "\x08" || inp == "\x7F" {
+		// The ascii code of `backspace` and `delete` key, refer to ANSI protocol
+		// simplify the handling logic by forbidden the usage of arrow keys
+		// and other control key representations used for shifting the cursor
+		ssh_chan.Write([]byte("\r\x1b[1001K"))
+		payload = payload[:max(0, len(payload)-1)]
+		if len(payload) == 0 {
+			last_char = ""
+		} else {
+			last_char = string(payload[len(payload)-1])
+		}
+		ssh_chan.Write([]byte(prompt_char + payload + " \x1b[1D"))
+		goto inner_loop
+
+	} else if inp == "\x09" {
+		// tab key
+		payload += " "
+		ssh_chan.Write([]byte("	"))
+		goto inner_loop
+
+	} else if inp == "\x05" || inp == "\x11" {
+		// ctrl + {E, Q}, treat it as exit/quit signal
+		last_char, payload = "", "exit"
+		goto jump_out
+
+	} else if char, ok := ctrl_seq[inp]; ok {
+		b0gus_config.Logger.Warn("ctrl+" + char)
+		goto inner_loop
+
+	} else if inp == "\\" {
+		if last_char == "\\" {
+			payload += "\\"
+			last_char = ""
+		} else {
+			last_char = "\\"
+		}
+		ssh_chan.Write([]byte("\\"))
+		goto inner_loop
+
+	}
+	/* else { */
+	last_char = inp
+	/* } */
+	if buf[0] < 0x20 {
+		b0gus_config.Logger.Warn(
+			"Current control char was not well handled: ",
+			[]byte(last_char),
+		)
+		goto inner_loop
+	}
+	payload += inp
+	ssh_chan.Write([]byte(inp))
+	goto inner_loop
+
+jump_out:
 	_, ok := term_str[payload]
 	if ok {
 		ssh_chan.Write([]byte("\r\nExit\r\n"))
 		ssh_chan.CloseWrite()
 		return
 	}
-	b0gus_config.Logger.Info(payload)
-	prompt_char = "$ "
-	// TODO: Add hook for specific commands output like `uname -a`
-	// 0. check if the configuration needs such modification
-	// 1. inspect command, determine whether it matches the request or not
-	// 2. once match, modify the return pattern
+	go func() {
+		cmd_text_record := b0gus_datatypes.CommandTextDef{
+			CMD: payload,
+		}
+		s.DB_fd.Where(cmd_text_record).FirstOrCreate(&cmd_text_record)
 
-	_, err := ssh_chan.Write([]byte("\r\n" + payload + "\r\n" + prompt_char))
+		cmd_record := b0gus_datatypes.PortCmdRelated{
+			LoginedID: api_id,
+			CmdID:     cmd_text_record.CmdID,
+		}
+		s.DB_fd.Where(cmd_record).FirstOrCreate(&cmd_record)
+	}()
+
+	prompt_char = "$ "
+	/* b0gus_config.Logger.Info(payload) */
+	// Add hook for specific commands output like `uname -a`
+	// 		0. check if the configuration needs such modification
+	// 		1. inspect command, determine whether it matches the request or not
+	// 		2. once match, modify the return pattern
+	if s.CommandHook != nil {
+		payload = s.CommandHook.(func(string) string)(payload)
+	}
+	_, err = ssh_chan.Write([]byte("\r\n" + payload + "\r\n" + prompt_char))
 	if err == nil {
-		goto Rewind
+		goto rewind
 	}
 	b0gus_config.Logger.
 		WithError(err).
@@ -225,6 +258,7 @@ Rewind:
 }
 
 func (s *SSHserverConf) requestsHandler(
+	api_id uint64,
 	ssh_conn *ssh.ServerConn,
 	ssh_chan ssh.Channel,
 	reqs <-chan *ssh.Request,
@@ -233,6 +267,7 @@ func (s *SSHserverConf) requestsHandler(
 	defer close(client_signal_chan)
 	defer ssh_chan.Close()
 
+	// TODO: implement different strategies for incomming network flows
 	for req := range reqs {
 		switch req.Type {
 		case "shell":
@@ -244,7 +279,7 @@ func (s *SSHserverConf) requestsHandler(
 				ssh_conn.RemoteAddr().String(),
 			)
 			ssh_chan.Write([]byte(welcomeMsg))
-			s.cmdRepeater(ssh_chan)
+			s.cmdRepeater(api_id, ssh_chan)
 		default:
 			// just accept pty-req and window-change without any action
 			// window-change payload format:
@@ -252,8 +287,7 @@ func (s *SSHserverConf) requestsHandler(
 			// `#` means concatenate the information
 			// reject/abort all other requests like "exec"
 			// meanwhile, scp will send subsystem as its pre-executed request
-			b0gus_config.Logger.Info("client try to " + req.Type)
-
+			// b0gus_config.Logger.Info("client try to " + req.Type)
 			_ = req.Reply(
 				req.Type == "pty-req" || req.Type == "window-change",
 				nil,
@@ -263,6 +297,7 @@ func (s *SSHserverConf) requestsHandler(
 }
 
 func (s *SSHserverConf) handle_new_ssh_chan(
+	api_id uint64,
 	ssh_conn *ssh.ServerConn,
 	new_chan ssh.NewChannel,
 ) {
@@ -281,7 +316,7 @@ func (s *SSHserverConf) handle_new_ssh_chan(
 		}).Error("Unable to accept channel for ")
 		return
 	}
-	s.requestsHandler(ssh_conn, ssh_chan, reqs)
+	s.requestsHandler(api_id, ssh_conn, ssh_chan, reqs)
 }
 
 func (s *SSHserverConf) ClientConnHandler(
@@ -302,25 +337,46 @@ func (s *SSHserverConf) ClientConnHandler(
 	b0gus_config.Logger.WithFields(logrus.Fields{
 		"timeout": s.ClientConnTimeout,
 	}).Info("Set")
-	ip, port := misc_utils.IPaddrSplit(conn.RemoteAddr().String())
+	ip, port := b0gus_misc_utils.IPaddrSplit(conn.RemoteAddr().String())
 	var (
-		attacker_addr_query_cond = datatypes.AttackerAddrDef{IP: ip}
-		attacker_port_query_cond = datatypes.AttackerPortInfoDef{Port: port}
+		attacker_addr_query_cond = b0gus_datatypes.AddrInfoDef{IP: ip}
+		attacker_port_query_cond = b0gus_datatypes.PortInfoDef{Port: port}
 	)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-		password_record := datatypes.AttackerPassInfoDef{
+		// Record password in this function
+		password_record := b0gus_datatypes.PassInfoDef{
 			Password: string(password),
 		}
 		s.DB_fd.Where(password_record).FirstOrCreate(&password_record)
+		username_record := b0gus_datatypes.UsernameDef{
+			Username: conn.User(),
+		}
+		s.DB_fd.Where(username_record).FirstOrCreate(&username_record)
+		var port_name_related = b0gus_datatypes.PortNameRelated{
+			APIid:      attacker_port_query_cond.APIid,
+			UsernameID: username_record.UserID,
+		}
+		s.DB_fd.Where(port_name_related).FirstOrCreate(&port_name_related)
+		// port_related_username := b0gus_datatypes.
 		return &ssh.Permissions{}, nil
 	}
 
 	pubkey_func := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-		pubkey_record := datatypes.AttackerPubInfoDef{
-			PubKeyFingerprint: crypto_aux.PubKeyDeserialize(key.Marshal()),
+		// Record public key in this function
+		pubkey_record := b0gus_datatypes.PubInfoDef{
+			PubKeyFingerprint: b0gus_crypto_aux.PubKeyDeserialize(key.Marshal()),
 		}
 		s.DB_fd.Where(pubkey_record).FirstOrCreate(&pubkey_record)
+		var client_ssh_version = b0gus_datatypes.SSHClientversionStrDef{
+			ClientVersion: string(conn.ClientVersion()),
+		}
+		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
+		var port_ver_related = b0gus_datatypes.PortVerRelated{
+			APIid:              attacker_port_query_cond.APIid,
+			SSHClientVersionID: client_ssh_version.VerID,
+		}
+		s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
 		return nil, fmt.Errorf("public key authentication is not allowed")
 	}
 
@@ -343,13 +399,13 @@ func (s *SSHserverConf) ClientConnHandler(
 	}
 	// only can we handle so that the table is writable
 	s.DB_fd.Where(attacker_addr_query_cond).FirstOrCreate(&attacker_addr_query_cond)
-	attacker_port_query_cond.AttackerID = attacker_addr_query_cond.ID
+	attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
 	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
 
 	// reject all relay requests since all clients are untrusted
 	go ssh.DiscardRequests(relay_reqs)
 	for new_chan := range chans {
-		go s.handle_new_ssh_chan(ssh_conn, new_chan)
+		go s.handle_new_ssh_chan(attacker_port_query_cond.APIid, ssh_conn, new_chan)
 	}
 }
 
@@ -369,7 +425,6 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 	s.signalChan, s.shouldTerminate = make(chan os.Signal, 1), make(chan bool, 1)
 	// signal notification to terminate the ssh server gracefully
 	signal.Notify(s.signalChan, syscall.SIGINT, syscall.SIGTERM)
-
 	defer close(s.clientLimitChan)
 	defer close(s.signalChan)
 
@@ -390,7 +445,7 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 keep_spinning:
 	select {
 	case <-s.shouldTerminate:
-		b0gus_config.Logger.Info(
+		b0gus_config.Logger.Warn(
 			"Catch an signal requests for shuting down b0gus SSH server.\n",
 		)
 		return
@@ -398,7 +453,7 @@ keep_spinning:
 		if stop_flag.Load() {
 			return
 		}
-		b0gus_config.Logger.Info("incomming connection...")
+		// b0gus_config.Logger.Info("incomming connection...")
 		in_conn, err := listener.Accept()
 		if err != nil {
 			b0gus_config.Logger.Error(
@@ -415,7 +470,7 @@ keep_spinning:
 		case s.clientLimitChan <- struct{}{}:
 			go s.ClientConnHandler(in_conn, host_key)
 		default:
-			b0gus_config.Logger.Info(
+			b0gus_config.Logger.Warn(
 				"No available slot for new connection at present, shut down connection immediately",
 			)
 			in_conn.Close()
