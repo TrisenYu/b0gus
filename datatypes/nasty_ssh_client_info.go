@@ -49,9 +49,9 @@ type PortInfoDef struct {
 	AddrRelated AddrInfoDef `gorm:"foreignKey:AddrID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	/* defined for outer foreign key */
 	CommandRelated          []PortCmdRelated    `gorm:"foreignKey:LoginedID;"`
-	PassRelated             []PortPassRelated   `gorm:"foreignKey:PassID;"`
-	PubKeyRelated           []PortPubKeyRelated `gorm:"foreignKey:PubKeyID;"`
-	SSHClientVersionRelated []PortVerRelated    `gorm:"foreignKey:SSHClientVersionID;"`
+	PassRelated             []PortPassRelated   `gorm:"foreignKey:LoginedID;"`
+	PubKeyRelated           []PortPubKeyRelated `gorm:"foreignKey:LoginedID;"`
+	SSHClientVersionRelated []PortVerRelated    `gorm:"foreignKey:LoginedID;"`
 	/* For minimize the adjusting count of memory */
 	// -=-=-=-=-=-=-=-=-=-=-=-
 	Port uint16 /* remote port */
@@ -96,49 +96,49 @@ type PubInfoDef struct {
 	FirstRecordTime int64 `gorm:"autoCreateTime:nano"`
 	UpdatedTime     int64 `gorm:"autoUpdateTime:nano"`
 	/* defined for outer foreign key */
-	PortRelated []PortPubKeyRelated `gorm:"foreignKey:PubKeyID;"`
+	PortRelated []PortPubKeyRelated `gorm:"foreignKey:PubID;"`
 }
 
 type CommandTextDef struct {
 	CmdID uint64 `gorm:"primaryKey;autoIncrement;comment: Command ID"`
 	CMD   string `gorm:"unique;not null;"`
 	/* defined for outer foreign key */
-	CommandRelated []PortCmdRelated `gorm:"foreignKey:CmdID"`
+	CommandRelated []PortCmdRelated `gorm:"foreignKey:CMDid"`
 }
 
 type PortVerRelated struct {
-	APIid                   uint64
-	PortRelated             PortInfoDef `gorm:"foreignKey:APIid;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	LoginedID               uint64
+	PortRelated             PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	SSHClientVersionID      uint64
 	SSHClientVersionRelated SSHClientversionStrDef `gorm:"foreignKey:SSHClientVersionID;references:VerID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortNameRelated struct {
-	APIid       uint64
-	PortRelated PortInfoDef `gorm:"foreignKey:APIid;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	LoginedID   uint64
+	PortRelated PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	UsernameID  uint64
 	NameRelated UsernameDef `gorm:"foreignKey:UsernameID;references:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortPassRelated struct {
-	APIid       uint64
-	PortRelated PortInfoDef `gorm:"foreignKey:APIid;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	LoginedID   uint64
+	PortRelated PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	PassID      uint64
 	PassRelated PassInfoDef `gorm:"foreignKey:PassID;references:PasswordID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortPubKeyRelated struct {
-	APIid         uint64
-	PortRelated   PortInfoDef `gorm:"foreignKey:APIid;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	PubKeyID      uint64
-	PubKeyRelated PubInfoDef `gorm:"foreignKey:PubKeyID;references:PubKeyID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	LoginedID     uint64
+	PortRelated   PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	PubID         uint64
+	PubKeyRelated PubInfoDef `gorm:"foreignKey:PubID;references:PubKeyID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortCmdRelated struct {
 	RequestTime int64 `gorm:"autoUpdateTime:nano;comment: Time that requests for executing command"`
 	/* foreign key definition zone */
-	CmdID          uint64
-	CommandRelated CommandTextDef `gorm:"primaryKey;foreignKey:CmdID;references:CmdID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	CMDid          uint64
+	CommandRelated CommandTextDef `gorm:"primaryKey;foreignKey:CMDid;references:CmdID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	LoginedID      uint64
 	PortRelated    PortInfoDef `gorm:"primaryKey;foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }

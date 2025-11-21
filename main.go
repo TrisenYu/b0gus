@@ -36,7 +36,7 @@ func b0gusSSHserver(
 	defer wait_group.Done()
 
 	// ssh-related tables
-	db.AutoMigrate(
+	err := db.AutoMigrate(
 		&b0gus_datatypes.AddrInfoDef{},
 		&b0gus_datatypes.PortInfoDef{},
 		&b0gus_datatypes.UsernameDef{},
@@ -44,14 +44,16 @@ func b0gusSSHserver(
 		&b0gus_datatypes.PubInfoDef{},
 		&b0gus_datatypes.PassInfoDef{},
 		&b0gus_datatypes.CommandTextDef{},
-		// relation table
+		// relation tables
 		&b0gus_datatypes.PortNameRelated{},
 		&b0gus_datatypes.PortVerRelated{},
 		&b0gus_datatypes.PortPubKeyRelated{},
 		&b0gus_datatypes.PortPassRelated{},
 		&b0gus_datatypes.PortCmdRelated{},
 	)
-
+	if err != nil {
+		b0gus_config.Logger.Error(err)
+	}
 	ssh_conf_obj := bogus_conf.ServerConfig.SSH
 	// Fill SSH Server Configuration with definitions in config file
 	ssh_server_conf := b0gus_services.SSHserverConf{
@@ -224,7 +226,7 @@ func main() {
 				Fatal("Invalid database address was gained from configuration!")
 		}
 		pg_db_config := fmt.Sprintf(
-			"host=%s port=%d user=%s password=%s dbname=%s",
+			"host=%s port=%d user=%s password=%s dbname=%s search_path=public",
 			db_addr, bogus_conf.ServerConfig.Database.DatabasePort,
 			bogus_conf.ServerConfig.Database.DatabaseAdminName,
 			bogus_conf.ServerConfig.Database.DatabaseAdminPassword,

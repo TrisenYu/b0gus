@@ -235,7 +235,7 @@ jump_out:
 
 		cmd_record := b0gus_datatypes.PortCmdRelated{
 			LoginedID: api_id,
-			CmdID:     cmd_text_record.CmdID,
+			CMDid:     cmd_text_record.CmdID,
 		}
 		s.DB_fd.Where(cmd_record).FirstOrCreate(&cmd_record)
 	}()
@@ -344,6 +344,10 @@ func (s *SSHserverConf) ClientConnHandler(
 		attacker_port_query_cond = b0gus_datatypes.PortInfoDef{Port: port}
 	)
 
+	s.DB_fd.Where(attacker_addr_query_cond).FirstOrCreate(&attacker_addr_query_cond)
+	attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
+	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
+
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		// Record password in this function
 		password_record := b0gus_datatypes.PassInfoDef{
@@ -355,7 +359,7 @@ func (s *SSHserverConf) ClientConnHandler(
 		}
 		s.DB_fd.Where(username_record).FirstOrCreate(&username_record)
 		port_name_related := b0gus_datatypes.PortNameRelated{
-			APIid:      attacker_port_query_cond.APIid,
+			LoginedID:  attacker_port_query_cond.APIid,
 			UsernameID: username_record.UserID,
 		}
 		s.DB_fd.Where(port_name_related).FirstOrCreate(&port_name_related)
@@ -364,12 +368,12 @@ func (s *SSHserverConf) ClientConnHandler(
 		}
 		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
 		port_pass_related := b0gus_datatypes.PortPassRelated{
-			APIid:  attacker_port_query_cond.APIid,
-			PassID: password_record.PasswordID,
+			LoginedID: attacker_port_query_cond.APIid,
+			PassID:    password_record.PasswordID,
 		}
 		s.DB_fd.Where(port_pass_related).FirstOrCreate(&port_pass_related)
 		port_ver_related := b0gus_datatypes.PortVerRelated{
-			APIid:              attacker_port_query_cond.APIid,
+			LoginedID:          attacker_port_query_cond.APIid,
 			SSHClientVersionID: client_ssh_version.VerID,
 		}
 		s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
@@ -388,7 +392,7 @@ func (s *SSHserverConf) ClientConnHandler(
 		}
 		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
 		port_ver_related := b0gus_datatypes.PortVerRelated{
-			APIid:              attacker_port_query_cond.APIid,
+			LoginedID:          attacker_port_query_cond.APIid,
 			SSHClientVersionID: client_ssh_version.VerID,
 		}
 		s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
@@ -414,10 +418,6 @@ func (s *SSHserverConf) ClientConnHandler(
 		}).Error("Failed to establish SSH connection")
 		return
 	}
-	// only can we handle so that the table is writable
-	s.DB_fd.Where(attacker_addr_query_cond).FirstOrCreate(&attacker_addr_query_cond)
-	attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
-	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
 
 	// reject all relay requests since all clients are untrusted
 	go ssh.DiscardRequests(relay_reqs)
