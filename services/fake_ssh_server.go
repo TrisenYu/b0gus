@@ -75,6 +75,7 @@ type SSHserverConf struct {
 	CommandHook       any            // use for replacing command in repeat mode, if not nil, then this field should be `func(string) string`
 	Port              uint16         // b0gus ssh server port number
 	PermitLogin       bool           // whether reject or not
+	EmptyShell        bool           // no any response
 }
 
 var (
@@ -152,8 +153,7 @@ inner_loop:
 		// we need a new dollar sign for fake interaction
 		if last_char == "\\" {
 			// still in one command, but the prompt should change to `dquote>`
-			last_char = ""
-			prompt_char = "dquote> "
+			last_char, prompt_char = "", "dquote> "
 			ssh_chan.Write([]byte("\r\n" + prompt_char))
 			goto inner_loop
 
@@ -241,15 +241,22 @@ jump_out:
 	}()
 
 	prompt_char = "$ "
-	/* b0gus_config.Logger.Info(payload) */
-	// Add hook for specific commands output like `uname -a`
-	// 		0. check if the configuration needs such modification
-	// 		1. inspect command, determine whether it matches the request or not
-	// 		2. once match, modify the return pattern
+	var final_payload = "\r\n\r\n$ "
+	// TODO: is it possible to change the server configuration dynamically ?
 	if s.CommandHook != nil {
-		payload = s.CommandHook.(func(string) string)(payload)
+		// Add hook for specific commands output like `uname -a`
+		// 		0. check if the configuration needs such modification
+		// 		1. inspect command, determine whether it matches the request or not
+		// 		2. once match, modify the return pattern
+		final_payload = "" + "\r\n" +
+			s.CommandHook.(func(string) string)(payload) +
+			"\r\n" + prompt_char
+	} else if s.EmptyShell {
+
+	} else {
+		final_payload = "\r\n" + payload + "\r\n" + prompt_char
 	}
-	_, err = ssh_chan.Write([]byte("\r\n" + payload + "\r\n" + prompt_char))
+	_, err = ssh_chan.Write([]byte(final_payload))
 	if err == nil {
 		goto rewind
 	}
@@ -344,9 +351,16 @@ func (s *SSHserverConf) ClientConnHandler(
 		attacker_port_query_cond = b0gus_datatypes.PortInfoDef{Port: port}
 	)
 
-	s.DB_fd.Where(attacker_addr_query_cond).FirstOrCreate(&attacker_addr_query_cond)
+	s.DB_fd.Where(attacker_addr_query_cond).
+		FirstOrCreate(&attacker_addr_query_cond).
+		Updates(b0gus_datatypes.AddrInfoDef{
+			ID:       attacker_addr_query_cond.ID,
+			IP:       ip,
+			TryTimes: attacker_addr_query_cond.TryTimes + 1,
+		})
 	attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
-	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
+	s.DB_fd.Where(attacker_port_query_cond).
+		FirstOrCreate(&attacker_port_query_cond)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		// Record password in this function

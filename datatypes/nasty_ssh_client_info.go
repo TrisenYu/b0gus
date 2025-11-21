@@ -5,7 +5,7 @@
 // Last modified at 2025/11/15 星期六 22:22:34
 package datatypes
 
-// recommends for struct tags:
+// Recommends for struct tags:
 // 	1. multiple struct tags in one field should split by space key
 // 	2. read manual and code, or debug multiple times
 
@@ -34,8 +34,9 @@ package datatypes
 */
 
 type AddrInfoDef struct {
-	ID uint64 `gorm:"primaryKey;autoIncrement;not null;comment: ID as the primary key"`
-	IP string `gorm:"unique;uniqueIndex:ip_name_idx;comment: attacker IP address"` // TODO: does Intranet have side effect?
+	ID       uint64 `gorm:"primaryKey;autoIncrement;not null;comment: ID as the primary key"`
+	IP       string `gorm:"unique;uniqueIndex:ip_name_idx;comment: attacker IP address"` // TODO: does Intranet have side effect?
+	TryTimes uint64 `gorm:"default:0"`
 	/* defined for outer foreign key */
 	PortNumRelated []PortInfoDef `gorm:"foreignKey:AddrID;comment:Related to different ports but running in the same host"`
 }

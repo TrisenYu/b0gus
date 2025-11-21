@@ -63,6 +63,7 @@ func b0gusSSHserver(
 		ClientConnTimeout: time.Duration(ssh_conf_obj.ClientConnTimeout) * time.Second,
 		DB_fd:             db,
 		PermitLogin:       ssh_conf_obj.PermitLogin,
+		EmptyShell:        ssh_conf_obj.EmptyShell,
 	}
 	var host_key ssh.Signer
 	pem_path, _ := filepath.Abs(filepath.Join(conf_path, bogus_conf.ServerConfig.PemName))
@@ -157,7 +158,7 @@ func servicesBrancher(
 	}
 	server_conf_mapper := conf_mapper["ServerConfig"]
 
-	// we can run go routine in this `for loop`
+	// so that we can run go routine in this `for loop`
 	for k, v := range server_conf_mapper.(map[string]any) {
 		switch k {
 		case "PemName":
@@ -181,9 +182,8 @@ func servicesBrancher(
 			wait_group.Add(1)
 			go b0gusTelnetServer(conf_path, server_conf, db, wait_group)
 		default:
-			b0gus_config.Logger.
-				Fatal("unknown field in configuration")
-				// In fact, Fatal will cease the program by executing os.exit(1).
+			b0gus_config.Logger.Fatal("unknown field in configuration")
+			// In fact, Fatal will cease the program by executing os.exit(1).
 			return
 		}
 	}
