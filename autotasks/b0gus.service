@@ -1,5 +1,5 @@
 [Unit]
-Description=Fake SSH Server (Docker Container)
+Description=b0gus honeypot servers in docker
 Documentation=none
 After=docker.service
 Requires=docker.serviceWants=network-online.target

@@ -66,16 +66,20 @@ func getRandomSSHVersion() string {
 
 type SSHserverConf struct {
 	Addr              string         // b0gus ssh server addr
-	MaxClientNum      uint32         // maximum clients number handling in real time
 	clientLimitChan   chan struct{}  // channel uses for inflow control
 	signalChan        chan os.Signal // OS terminating control signal channel
 	shouldTerminate   chan bool      // once being notisfied, push a `true` to the channel
 	ClientConnTimeout time.Duration  // initiated timeout setting
-	DB_fd             *gorm.DB       // database for writing data
-	CommandHook       any            // use for replacing command in repeat mode, if not nil, then this field should be `func(string) string`
-	Port              uint16         // b0gus ssh server port number
-	PermitLogin       bool           // whether reject or not
-	EmptyShell        bool           // no any response
+	DB_fd             *gorm.DB       // database handler for writing data.
+	/*
+		use for replacing command in repeat mode.
+		if not nil, then this field should be `func(string) string`
+	*/
+	CommandHook  any
+	MaxClientNum uint32 // maximum clients number handling in real time
+	Port         uint16 // b0gus ssh server port number
+	PermitLogin  bool   // whether reject or not
+	EmptyShell   bool   // no any response
 }
 
 var (
@@ -242,12 +246,15 @@ jump_out:
 
 	prompt_char = "$ "
 	var final_payload = "\r\n\r\n$ "
-	// TODO: is it possible to change the server configuration dynamically ?
+
+	// TODO: is it possible to dynamically change the server configuration?
 	if s.CommandHook != nil {
-		// Add hook for specific commands output like `uname -a`
-		// 		0. check if the configuration needs such modification
-		// 		1. inspect command, determine whether it matches the request or not
-		// 		2. once match, modify the return pattern
+		/*
+			Add hook for specific commands output like `uname -a`
+				0. check if the configuration needs such modification
+				1. inspect command, determine whether it matches the request or not
+				2. once match, modify the return pattern
+		*/
 		final_payload = "" + "\r\n" +
 			s.CommandHook.(func(string) string)(payload) +
 			"\r\n" + prompt_char
@@ -260,9 +267,7 @@ jump_out:
 	if err == nil {
 		goto rewind
 	}
-	b0gus_config.Logger.
-		WithError(err).
-		Info("Capture an error when writing payload")
+	b0gus_config.Logger.WithError(err).Info("Capture an error when writing payload")
 }
 
 func (s *SSHserverConf) requestsHandler(
@@ -289,13 +294,16 @@ func (s *SSHserverConf) requestsHandler(
 			ssh_chan.Write([]byte(welcomeMsg))
 			s.cmdRepeater(api_id, ssh_chan)
 		default:
-			// just accept pty-req and window-change without any action
-			// window-change payload format:
-			//	`uint32(rows)#uint32(cols)#uint32(width)#uint32(height)`
-			// `#` means concatenate the information
-			// reject/abort all other requests like "exec"
-			// meanwhile, scp will send subsystem as its pre-executed request
-			// b0gus_config.Logger.Info("client try to " + req.Type)
+			/*
+				just accept 'pty-req' and 'window-change' without any action
+
+				payload format of 'window-change':
+					`uint32(rows)#uint32(cols)#uint32(width)#uint32(height)`
+				here `#` means concatenate the information
+
+				reject/abort all other requests like "exec"
+				meanwhile, scp will send 'subsystem' as its pre-executed request
+			*/
 			_ = req.Reply(
 				req.Type == "pty-req" || req.Type == "window-change",
 				nil,
@@ -359,8 +367,7 @@ func (s *SSHserverConf) ClientConnHandler(
 			TryTimes: attacker_addr_query_cond.TryTimes + 1,
 		})
 	attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
-	s.DB_fd.Where(attacker_port_query_cond).
-		FirstOrCreate(&attacker_port_query_cond)
+	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		// Record password in this function
@@ -448,10 +455,10 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 	// only accept tcp stream
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.Addr, s.Port))
 	if err != nil {
-		b0gus_config.Logger.WithField(
-			"given addr:",
+		b0gus_config.Logger.Fatalf(
+			"Failed to listen on given addr:%s",
 			fmt.Sprintf("%s:%d", s.Addr, s.Port),
-		).Fatal("Failed to listen on ")
+		)
 	}
 	defer listener.Close()
 
@@ -468,8 +475,10 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
 
 	go func() {
 		sig := <-s.signalChan // stuck at this line until receiving any possible signal
-		b0gus_config.Logger.WithField("signal", sig.String()).
-			Warn("Catch an OS signal for terminating b0gus SSH server.\n")
+		b0gus_config.Logger.Warnf(
+			"Catch an OS signal<%s> for terminating b0gus SSH server",
+			sig.String(),
+		)
 		stop_flag.Store(true)
 		listener.Close()
 		s.shouldTerminate <- true
@@ -481,7 +490,7 @@ keep_spinning:
 	select {
 	case <-s.shouldTerminate:
 		b0gus_config.Logger.Warn(
-			"Catch an signal requests for shuting down b0gus SSH server.\n",
+			"Catch a signal requirement for shuting down b0gus SSH server",
 		)
 		return
 	default:
@@ -491,8 +500,8 @@ keep_spinning:
 		// b0gus_config.Logger.Info("incomming connection...")
 		in_conn, err := listener.Accept()
 		if err != nil {
-			b0gus_config.Logger.Error(
-				"Failed to accept incoming connection due to error:\n",
+			b0gus_config.Logger.Errorf(
+				"Failed to accept incoming connection due to error:%s",
 				err.Error(),
 			)
 			goto keep_spinning
@@ -506,7 +515,7 @@ keep_spinning:
 			go s.ClientConnHandler(in_conn, host_key)
 		default:
 			b0gus_config.Logger.Warn(
-				"No available slot for new connection at present, shut down connection immediately",
+				"No available slots for more connections at present, shutting down connection immediately",
 			)
 			in_conn.Close()
 		}

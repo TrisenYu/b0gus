@@ -69,8 +69,7 @@ func b0gusSSHserver(
 	pem_path, _ := filepath.Abs(filepath.Join(conf_path, bogus_conf.ServerConfig.PemName))
 	pem_obj, err := b0gus_crypto_aux.LoadHostPem(pem_path)
 	if err != nil {
-		b0gus_config.Logger.
-			WithField("Err", err).
+		b0gus_config.Logger.WithField("Err", err).
 			Warn("Pem seems to be invalid or unsupported, b0gus will create one and store it to the path you assigned")
 		host_key, err = b0gus_crypto_aux.CreatePem(pem_path)
 		if err != nil {
@@ -78,8 +77,7 @@ func b0gusSSHserver(
 				WithFields(logrus.Fields{
 					"Err":  err,
 					"path": pem_path,
-				}).
-				Error("Unable to create pem")
+				}).Error("Unable to create pem")
 			return
 		}
 	} else {
@@ -153,11 +151,11 @@ func servicesBrancher(
 	// if so, b0gus won't running this and instead push such information into log
 	conf_mapper := b0gus_misc_utils.TurnStruct2Map(*server_conf)
 	if conf_mapper == nil {
-		b0gus_config.Logger.
-			Fatal("Unable to reflect config to `map[string]any`!")
+		b0gus_config.Logger.Fatal("Unable to reflect config to `map[string]any`!")
 	}
 	server_conf_mapper := conf_mapper["ServerConfig"]
 
+	// TODO: this for loop should not defined in `main.go`
 	// so that we can run go routine in this `for loop`
 	for k, v := range server_conf_mapper.(map[string]any) {
 		switch k {
@@ -166,8 +164,7 @@ func servicesBrancher(
 		case "Database":
 			// do nothing
 		case "SSH":
-			flag := checkSSHconfig(server_conf, v.(map[string]any))
-			if !flag {
+			if !checkSSHconfig(server_conf, v.(map[string]any)) {
 				continue
 			}
 			wait_group.Add(1)
@@ -182,7 +179,7 @@ func servicesBrancher(
 			wait_group.Add(1)
 			go b0gusTelnetServer(conf_path, server_conf, db, wait_group)
 		default:
-			b0gus_config.Logger.Fatal("unknown field in configuration")
+			b0gus_config.Logger.Fatalf("Unknown field<%s> was found in configuration", k)
 			// In fact, Fatal will cease the program by executing os.exit(1).
 			return
 		}
@@ -221,8 +218,7 @@ func main() {
 	case "postgresql":
 		db_addr := bogus_conf.ServerConfig.Database.DatabaseAddr
 		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
-			b0gus_config.Logger.
-				WithField("database addr", db_addr).
+			b0gus_config.Logger.WithField("database addr", db_addr).
 				Fatal("Invalid database address was gained from configuration!")
 		}
 		pg_db_config := fmt.Sprintf(
@@ -244,11 +240,9 @@ func main() {
 		db_str = "sqlite"
 
 	default:
-		b0gus_config.Logger.
-			WithField(
-				"database you selected",
-				bogus_conf.ServerConfig.Database.DatabaseType,
-			).Fatal(
+		b0gus_config.Logger.WithField(
+			"database you selected", bogus_conf.ServerConfig.Database.DatabaseType,
+		).Fatal(
 			"Unknown and unsupported database type was found, only support PostgreSQL and SQLite at present...",
 		)
 	}
@@ -259,9 +253,7 @@ func main() {
 		)
 		return
 	} else if db == nil {
-		b0gus_config.Logger.Fatal(
-			"Empty database file descriptor",
-		)
+		b0gus_config.Logger.Fatal("Empty database file descriptor")
 	}
 	var wait_group sync.WaitGroup
 	servicesBrancher(conf_dir_str, &bogus_conf, db, &wait_group)

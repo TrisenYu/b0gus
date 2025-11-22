@@ -2,6 +2,7 @@
 # For mitigation of security issues.
 FROM golang:latest
 
+
 WORKDIR /bogus_servives
 COPY . .
 

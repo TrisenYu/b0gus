@@ -14,28 +14,35 @@ addr:port => (addr, port)
 */
 func IPaddrSplit(ip_port string) (string, uint16) {
 	var (
-		res_ip string
+		res_ip string = ""
 		i      int
 		digits = map[string]any{
 			"0": nil, "1": nil, "2": nil, "3": nil, "4": nil,
 			"5": nil, "6": nil, "7": nil, "8": nil, "9": nil,
 		}
+		lena_iport int = len(ip_port) - 1
 	)
-	for i = len(ip_port) - 1; i >= 0; i-- {
+
+	for i = lena_iport; i >= 0; i-- {
 		_, ok := digits[string(ip_port[i])]
 		if !ok {
 			break
 		}
 	}
-	res_ip = ip_port[:i]
-	res_port, err := strconv.ParseUint(ip_port[min(i+1, len(ip_port)-1):], 10, 16)
+	if i >= 0 {
+		res_ip = ip_port[:i]
+	}
+	if len(res_ip) > 0 && res_ip[0] == '[' && res_ip[len(res_ip)-1] == ']' {
+		res_ip = res_ip[1 : len(res_ip)-1]
+	}
+	res_port, err := strconv.ParseUint(ip_port[min(i+1, max(lena_iport, 0)):], 10, 16)
 	if err != nil {
-		b0gus_config.Logger.Error(err, i, ip_port)
+		b0gus_config.Logger.Errorf("%s %d %s", err.Error(), i, ip_port)
 		return "", 0
 	}
 	flag := net.ParseIP(res_ip)
 	if flag == nil {
-		b0gus_config.Logger.Error(err, i, ip_port)
+		b0gus_config.Logger.Errorf("%v %d %s", err, i, ip_port)
 		return "", 0
 	}
 	return res_ip, uint16(res_port & 0xFFFF)

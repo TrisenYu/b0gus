@@ -70,21 +70,19 @@ type SSHClientversionStrDef struct {
 }
 
 type UsernameDef struct {
-	UserID   uint64 `gorm:"primaryKey"`
-	Username string `gorm:"unique;"` // What if someone might send an empty string as username?
-	/* Time */
-	FirstRecordTime int64 `gorm:"autoCreateTime:nano"`
-	UpdatedTime     int64 `gorm:"autoUpdateTime:nano"`
+	UserID          uint64 `gorm:"primaryKey"`
+	Username        string `gorm:"unique;"` // What if someone might send an empty string as username?
+	FirstRecordTime int64  `gorm:"autoCreateTime:nano"`
+	UpdatedTime     int64  `gorm:"autoUpdateTime:nano"`
 	/* defined for outer foreign key */
 	PortRelated []PortNameRelated `gorm:"foreignKey:UsernameID;"`
 }
 
 type PassInfoDef struct {
-	PasswordID uint64 `gorm:"primaryKey"`
-	Password   string `gorm:"unique;uniqueIndex:password_idx;comment: Password attempted to login into system"`
-	/* Time */
-	FirstRecordTime int64 `gorm:"autoCreateTime:nano"`
-	UpdatedTime     int64 `gorm:"autoUpdateTime:nano"`
+	PasswordID      uint64 `gorm:"primaryKey"`
+	Password        string `gorm:"unique;uniqueIndex:password_idx;comment: Password attempted to login into system"`
+	FirstRecordTime int64  `gorm:"autoCreateTime:nano"`
+	UpdatedTime     int64  `gorm:"autoUpdateTime:nano"`
 	/* defined for outer foreign key */
 	PortRelated []PortPassRelated `gorm:"foreignKey:PassID;"`
 }
@@ -93,9 +91,8 @@ type PubInfoDef struct {
 	PubKeyID uint64 `gorm:"primaryKey"`
 	// TODO: suspect huge perform loss with long public Key and unique restrict
 	PubKeyFingerprint string `gorm:"unique;not null;uniqueIndex:public_key_idx;comment: Public key fingerprint used by attacker"`
-	/* Time */
-	FirstRecordTime int64 `gorm:"autoCreateTime:nano"`
-	UpdatedTime     int64 `gorm:"autoUpdateTime:nano"`
+	FirstRecordTime   int64  `gorm:"autoCreateTime:nano"`
+	UpdatedTime       int64  `gorm:"autoUpdateTime:nano"`
 	/* defined for outer foreign key */
 	PortRelated []PortPubKeyRelated `gorm:"foreignKey:PubID;"`
 }
@@ -109,37 +106,37 @@ type CommandTextDef struct {
 
 type PortVerRelated struct {
 	LoginedID               uint64
-	PortRelated             PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	SSHClientVersionID      uint64
+	PortRelated             PortInfoDef            `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	SSHClientVersionRelated SSHClientversionStrDef `gorm:"foreignKey:SSHClientVersionID;references:VerID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortNameRelated struct {
 	LoginedID   uint64
-	PortRelated PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	UsernameID  uint64
+	PortRelated PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	NameRelated UsernameDef `gorm:"foreignKey:UsernameID;references:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortPassRelated struct {
 	LoginedID   uint64
-	PortRelated PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	PassID      uint64
+	PortRelated PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	PassRelated PassInfoDef `gorm:"foreignKey:PassID;references:PasswordID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortPubKeyRelated struct {
 	LoginedID     uint64
-	PortRelated   PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	PubID         uint64
-	PubKeyRelated PubInfoDef `gorm:"foreignKey:PubID;references:PubKeyID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	PortRelated   PortInfoDef `gorm:"foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	PubKeyRelated PubInfoDef  `gorm:"foreignKey:PubID;references:PubKeyID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type PortCmdRelated struct {
 	RequestTime int64 `gorm:"autoUpdateTime:nano;comment: Time that requests for executing command"`
 	/* foreign key definition zone */
 	CMDid          uint64
-	CommandRelated CommandTextDef `gorm:"primaryKey;foreignKey:CMDid;references:CmdID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	LoginedID      uint64
-	PortRelated    PortInfoDef `gorm:"primaryKey;foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	CommandRelated CommandTextDef `gorm:"primaryKey;foreignKey:CMDid;references:CmdID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	PortRelated    PortInfoDef    `gorm:"primaryKey;foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }

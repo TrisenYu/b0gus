@@ -1,16 +1,15 @@
-// Last modified at 2025/11/15 星期六 22:24:47
 // SPDX-LICENSE-IDENTIFIER: GPL2.0
 //
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // Created at 2025/11/15 星期六 20:05:01
-// Last modified at 2025/11/15 星期六 20:10:19
+// Last modified at 2025/11/15 星期六 22:24:47
 package configs
 
 import (
 	"io"
 	"os"
 
-	"github.com/pelletier/go-toml/v2"
+	toml "github.com/pelletier/go-toml/v2"
 )
 
 const (
@@ -51,10 +50,12 @@ type LocalConfig struct {
 	} `toml:"server_config"`
 }
 
-/*  Read config from given toml file
- * inParam: abs_path, absolute path to configuration
- * Return:  LocalConfig
- */
+/*
+Read config from given toml file
+
+	inParam: abs_path, absolute path to configuration
+	Return:  LocalConfig
+*/
 func TomlConfigReader(abs_path string) LocalConfig {
 	file, err := os.Open(abs_path)
 	if err != nil {
