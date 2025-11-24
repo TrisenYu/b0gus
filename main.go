@@ -4,9 +4,12 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	logrus "github.com/sirupsen/logrus"
@@ -24,12 +27,15 @@ import (
 
 // bogus ssh server
 //
-//	inParam: conf_path [string]; absolute path to configuration file
-//	bogus_conf [*b0gus_config.LocalConfig]; pointer to LocalConfig object
-//	db [*gorm.DB]; pointer to connected database object
+//		inParam:
+//	 need_shutdown [*atomic.Bool]; pointer to atomic boolean variable for terminating the server
+//		ssh_conf_obj [*b0gus_config.SSHconfig]; pointer to SSHconfig object
+//		db [*gorm.DB]; pointer to connected database object
+//	 wait_group [*sync.WaitGroup]; waitGroup for notisfying the main thread
 func b0gusSSHserver(
-	conf_path string,
-	bogus_conf *b0gus_config.LocalConfig,
+	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
+	ssh_conf_obj *b0gus_config.SSHconfig,
+	host_key ssh.Signer,
 	db *gorm.DB,
 	wait_group *sync.WaitGroup,
 ) {
@@ -44,7 +50,7 @@ func b0gusSSHserver(
 		&b0gus_datatypes.PubInfoDef{},
 		&b0gus_datatypes.PassInfoDef{},
 		&b0gus_datatypes.CommandTextDef{},
-		// relation tables
+		// Relation Tables
 		&b0gus_datatypes.PortNameRelated{},
 		&b0gus_datatypes.PortVerRelated{},
 		&b0gus_datatypes.PortPubKeyRelated{},
@@ -53,8 +59,8 @@ func b0gusSSHserver(
 	)
 	if err != nil {
 		b0gus_config.Logger.Error(err)
+		return
 	}
-	ssh_conf_obj := bogus_conf.ServerConfig.SSH
 	// Fill SSH Server Configuration with definitions in config file
 	ssh_server_conf := b0gus_services.SSHserverConf{
 		Addr:              ssh_conf_obj.ListenAddr,
@@ -65,83 +71,36 @@ func b0gusSSHserver(
 		PermitLogin:       ssh_conf_obj.PermitLogin,
 		EmptyShell:        ssh_conf_obj.EmptyShell,
 	}
-	var host_key ssh.Signer
-	pem_path, _ := filepath.Abs(filepath.Join(conf_path, bogus_conf.ServerConfig.PemName))
-	pem_obj, err := b0gus_crypto_aux.LoadHostPem(pem_path)
-	if err != nil {
-		b0gus_config.Logger.WithField("Err", err).
-			Warn("Pem seems to be invalid or unsupported, b0gus will create one and store it to the path you assigned")
-		host_key, err = b0gus_crypto_aux.CreatePem(pem_path)
-		if err != nil {
-			b0gus_config.Logger.
-				WithFields(logrus.Fields{
-					"Err":  err,
-					"path": pem_path,
-				}).Error("Unable to create pem")
-			return
-		}
-	} else {
-		host_key = pem_obj
+	ssh_server_conf.TCPListenerSwitchDone.Ch = make(chan struct{})
+	defer close(ssh_server_conf.TCPListenerSwitchDone.Ch)
+	ssh_server_conf.TCPListenerSwitchDone.Flag.Store(false)
+	ssh_server_conf.ConfigGenericCtrl.Ch = make(chan struct{})
+	defer close(ssh_server_conf.ConfigGenericCtrl.Ch)
+	ssh_server_conf.ConfigGenericCtrl.Flag.Store(false)
+	// callback function for updating when there is any the modification in the monitored configuration file
+	var ssh_callback = func() {
+		b0gus_config.Logger.Infof("Renew SSH configuration: %v", ssh_conf_obj)
+		ssh_server_conf.UpdateConfig(ssh_conf_obj)
 	}
-
-	ssh_server_conf.SSHMaliciousClientHandler(host_key)
+	go b0gus_config.GlobConfigMaintainer.Regist(ssh_callback)
+	ssh_server_conf.SSHMaliciousClientHandler(need_shutdown, host_key)
 }
 
 func b0gusTelnetServer(
-	conf_path string,
-	bogus_conf *b0gus_config.LocalConfig,
+	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
+	bogus_conf *b0gus_config.TelnetConfig,
 	db *gorm.DB,
 	wait_group *sync.WaitGroup,
 ) {
 	wait_group.Done()
 }
 
-func checkTelnetConfig(
-	server_conf *b0gus_config.LocalConfig,
-	v map[string]any,
-) bool {
-	return false
-}
-
-func checkSSHconfig(
-	server_conf *b0gus_config.LocalConfig,
-	v map[string]any,
-) bool {
-	for kk, vv := range v {
-		switch kk {
-		case "ListenAddr":
-			// if so, do not execute
-			if vv == "" {
-				return false
-			}
-		case "ListenPort":
-			// if so, do not execute
-			// there must be a port number but not zero.
-			// but since we do not make up using privilege port
-			// so just set vv > 1024
-			if vv.(uint16) <= 1024 {
-				return false
-			}
-		case "MaxClientNum":
-			if vv == 0 {
-				(*server_conf).ServerConfig.SSH.MaxClientNum = 1
-			}
-		case "ClientConnTimeout":
-			if vv == 0 {
-				(*server_conf).ServerConfig.SSH.ClientConnTimeout = 30
-			}
-		case "ResponseType":
-			if vv == "" {
-				(*server_conf).ServerConfig.SSH.ResponseType = "Always-Reject"
-			}
-		case "PermitLogin":
-		case "EmptyShell":
-		}
-	}
-	return true
+func checkTelnetConfig(telnet_conf *b0gus_config.TelnetConfig) bool {
+	return telnet_conf != nil && net.ParseIP(telnet_conf.ListenAddr) != nil && telnet_conf.ListenPort > 1024
 }
 
 func servicesBrancher(
+	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
 	conf_path string,
 	server_conf *b0gus_config.LocalConfig,
 	db *gorm.DB,
@@ -155,36 +114,59 @@ func servicesBrancher(
 	}
 	server_conf_mapper := conf_mapper["ServerConfig"]
 
-	// TODO: this for loop should not defined in `main.go`
 	// so that we can run go routine in this `for loop`
-	for k, v := range server_conf_mapper.(map[string]any) {
+	for k := range server_conf_mapper.(map[string]any) {
 		switch k {
 		case "PemName":
 			fallthrough
 		case "Database":
-			// do nothing
+			continue // do nothing
 		case "SSH":
-			if !checkSSHconfig(server_conf, v.(map[string]any)) {
+			if !b0gus_config.CheckSSHconfig(&server_conf.ServerConfig.SSH) {
 				continue
 			}
-			wait_group.Add(1)
 			// run given service in different go routine if the necessary fields are not empty
-			go b0gusSSHserver(conf_path, server_conf, db, wait_group)
+			var host_key ssh.Signer
+			pem_path, _ := filepath.Abs(filepath.Join(conf_path, server_conf.ServerConfig.PemName))
+			pem_obj, err := b0gus_crypto_aux.LoadHostPem(pem_path)
+			if err != nil {
+				b0gus_config.Logger.WithField("Err", err).Warn(
+					`
+Pem seems to be invalid or unsupported, b0gus will create one and store it to the path you assigned`,
+				)
+				host_key, err = b0gus_crypto_aux.CreatePem(pem_path)
+				if err != nil {
+					b0gus_config.Logger.Errorf(
+						"Unable to create pem at %s due to %s",
+						pem_path,
+						err.Error(),
+					)
+					continue
+				}
+			} else {
+				host_key = pem_obj
+			}
+			wait_group.Add(1)
+			go b0gusSSHserver(
+				need_shutdown, &server_conf.ServerConfig.SSH,
+				host_key, db, wait_group,
+			)
 			// Understanding how `wait_group.Go()` work
 		case "Telnet":
 			b0gus_config.Logger.Warn("Yet to implement b0gus telnet shell!")
-			if !checkTelnetConfig(server_conf, v.(map[string]any)) {
+			if !checkTelnetConfig(nil) {
 				continue
 			}
 			wait_group.Add(1)
-			go b0gusTelnetServer(conf_path, server_conf, db, wait_group)
+			go b0gusTelnetServer(
+				need_shutdown, &server_conf.ServerConfig.Telnet,
+				db, wait_group,
+			)
 		default:
-			b0gus_config.Logger.Fatalf("Unknown field<%s> was found in configuration", k)
-			// In fact, Fatal will cease the program by executing os.exit(1).
-			return
+			b0gus_config.Logger.Errorf("Unknown field<%s> was found in configuration", k)
+			continue
 		}
 	}
-
 	wait_group.Wait()
 }
 
@@ -193,27 +175,21 @@ func servicesBrancher(
  */
 func main() {
 	// TODO: neccessary executable binary files/dependencies imediate check inside b0gus
-	conf_path, err := filepath.Abs(b0gus_config.Config_path_as_str)
-	if err != nil {
-		b0gus_config.Logger.Info("Failed to get absolute path of config file")
-		return
-	}
 	conf_dir_str, _ := filepath.Abs(b0gus_config.Config_dir_as_str)
-	bogus_conf := b0gus_config.TomlConfigReader(conf_path)
-	b0gus_config.Logger.WithFields(
-		logrus.Fields{
-			"config_path":        conf_path,
-			"ssh_server_conf":    bogus_conf.ServerConfig.SSH,
-			"telnet_server_conf": bogus_conf.ServerConfig.Telnet,
-		},
-	).Info("Current configuration:\n")
+	bogus_conf := b0gus_config.DefaultConfig()
+	b0gus_config.Logger.WithFields(logrus.Fields{
+		"ssh_server_conf":    bogus_conf.ServerConfig.SSH,
+		"telnet_server_conf": bogus_conf.ServerConfig.Telnet,
+	}).Info("Current configuration:\n")
 
 	var (
 		db     *gorm.DB = nil
+		err    error    = nil
 		db_str string   = ""
 	)
 
-	// **Connect** to Database and Create Table
+	// **Connect** to Database. Create table when ensuring to run the server
+	// TODO: should we hot-plug the configurations of database and apply them with concurrent protections?
 	switch strings.ToLower(bogus_conf.ServerConfig.Database.DatabaseType) {
 	case "postgresql":
 		db_addr := bogus_conf.ServerConfig.Database.DatabaseAddr
@@ -241,9 +217,12 @@ func main() {
 
 	default:
 		b0gus_config.Logger.WithField(
-			"database you selected", bogus_conf.ServerConfig.Database.DatabaseType,
+			"database you selected",
+			bogus_conf.ServerConfig.Database.DatabaseType,
 		).Fatal(
-			"Unknown and unsupported database type was found, only support PostgreSQL and SQLite at present...",
+			`
+Unknown and unsupported database type was found, 
+only support PostgreSQL and SQLite at present...`,
 		)
 	}
 	if err != nil {
@@ -253,8 +232,45 @@ func main() {
 		)
 		return
 	} else if db == nil {
-		b0gus_config.Logger.Fatal("Empty database file descriptor")
+		b0gus_config.Logger.Error("Empty database file descriptor")
+		return
 	}
-	var wait_group sync.WaitGroup
-	servicesBrancher(conf_dir_str, &bogus_conf, db, &wait_group)
+	signalChan := make(chan os.Signal, 1)
+	// signal notification to terminate the ssh server gracefully
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	var (
+		wait_group sync.WaitGroup
+		terminator b0gus_datatypes.ConcurrentCtrl
+	)
+	terminator.Ch = make(chan struct{})
+	terminator.Flag.Store(false)
+
+	b0gus_config.GlobConfigMaintainer.Init()
+	go func() {
+	next_select:
+		select {
+		case sig := <-signalChan:
+			b0gus_config.Logger.Warnf(
+				"Catch an OS signal<%s> for terminating b0gus SSH server",
+				sig.String(),
+			)
+			terminator.Flag.Store(true)
+			terminator.Ch <- struct{}{}
+			close(terminator.Ch)
+		case <-b0gus_config.UpdateFlag:
+			b0gus_config.GlobConfigMaintainer.UpdateConfig()
+		}
+		if !terminator.Flag.Load() {
+			goto next_select
+		}
+	}()
+	servicesBrancher(
+		&terminator,
+		conf_dir_str,
+		bogus_conf,
+		db, &wait_group,
+	)
+	b0gus_config.GlobConfigMaintainer.SelfDestroy()
+	terminator.Flag.Store(true)
+	close(b0gus_config.UpdateFlag)
 }

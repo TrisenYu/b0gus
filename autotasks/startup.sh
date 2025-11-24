@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-# root and 
+# might need root priviledge for certain ports

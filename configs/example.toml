@@ -21,7 +21,8 @@ pem_name = "host.pem"
     # only store `ip, username, password, access time and public key` information
     # TODO: set them as strategy
     permit_login = true
-    empty_shell = false # if you type, just enter a new line
+    empty_shell = false # if you type, just enter a new line for every command
+    
     # just repeat what user inputs back to the terminal
     # TODO: add more response types which represent certain strategy 
     # for interacting with malicious clients later
@@ -30,8 +31,8 @@ pem_name = "host.pem"
 [server_config.telnet]
     listen_addr = "localhost"
     listen_port = 23333
-    
 
+# Can' t update configuration of database in runtime
 [server_config.database]
     # Yet to have a checking/filtering mechanism to determine 
     # whether database_addr:database_port is requried

@@ -4,10 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
-	"os"
-	"os/signal"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	logrus "github.com/sirupsen/logrus"
@@ -65,21 +62,25 @@ func getRandomSSHVersion() string {
 }
 
 type SSHserverConf struct {
-	Addr              string         // b0gus ssh server addr
-	clientLimitChan   chan struct{}  // channel uses for inflow control
-	signalChan        chan os.Signal // OS terminating control signal channel
-	shouldTerminate   chan bool      // once being notisfied, push a `true` to the channel
-	ClientConnTimeout time.Duration  // initiated timeout setting
-	DB_fd             *gorm.DB       // database handler for writing data.
+	clientLimitor atomic.Uint32
+	// clientLimitChan chan struct{} // channel uses for inflow control
+	DB_fd *gorm.DB // database handler for writing data.
 	/*
 		use for replacing command in repeat mode.
 		if not nil, then this field should be `func(string) string`
 	*/
-	CommandHook  any
-	MaxClientNum uint32 // maximum clients number handling in real time
-	Port         uint16 // b0gus ssh server port number
-	PermitLogin  bool   // whether reject or not
-	EmptyShell   bool   // no any response
+	commandHook any
+	// fields below need concurrency control to follow the configuration
+	TCPListenerSwitchDone,
+	ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
+	serverListenerPtr *net.Listener // current listener on Addr:Port
+	Addr              string        // b0gus ssh server addr
+	ClientConnTimeout time.Duration // initiated timeout setting
+	MaxClientNum      uint32        // maximum clients number handling in real time
+	/* NOTE that Port and Addr is hard to update in real time */
+	Port        uint16 // b0gus ssh server port number
+	PermitLogin bool   // whether reject or not
+	EmptyShell  bool   // no any response
 }
 
 var (
@@ -128,8 +129,10 @@ func (s *SSHserverConf) cmdRepeater(
 	buf := make([]byte, 1)
 	defer ssh_chan.Close()
 
-	// Do not try to identify what I am doing
-	// 2-nested while True loop, but use label and goto for less ident
+	/*
+		Do not try to identify what I am doing. 2-nested `while True` loop,
+		but use labels and goto statments for less ident
+	*/
 rewind:
 	payload, last_char, prompt_char := "", "", "$ "
 
@@ -146,7 +149,6 @@ inner_loop:
 		return
 	} else if lena == 0 {
 		// empty string or a new line, just keep reading
-		// b0gus_config.Logger.Info("An empty char")
 		goto inner_loop
 	}
 
@@ -195,8 +197,8 @@ inner_loop:
 		last_char, payload = "", "exit"
 		goto jump_out
 
-	} else if char, ok := ctrl_seq[inp]; ok {
-		b0gus_config.Logger.Warn("ctrl+" + char)
+	} else if _, ok := ctrl_seq[inp]; ok {
+		// b0gus_config.Logger.Warn("ctrl+" + _)
 		goto inner_loop
 
 	} else if inp == "\\" {
@@ -214,10 +216,6 @@ inner_loop:
 	last_char = inp
 	/* } */
 	if buf[0] < 0x20 {
-		b0gus_config.Logger.Warn(
-			"Current control char was not well handled: ",
-			[]byte(last_char),
-		)
 		goto inner_loop
 	}
 	payload += inp
@@ -246,17 +244,19 @@ jump_out:
 
 	prompt_char = "$ "
 	var final_payload = "\r\n\r\n$ "
-
-	// TODO: is it possible to dynamically change the server configuration?
-	if s.CommandHook != nil {
+	// WARNING & TODO: still have race conditions here
+	if s.ConfigGenericCtrl.Flag.Load() {
+		<-s.ConfigGenericCtrl.Ch
+	}
+	if s.commandHook != nil {
 		/*
 			Add hook for specific commands output like `uname -a`
 				0. check if the configuration needs such modification
 				1. inspect command, determine whether it matches the request or not
 				2. once match, modify the return pattern
 		*/
-		final_payload = "" + "\r\n" +
-			s.CommandHook.(func(string) string)(payload) +
+		final_payload = "" +
+			"\r\n" + s.commandHook.(func(string) string)(payload) +
 			"\r\n" + prompt_char
 	} else if s.EmptyShell {
 
@@ -267,7 +267,8 @@ jump_out:
 	if err == nil {
 		goto rewind
 	}
-	b0gus_config.Logger.WithError(err).Info("Capture an error when writing payload")
+	b0gus_config.Logger.WithError(err).
+		Info("Capture an error when writing payload")
 }
 
 func (s *SSHserverConf) requestsHandler(
@@ -276,11 +277,7 @@ func (s *SSHserverConf) requestsHandler(
 	ssh_chan ssh.Channel,
 	reqs <-chan *ssh.Request,
 ) {
-	client_signal_chan := make(chan string, 1)
-	defer close(client_signal_chan)
 	defer ssh_chan.Close()
-
-	// TODO: implement different strategies for incomming network flows
 	for req := range reqs {
 		switch req.Type {
 		case "shell":
@@ -335,24 +332,33 @@ func (s *SSHserverConf) handle_new_ssh_chan(
 	s.requestsHandler(api_id, ssh_conn, ssh_chan, reqs)
 }
 
-func (s *SSHserverConf) ClientConnHandler(
+func (s *SSHserverConf) clientConnHandler(
 	conn net.Conn,
 	host_key ssh.Signer,
 ) {
-	defer func() {
-		<-s.clientLimitChan
+	if s.ConfigGenericCtrl.Flag.Load() {
+		<-s.ConfigGenericCtrl.Ch
+	}
+	if s.clientLimitor.Load() >= s.MaxClientNum {
 		conn.Close()
-	}()
-	err := conn.SetDeadline(time.Now().Add(s.ClientConnTimeout))
-	if err != nil {
-		b0gus_config.Logger.WithFields(logrus.Fields{
-			"err": err,
-		}).Error("Failed to set timeout for incomming connection")
 		return
 	}
-	b0gus_config.Logger.WithFields(logrus.Fields{
-		"timeout": s.ClientConnTimeout,
-	}).Info("Set")
+	s.clientLimitor.Add(1)
+	defer func() {
+		s.clientLimitor.Add(^uint32(0))
+		conn.Close()
+	}()
+	if s.ConfigGenericCtrl.Flag.Load() {
+		<-s.ConfigGenericCtrl.Ch
+	}
+	err := conn.SetDeadline(time.Now().Add(s.ClientConnTimeout))
+	if err != nil {
+		b0gus_config.Logger.Errorf(
+			"Failed to set timeout for incomming connection due to err:%s",
+			err.Error(),
+		)
+		return
+	}
 	ip, port := b0gus_misc_utils.IPaddrSplit(conn.RemoteAddr().String())
 	var (
 		attacker_addr_query_cond = b0gus_datatypes.AddrInfoDef{IP: ip}
@@ -439,10 +445,13 @@ func (s *SSHserverConf) ClientConnHandler(
 		}).Error("Failed to establish SSH connection")
 		return
 	}
-
+	defer ssh_conn.Close()
 	// reject all relay requests since all clients are untrusted
 	go ssh.DiscardRequests(relay_reqs)
 	for new_chan := range chans {
+		if s.ConfigGenericCtrl.Flag.Load() {
+			<-s.ConfigGenericCtrl.Ch
+		}
 		if !s.PermitLogin {
 			new_chan.Reject(ssh.Prohibited, "Access Denied")
 			continue
@@ -451,74 +460,112 @@ func (s *SSHserverConf) ClientConnHandler(
 	}
 }
 
-func (s *SSHserverConf) SSHMaliciousClientHandler(host_key ssh.Signer) {
-	// only accept tcp stream
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.Addr, s.Port))
+func (s *SSHserverConf) UpdateConfig(src *b0gus_config.SSHconfig) {
+	if !b0gus_config.CheckSSHconfig(src) {
+		b0gus_config.Logger.Error("Invalid SSH configuration, skip updating")
+		return
+	}
+	s.ConfigGenericCtrl.Flag.Store(true)
+	s.PermitLogin = src.PermitLogin
+	s.EmptyShell = src.EmptyShell
+	s.ClientConnTimeout = time.Duration(src.ClientConnTimeout) * time.Second
+	s.MaxClientNum = src.MaxClientNum
+	s.ConfigGenericCtrl.Ch <- struct{}{}
+	s.ConfigGenericCtrl.Flag.Store(false)
+
+	s.NewListener(src.ListenAddr, src.ListenPort)
+}
+
+func (s *SSHserverConf) NewListener(addr string, port uint16) {
+	if addr == s.Addr && port == s.Port {
+		// no need to update
+		return
+	}
+	s.TCPListenerSwitchDone.Flag.Store(true)
+	// apply new configuration here
+	tmp, err := net.Listen(
+		"tcp",
+		fmt.Sprintf("%s:%d", addr, port),
+	)
 	if err != nil {
-		b0gus_config.Logger.Fatalf(
-			"Failed to listen on given addr:%s",
-			fmt.Sprintf("%s:%d", s.Addr, s.Port),
+		b0gus_config.Logger.Infof(
+			"Failed to listen on given addr:%s, won't modify the listener of b0gus ssh server",
+			fmt.Sprintf("%s:%d", addr, port),
 		)
+		goto relax
+	}
+	if s.serverListenerPtr != nil {
+		(*s.serverListenerPtr).Close()
+	}
+	s.serverListenerPtr = &tmp
+	s.Addr, s.Port = addr, port
+relax:
+	s.TCPListenerSwitchDone.Ch <- struct{}{}
+	s.TCPListenerSwitchDone.Flag.Store(false)
+}
+
+func (s *SSHserverConf) SSHMaliciousClientHandler(
+	terminator *b0gus_datatypes.ConcurrentCtrl,
+	host_key ssh.Signer,
+) {
+	var (
+		addr string
+		port uint16
+	)
+	if s.TCPListenerSwitchDone.Flag.Load() {
+		<-s.TCPListenerSwitchDone.Ch
+	}
+	addr, port = s.Addr, s.Port
+	// only accept tcp stream
+	listener, err := net.Listen(
+		"tcp",
+		fmt.Sprintf("%s:%d", addr, port),
+	)
+	if err != nil {
+		b0gus_config.Logger.Errorf(
+			"Failed to listen on given addr:%s",
+			fmt.Sprintf("%s:%d", addr, port),
+		)
+		return
 	}
 	defer listener.Close()
-
+	s.serverListenerPtr = &listener
+	s.clientLimitor.Store(0)
 	// make channels for inflow control and termination determinant
-	s.clientLimitChan = make(chan struct{}, s.MaxClientNum)
-	s.signalChan, s.shouldTerminate = make(chan os.Signal, 1), make(chan bool, 1)
-	// signal notification to terminate the ssh server gracefully
-	signal.Notify(s.signalChan, syscall.SIGINT, syscall.SIGTERM)
-	defer close(s.clientLimitChan)
-	defer close(s.signalChan)
-
-	var stop_flag atomic.Bool
-	stop_flag.Store(false)
-
 	go func() {
-		sig := <-s.signalChan // stuck at this line until receiving any possible signal
-		b0gus_config.Logger.Warnf(
-			"Catch an OS signal<%s> for terminating b0gus SSH server",
-			sig.String(),
-		)
-		stop_flag.Store(true)
-		listener.Close()
-		s.shouldTerminate <- true
-		close(s.shouldTerminate)
-		// close only when receiving any termination signal
-	}()
-
-keep_spinning:
-	select {
-	case <-s.shouldTerminate:
+		<-terminator.Ch // stuck here until receiving termination signal
 		b0gus_config.Logger.Warn(
 			"Catch a signal requirement for shuting down b0gus SSH server",
 		)
+		listener.Close()
+		(*s.serverListenerPtr).Close()
+	}()
+
+keep_spinning:
+	if terminator.Flag.Load() {
+		(*s.serverListenerPtr).Close()
 		return
-	default:
-		if stop_flag.Load() {
-			return
-		}
-		// b0gus_config.Logger.Info("incomming connection...")
-		in_conn, err := listener.Accept()
-		if err != nil {
-			b0gus_config.Logger.Errorf(
-				"Failed to accept incoming connection due to error:%s",
-				err.Error(),
-			)
-			goto keep_spinning
-		}
-		if stop_flag.Load() {
-			in_conn.Close()
-			return
-		}
-		select {
-		case s.clientLimitChan <- struct{}{}:
-			go s.ClientConnHandler(in_conn, host_key)
-		default:
-			b0gus_config.Logger.Warn(
-				"No available slots for more connections at present, shutting down connection immediately",
-			)
-			in_conn.Close()
-		}
 	}
+	// we need a block mechanism to stop accept new connection
+	// utill listener is Ready to be put in usage again,
+	// when we have to hot-plug with new configuration
+	if s.TCPListenerSwitchDone.Flag.Load() {
+		<-s.TCPListenerSwitchDone.Ch
+	}
+	in_conn, err := (*s.serverListenerPtr).Accept()
+	if err != nil {
+		b0gus_config.Logger.Errorf(
+			"Failed to accept incoming connection due to error:%s",
+			err.Error(),
+		)
+		goto keep_spinning
+	}
+	if terminator.Flag.Load() {
+		in_conn.Close()
+		listener.Close()
+		(*s.serverListenerPtr).Close()
+		return
+	}
+	go s.clientConnHandler(in_conn, host_key)
 	goto keep_spinning
 }

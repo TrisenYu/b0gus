@@ -3,14 +3,15 @@ package misc_utils
 import (
 	"fmt"
 	"reflect"
+	// "container/list"
 )
 
 func TurnStruct2Map(s any) map[string]any {
 	sval := reflect.ValueOf(s)
 	styp := reflect.TypeOf(s)
 	switch styp.Kind() {
-	case reflect.Ptr:
-		for styp.Kind() == reflect.Ptr {
+	case reflect.Pointer:
+		for styp.Kind() == reflect.Pointer {
 			styp = styp.Elem()
 			sval = sval.Elem()
 		}
@@ -22,6 +23,8 @@ func TurnStruct2Map(s any) map[string]any {
 	}
 
 	var res map[string]any = make(map[string]any)
+
+	// TODO: use a queue instead of recursion
 	for i := range styp.NumField() {
 		child := styp.Field(i).Type
 		if child.Kind() == reflect.Struct {

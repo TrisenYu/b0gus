@@ -24,11 +24,11 @@ package datatypes
 	$ ...
 
 	IP as a basic table
-	Port -> IP, 	 	 create a foreignKey relation
-	name from Port, 	 create a foreignKey relation
-	publicKey from Port, create a foreignKey relation
-	password from Port,  create a foreignKey relation
-	commands from Port,  create a foreignKey relation
+	Port -> IP, 	 	create a foreignKey relation
+	name and Port, 	 	create a foreignKey relation
+	publicKey and Port, create a foreignKey relation
+	password and Port,  create a foreignKey relation
+	commands and Port,  create a foreignKey relation
 
 	we also want each field is unique
 */
@@ -48,7 +48,7 @@ type PortInfoDef struct {
 	/* foreign key definition zone */
 	AddrID      uint64
 	AddrRelated AddrInfoDef `gorm:"foreignKey:AddrID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	/* defined for outer foreign key */
+	/* define for outer foreign key */
 	CommandRelated          []PortCmdRelated    `gorm:"foreignKey:LoginedID;"`
 	PassRelated             []PortPassRelated   `gorm:"foreignKey:LoginedID;"`
 	PubKeyRelated           []PortPubKeyRelated `gorm:"foreignKey:LoginedID;"`
