@@ -15,7 +15,7 @@ func TestConfigReader(t *testing.T) {
 	// assemble to b0gus_config.Config_path_as_str
 	exam_conf_path := "../configs/example.toml"
 	test_conf_path, _ := filepath.Abs(exam_conf_path)
-	local_conf := b0gus_config.TomlConfigReader(test_conf_path)
+	local_conf := b0gus_config.LoadDefaultConfig(test_conf_path)
 	res_map := b0gus_misc_utils.TurnStruct2Map(local_conf)
 	assert.NotEqual(t, res_map, nil)
 	for k, v := range res_map["ServerConfig"].(map[string]any) {

@@ -2,20 +2,16 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
+
 	"sync"
 	"syscall"
 	"time"
 
-	logrus "github.com/sirupsen/logrus"
 	ssh "golang.org/x/crypto/ssh"
-	gorm_pg "gorm.io/driver/postgres" // pg stands for PostGreSQL
-	gorm_sqlite "gorm.io/driver/sqlite"
 	gorm "gorm.io/gorm"
 
 	b0gus_config "b0gus/configs"
@@ -25,13 +21,6 @@ import (
 	b0gus_services "b0gus/services"
 )
 
-// bogus ssh server
-//
-//		inParam:
-//	 need_shutdown [*atomic.Bool]; pointer to atomic boolean variable for terminating the server
-//		ssh_conf_obj [*b0gus_config.SSHconfig]; pointer to SSHconfig object
-//		db [*gorm.DB]; pointer to connected database object
-//	 wait_group [*sync.WaitGroup]; waitGroup for notisfying the main thread
 func b0gusSSHserver(
 	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
 	ssh_conf_obj *b0gus_config.SSHconfig,
@@ -71,9 +60,8 @@ func b0gusSSHserver(
 		PermitLogin:       ssh_conf_obj.PermitLogin,
 		EmptyShell:        ssh_conf_obj.EmptyShell,
 	}
-	ssh_server_conf.TCPListenerSwitchDone.Ch = make(chan struct{})
-	defer close(ssh_server_conf.TCPListenerSwitchDone.Ch)
-	ssh_server_conf.TCPListenerSwitchDone.Flag.Store(false)
+	ssh_server_conf.TCPListenerSwitchDone = make(chan struct{})
+	defer close(ssh_server_conf.TCPListenerSwitchDone)
 	ssh_server_conf.ConfigGenericCtrl.Ch = make(chan struct{})
 	defer close(ssh_server_conf.ConfigGenericCtrl.Ch)
 	ssh_server_conf.ConfigGenericCtrl.Flag.Store(false)
@@ -96,7 +84,13 @@ func b0gusTelnetServer(
 }
 
 func checkTelnetConfig(telnet_conf *b0gus_config.TelnetConfig) bool {
-	return telnet_conf != nil && net.ParseIP(telnet_conf.ListenAddr) != nil && telnet_conf.ListenPort > 1024
+	return telnet_conf != nil &&
+		net.ParseIP(telnet_conf.ListenAddr) != nil &&
+		telnet_conf.ListenPort > 1024
+}
+
+func checkNTPconfig(ntp_conf *b0gus_config.NTPconfig) bool {
+	return false
 }
 
 func servicesBrancher(
@@ -115,6 +109,7 @@ func servicesBrancher(
 	server_conf_mapper := conf_mapper["ServerConfig"]
 
 	// so that we can run go routine in this `for loop`
+	// Even though we can directly check SSH/TelnetConfig in ServerConfig struct
 	for k := range server_conf_mapper.(map[string]any) {
 		switch k {
 		case "PemName":
@@ -162,6 +157,10 @@ Pem seems to be invalid or unsupported, b0gus will create one and store it to th
 				need_shutdown, &server_conf.ServerConfig.Telnet,
 				db, wait_group,
 			)
+		case "NTP":
+			if !checkNTPconfig(nil) {
+				continue
+			}
 		default:
 			b0gus_config.Logger.Errorf("Unknown field<%s> was found in configuration", k)
 			continue
@@ -170,61 +169,13 @@ Pem seems to be invalid or unsupported, b0gus will create one and store it to th
 	wait_group.Wait()
 }
 
-/*  The entry of b0gus
- * configuration in `./configs/` should be set up before executing
- */
-func main() {
+func B0gusRun() {
 	// TODO: neccessary executable binary files/dependencies imediate check inside b0gus
 	conf_dir_str, _ := filepath.Abs(b0gus_config.Config_dir_as_str)
-	bogus_conf := b0gus_config.DefaultConfig()
-	b0gus_config.Logger.WithFields(logrus.Fields{
-		"ssh_server_conf":    bogus_conf.ServerConfig.SSH,
-		"telnet_server_conf": bogus_conf.ServerConfig.Telnet,
-	}).Info("Current configuration:\n")
-
-	var (
-		db     *gorm.DB = nil
-		err    error    = nil
-		db_str string   = ""
-	)
-
+	bogus_conf := b0gus_config.LoadDefaultConfig("")
+	db, db_str, err := b0gus_config.SelectDatabaseBackend(bogus_conf.ServerConfig.Database)
 	// **Connect** to Database. Create table when ensuring to run the server
 	// TODO: should we hot-plug the configurations of database and apply them with concurrent protections?
-	switch strings.ToLower(bogus_conf.ServerConfig.Database.DatabaseType) {
-	case "postgresql":
-		db_addr := bogus_conf.ServerConfig.Database.DatabaseAddr
-		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
-			b0gus_config.Logger.WithField("database addr", db_addr).
-				Fatal("Invalid database address was gained from configuration!")
-		}
-		pg_db_config := fmt.Sprintf(
-			"host=%s port=%d user=%s password=%s dbname=%s search_path=public",
-			db_addr, bogus_conf.ServerConfig.Database.DatabasePort,
-			bogus_conf.ServerConfig.Database.DatabaseAdminName,
-			bogus_conf.ServerConfig.Database.DatabaseAdminPassword,
-			bogus_conf.ServerConfig.Database.DatabaseName,
-		)
-		db, err = gorm.Open(gorm_pg.Open(pg_db_config), &gorm.Config{})
-		db_str = "postgresql"
-
-	case "sqlite":
-		abs_assets_dir_path, _ := filepath.Abs(b0gus_config.Assets_dir_as_str)
-		sqlite_path := bogus_conf.ServerConfig.Database.DatabasePath
-		sqlite_path = filepath.Join(abs_assets_dir_path, sqlite_path)
-		b0gus_config.Logger.Info(sqlite_path)
-		db, err = gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
-		db_str = "sqlite"
-
-	default:
-		b0gus_config.Logger.WithField(
-			"database you selected",
-			bogus_conf.ServerConfig.Database.DatabaseType,
-		).Fatal(
-			`
-Unknown and unsupported database type was found, 
-only support PostgreSQL and SQLite at present...`,
-		)
-	}
 	if err != nil {
 		b0gus_config.Logger.Errorf(
 			"Failed to connect to %s due to %s",
@@ -235,9 +186,22 @@ only support PostgreSQL and SQLite at present...`,
 		b0gus_config.Logger.Error("Empty database file descriptor")
 		return
 	}
+	var db_update_callback = func() {
+		tmp_db, tmp_db_str, _err := b0gus_config.SelectDatabaseBackend(bogus_conf.ServerConfig.Database)
+		if tmp_db == nil || _err != nil || tmp_db_str == "" {
+			b0gus_config.Logger.Warn("won't update the database handler")
+			return
+		}
+		// TODO: Guard the database with concurrent protections
+		b0gus_config.Logger.Error(
+			"We won't update the database at present due to the complexity in different transactions of services",
+		)
+	}
+
+	/* signal notification to terminate the ssh server gracefully */
 	signalChan := make(chan os.Signal, 1)
-	// signal notification to terminate the ssh server gracefully
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
 	var (
 		wait_group sync.WaitGroup
 		terminator b0gus_datatypes.ConcurrentCtrl
@@ -246,20 +210,23 @@ only support PostgreSQL and SQLite at present...`,
 	terminator.Flag.Store(false)
 
 	b0gus_config.GlobConfigMaintainer.Init()
+	go b0gus_config.GlobConfigMaintainer.Regist(db_update_callback)
 	go func() {
 	next_select:
 		select {
 		case sig := <-signalChan:
 			b0gus_config.Logger.Warnf(
-				"Catch an OS signal<%s> for terminating b0gus SSH server",
+				"Catch an OS signal<%s> for terminating b0gus server",
 				sig.String(),
 			)
 			terminator.Flag.Store(true)
 			terminator.Ch <- struct{}{}
 			close(terminator.Ch)
+			close(signalChan)
 		case <-b0gus_config.UpdateFlag:
 			b0gus_config.GlobConfigMaintainer.UpdateConfig()
 		}
+
 		if !terminator.Flag.Load() {
 			goto next_select
 		}
@@ -274,3 +241,8 @@ only support PostgreSQL and SQLite at present...`,
 	terminator.Flag.Store(true)
 	close(b0gus_config.UpdateFlag)
 }
+
+/*  The entry of b0gus
+ * configuration in `./configs/` should be set up before executing
+ */
+func main() { B0gusRun() }
