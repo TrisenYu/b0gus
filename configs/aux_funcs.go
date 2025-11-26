@@ -1,11 +1,6 @@
 package configs
 
 import (
-
-	// "path"
-	// "path/filepath"
-	// "runtime"
-	// "strings"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -42,6 +37,7 @@ func SelectDatabaseBackend(db_conf DatabaseConfig) (*gorm.DB, string, error) {
 		db, err := gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
 		return db, "sqlite", err
 	case "mongodb":
+		// TODO: no-relation database, we might need a more generic handler
 		fallthrough
 	case "redis":
 		fallthrough
@@ -84,7 +80,7 @@ func CheckSSHconfig(ssh_conf *SSHconfig) bool {
 	if ssh_conf == nil || ssh_conf.ListenAddr == "" || ssh_conf.ListenPort <= 1024 {
 		return false
 	}
-	// At this moment, we can only check whether those domains are null
+	/* At this moment and at most, we can only check whether those fields are null */
 	if ssh_conf.MaxClientNum == 0 {
 		ssh_conf.MaxClientNum = 1
 	} else if ssh_conf.ClientConnTimeout == 0 {
@@ -93,6 +89,17 @@ func CheckSSHconfig(ssh_conf *SSHconfig) bool {
 		ssh_conf.ResponseType = "Always-Reject"
 	}
 	return true
+}
+
+func CheckTelnetConfig(telnet_conf *TelnetConfig) bool {
+	return telnet_conf != nil &&
+		telnet_conf.ListenAddr != "" &&
+		telnet_conf.ListenPort > 1024
+}
+
+func CheckNTPconfig(ntp_conf *NTPconfig) bool {
+	return ntp_conf != nil && ntp_conf.ListenAddr != "" &&
+		ntp_conf.ListenPort > 1024
 }
 
 func inspectConfig(conf_data *LocalConfig) bool {
@@ -142,7 +149,7 @@ func (cm *ConfigMaintainer) Init() {
 	cm.updateCallback = make([]func(), 0)
 }
 
-// Currently it seems that we don't have to unregister callback functions
+// Currently we don't have to unregister callback functions
 func (cm *ConfigMaintainer) Regist(f func()) {
 	if !cm.initiated.Load() {
 		return

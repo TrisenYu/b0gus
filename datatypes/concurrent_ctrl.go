@@ -1,6 +1,9 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 package datatypes
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 type ConcurrentCtrl struct {
 	Ch   chan struct{}

@@ -1,3 +1,4 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 package crypto_aux
 
 import (
@@ -6,4 +7,8 @@ import (
 
 func PubKeyDeserialize(pub_byte []byte) string {
 	return base64.StdEncoding.EncodeToString(pub_byte)
+}
+
+func PubKeySerialize(pub_str string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(pub_str)
 }

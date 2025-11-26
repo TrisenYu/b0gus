@@ -5,6 +5,7 @@ import "sync/atomic"
 type SSHconfig struct {
 	ListenAddr        string `toml:"listen_addr" mapstructure:"listen_addr"`
 	ResponseType      string `toml:"response_type" mapstructure:"response_type"`
+	LoginBanner       string `toml:"login_banner" mapstructure:"login_banner"`
 	MaxClientNum      uint32 `toml:"max_client_num" mapstructure:"max_client_num"`
 	ClientConnTimeout uint32 `toml:"client_conn_timeout" mapstructure:"client_conn_timeout"`
 	ListenPort        uint16 `toml:"listen_port" mapstructure:"listen_port"`
@@ -22,6 +23,9 @@ type NTPconfig struct {
 	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
 }
 
+// TODO: database here means the recording database for attacker features
+//
+//	If we want database as a masquerading honeypot, then the name of this datatype might need altering
 type DatabaseConfig struct {
 	DatabaseType          string `toml:"database_type" mapstructure:"database_type"`
 	DatabaseName          string `toml:"database_name" mapstructure:"database_name"`

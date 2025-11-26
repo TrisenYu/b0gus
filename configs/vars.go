@@ -1,4 +1,4 @@
-// SPDX-LICENSE-IDENTIFIER: GPL2.0
+// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 //
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // Created at 2025/11/15 星期六 20:05:01
@@ -16,6 +16,6 @@ const (
 var (
 	curr_config LocalConfig
 	/* UpdateFlag requires manually close after the whole lifetime of b0gus */
-	UpdateFlag           chan struct{} = make(chan struct{})
+	UpdateFlag           chan struct{} = make(chan struct{}, 1)
 	GlobConfigMaintainer ConfigMaintainer
 )

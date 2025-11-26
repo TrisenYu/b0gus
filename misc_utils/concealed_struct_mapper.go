@@ -1,3 +1,4 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 package misc_utils
 
 import (

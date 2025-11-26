@@ -1,3 +1,4 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 package crypto_aux
 
 import (
@@ -67,9 +68,9 @@ func LoadHostPem(pem_path string) (ssh.Signer, error) {
 	}
 }
 
-// Generate a new host key when a PEM file, whose path is given by configuration,
-// is invalid/corrupted or not exists
-// TODO: also make this configurable
+// Generate a new host key when a PEM file given by configuration is invalid/corrupted
+// or not exists
+// TODO: also make parameters of PEM configurable
 func CreatePem(pem_path string) (ssh.Signer, error) {
 	// elliptic.P256, elliptic.P384, elliptic.P521, or RSA2048, RSA4096, RSA8192
 	// yet they can be defined in configuration file, even though
@@ -107,4 +108,25 @@ func CreatePem(pem_path string) (ssh.Signer, error) {
 		return nil, err
 	}
 	return host_key, err
+}
+
+func LoadOrCreatePem(pem_path string) ssh.Signer {
+	pem_obj, err := LoadHostPem(pem_path)
+	if err == nil {
+		return pem_obj
+	}
+	var res ssh.Signer
+	b0gus_config.Logger.Warnf(
+		"Pem seems to be invalid or unsupported...detail:<%v>, b0gus will new one for you",
+		err,
+	)
+	res, err = CreatePem(pem_path)
+	if err == nil {
+		return res
+	}
+	b0gus_config.Logger.Errorf(
+		"Unable to create pem at %s due to %s, won't execute start up SSH server",
+		pem_path, err.Error(),
+	)
+	return nil
 }

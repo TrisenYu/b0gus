@@ -13,6 +13,7 @@ addr:port => (addr, port)
 	return "", 0 if any error emerges
 */
 func IPaddrSplit(ip_port string) (string, uint16) {
+	// TODO: net.SplitHostPort
 	var (
 		res_ip string = ""
 		i      int

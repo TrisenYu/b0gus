@@ -1,3 +1,4 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 package diff_tests
 
 import (
@@ -26,6 +27,8 @@ func TestConfigReader(t *testing.T) {
 		case "SSH":
 			fallthrough
 		case "Telnet":
+			fallthrough
+		case "NTP":
 			fallthrough
 		case "Database":
 			t.Log(k, v)

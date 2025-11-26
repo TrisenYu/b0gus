@@ -10,23 +10,68 @@ pem_name = "host.pem"
 
 # It might be identical to run this program in port 22 as a b0gus ssh server
 # but for non-root user, binding to port < 1024 is not allowed
-# so we will use docker in the future to achieve such goal
+# So we will use docker in the future to achieve such goal
 [server_config.ssh]
     listen_addr = "localhost"
     listen_port = 2333
 
-    ## strategy on ssh server configuration
+    ## Strategy on ssh server configuration
     max_client_num = 32
     client_conn_timeout = 180 # time-unit is second
-    # only store `ip, username, password, access time and public key` information
+    # Only store `ip, username, password, access time and public key` information
     # TODO: set them as strategy
     permit_login = true
     empty_shell = false # if you type, just enter a new line for every command
     
-    # just repeat what user inputs back to the terminal
+    # Just repeat what user inputs back to the terminal
     # TODO: add more response types which represent certain strategy 
-    # for interacting with malicious clients later
     response_type = "repeater"
+
+    # banner after successfully logining
+    login_banner = '''
+_______________#########_______________________
+______________############_____________________
+______________#############____________________
+_____________##__###########___________________
+____________###__######_#####__________________
+____________###_#######___####_________________
+___________###__##########_####________________
+__________####__###########_####_______________
+________#####___###########__#####_____________
+_______######___###_########___#####___________
+_______#####___###___########___######_________
+______######___###__###########___######_______
+_____######___####_##############__######______
+____#######__#####################_#######_____
+____#######__##############################____
+___#######__######_#################_#######___
+___#######__######_######_#########___######___
+___#######____##__######___######_____######___
+___#######________######____#####_____#####____
+____######________#####_____#####_____####_____
+_____#####________####______#####_____###______
+______#####______;###________###______#________
+________##_______####________####______________
+'''
+
+#                   _oo0oo_
+#                  o8888888o
+#                  88" . "88
+#                  (| -_- |)
+#                  0\  =  /0
+#                ___/`---'\___
+#              .' \\|     |// '.
+#             / \\|||  :  |||// \
+#            / _||||| -:- |||||- \
+#           |   | \\\  - /// |   |
+#           | \_|  ''\---/''  |_/ |
+#           \  .-\__  '-'  ___/-. /
+#         ___'. .'  /--.--\  `. .'___
+#      ."" '<  `.___\_<|>_/___.' >' "".
+#     | | :  `- \`.;`\ _ /`;.`/ - ` : | |
+#     \  \ `_.   \_ __\ /__ _/   .-` /  /
+# =====`-.____`.___ \_____/___.-`___.-'=====
+
 
 [server_config.telnet]
     listen_addr = "localhost"
@@ -42,9 +87,9 @@ pem_name = "host.pem"
     database_port = 5432
     database_admin_name = "postgres"
     database_admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
-    # this redundant domain is used for different sql like SQLite
+    # This redundant field is used for different sql like SQLite
     # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
     # explictly given. And default directory is set to `assets`, where stores the database
-    # file that **have to be created** manually or by automated scripts
+    # file that **have to be created** manually or by automatic scripts
     # Lastly, the corresponding dataname should fill with `sqlite`, `SQLITE`, or `SQLite`
     database_path = "nasty-ssh-client.db"
