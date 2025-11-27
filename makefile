@@ -1,5 +1,5 @@
+# SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 .PHONY: deps build release
-
 
 debug: deps
 	go build
@@ -10,6 +10,5 @@ release:deps
 deps:
 	go mod download
 
-# TODO: diversity of executable files in different operating systems
 run:
 	./b0gus

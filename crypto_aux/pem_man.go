@@ -3,13 +3,16 @@ package crypto_aux
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	b0gus_config "b0gus/configs"
 
@@ -21,7 +24,7 @@ import (
  * return ssh.Signer, error; if success, return ssh.Signer object and nil,
  * else return nil and error
  */
-func LoadHostPem(pem_path string) (ssh.Signer, error) {
+func LoadSSHhostPem(pem_path string) (ssh.Signer, error) {
 	pem_fd, err := os.Open(pem_path)
 	if err != nil {
 		b0gus_config.Logger.
@@ -68,15 +71,73 @@ func LoadHostPem(pem_path string) (ssh.Signer, error) {
 	}
 }
 
+func handle_ed25519() (*ed25519.PrivateKey, error) {
+	_, private_key, err := ed25519.GenerateKey(rand.Reader)
+	return &private_key, err
+}
+
+func handle_elliptic(pem_len uint64) (*ecdsa.PrivateKey, error) {
+	var choice elliptic.Curve
+	switch pem_len {
+	case 224:
+		choice = elliptic.P224()
+	case 256:
+		choice = elliptic.P256()
+	case 384:
+		choice = elliptic.P384()
+	case 521:
+		choice = elliptic.P521()
+	default:
+		return nil, fmt.Errorf(
+			"unsupported length<%d> for elliptic curve encryption algorithm",
+			pem_len,
+		)
+	}
+	return ecdsa.GenerateKey(choice, rand.Reader)
+}
+
+func handle_rsa(pem_len uint64) (*rsa.PrivateKey, error) {
+	switch pem_len {
+	case 1024:
+		// Use 2048 instead
+		pem_len = 2048
+	case 2048:
+	case 4096:
+	case 8192:
+	default:
+		return nil, fmt.Errorf("invalid length<%d> for rsa public key", pem_len)
+	}
+	return rsa.GenerateKey(rand.Reader, int(pem_len&0xFFFF_FFFF))
+}
+
 // Generate a new host key when a PEM file given by configuration is invalid/corrupted
 // or not exists
-// TODO: also make parameters of PEM configurable
-func CreatePem(pem_path string) (ssh.Signer, error) {
-	// elliptic.P256, elliptic.P384, elliptic.P521, or RSA2048, RSA4096, RSA8192
-	// yet they can be defined in configuration file, even though
-	// different api needs invoking
-	// rsa.GenerateKey(rand.Reader, 4096)
-	host_pem, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+func CreateSSHpem(
+	pem_path string,
+	pem_type string,
+	pem_len uint64,
+) (ssh.Signer, error) {
+	var (
+		host_pem any = nil
+		err      error
+	)
+	switch strings.ToLower(pem_type) {
+	case "ed25519":
+		_host_pem, err := handle_ed25519()
+		if err == nil && _host_pem != nil {
+			host_pem = *_host_pem
+		}
+	case "elliptic":
+		host_pem, err = handle_elliptic(pem_len)
+	case "rsa":
+		host_pem, err = handle_rsa(pem_len)
+
+	default:
+		b0gus_config.Logger.Error(
+			"Invalid pem type was provided, won't generate any key!",
+		)
+		return nil, fmt.Errorf("invalid pem type:<%v>", pem_type)
+	}
 	if err != nil {
 		b0gus_config.Logger.Error("Failed to generate host private key!")
 		return nil, err
@@ -88,8 +149,9 @@ func CreatePem(pem_path string) (ssh.Signer, error) {
 	}
 	pem_file, err := os.Create(pem_path)
 	if err != nil {
-		b0gus_config.Logger.WithField("pem_path:", pem_path).
-			Error("Failed to create pem file!\n")
+		b0gus_config.Logger.Errorf(
+			"Failed to create pem file into path:%v!\n", pem_path,
+		)
 		return nil, err
 	}
 	defer pem_file.Close()
@@ -110,23 +172,28 @@ func CreatePem(pem_path string) (ssh.Signer, error) {
 	return host_key, err
 }
 
-func LoadOrCreatePem(pem_path string) ssh.Signer {
-	pem_obj, err := LoadHostPem(pem_path)
+func LoadOrCreateSSHpem(
+	pem_path string,
+	pem_type string,
+	pem_len uint64,
+
+) ssh.Signer {
+	pem_obj, err := LoadSSHhostPem(pem_path)
 	if err == nil {
 		return pem_obj
 	}
 	var res ssh.Signer
 	b0gus_config.Logger.Warnf(
-		"Pem seems to be invalid or unsupported...detail:<%v>, b0gus will new one for you",
+		"Pem seems to be invalid or unsupported... detail:<%v>, b0gus will new one for you",
 		err,
 	)
-	res, err = CreatePem(pem_path)
+	res, err = CreateSSHpem(pem_path, pem_type, pem_len)
 	if err == nil {
 		return res
 	}
 	b0gus_config.Logger.Errorf(
-		"Unable to create pem at %s due to %s, won't execute start up SSH server",
-		pem_path, err.Error(),
+		"Unable to create pem at %s due to %v, won't execute start up server",
+		pem_path, err,
 	)
 	return nil
 }

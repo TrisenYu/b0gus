@@ -2,7 +2,6 @@
 //
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // Created at 2025/11/15 星期六 17:19:53
-// Last modified at 2025/11/15 星期六 22:22:34
 package datatypes
 
 // Recommends for struct tags:
@@ -60,8 +59,9 @@ type PortInfoDef struct {
 }
 
 type SSHClientversionStrDef struct {
-	VerID           uint64 `gorm:"primaryKey;autoIncrement;"`
-	ClientVersion   string `gorm:"unique;not null"` // SSH client version string
+	VerID uint64 `gorm:"primaryKey;autoIncrement;"`
+	/* SSH client version string TODO: maybe we need the reduced one, omitting unnecessary information */
+	ClientVersion   string `gorm:"unique;not null"`
 	FirstRecordTime int64  `gorm:"autoCreateTime:nano"`
 	UpdatedTime     int64  `gorm:"autoUpdateTime:nano"`
 
@@ -72,6 +72,7 @@ type SSHClientversionStrDef struct {
 type UsernameDef struct {
 	UserID          uint64 `gorm:"primaryKey"`
 	Username        string `gorm:"unique;"` // What if someone might send an empty string as username?
+	Counter         uint64 `gorm:"default:0"`
 	FirstRecordTime int64  `gorm:"autoCreateTime:nano"`
 	UpdatedTime     int64  `gorm:"autoUpdateTime:nano"`
 	/* defined for outer foreign key */
@@ -81,6 +82,7 @@ type UsernameDef struct {
 type PassInfoDef struct {
 	PasswordID      uint64 `gorm:"primaryKey"`
 	Password        string `gorm:"unique;uniqueIndex:password_idx;comment: Password attempted to login into system"`
+	Counter         uint64 `gorm:"default:0"`
 	FirstRecordTime int64  `gorm:"autoCreateTime:nano"`
 	UpdatedTime     int64  `gorm:"autoUpdateTime:nano"`
 	/* defined for outer foreign key */

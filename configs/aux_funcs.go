@@ -149,7 +149,7 @@ func (cm *ConfigMaintainer) Init() {
 	cm.updateCallback = make([]func(), 0)
 }
 
-// Currently we don't have to unregister callback functions
+// Currently we don't have unregister callback functions
 func (cm *ConfigMaintainer) Regist(f func()) {
 	if !cm.initiated.Load() {
 		return
@@ -164,7 +164,7 @@ func (cm *ConfigMaintainer) UpdateConfig() {
 		return
 	}
 	for _, fn := range cm.updateCallback {
-		// run each callback function in different go routine
+		// run each callback function in different go routines
 		if fn == nil {
 			continue
 		}

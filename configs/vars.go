@@ -2,7 +2,6 @@
 //
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // Created at 2025/11/15 星期六 20:05:01
-// Last modified at 2025/11/15 星期六 22:24:47
 package configs
 
 const (

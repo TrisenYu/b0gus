@@ -11,7 +11,7 @@ import (
 )
 
 // reference online documentation: https://www.rfc-editor.org/rfc/rfc854
-// default port of telnet is 23, and end of line is \r\n
+// default port of telnet is 23
 type Telnet struct {
 }
 

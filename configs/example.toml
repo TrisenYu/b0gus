@@ -1,12 +1,14 @@
 ############################### NOTICE ###############################
 # DO NOT DELETE THIS FILE. THIS FILE IS ALSO USE AS ONE OF THE CONTENT 
-# SOURCE READING BY TESTCASES.
+# SOURCE READING BY TESTCASES, The configuration file copied by docker
 # This is an example configuration. You should create your own `config.toml` in the
 # same directory so that b0gus can run as what you expect it to obey.
 ############################### NOTICE ###############################
 [server_config]
 # Will store pem in the same `configs` directory
-pem_name = "host.pem"
+pem_name = "b0gus-host.pem"
+pem_type = "ecdh"
+pem_len = 512
 
 # It might be identical to run this program in port 22 as a b0gus ssh server
 # but for non-root user, binding to port < 1024 is not allowed
@@ -77,7 +79,16 @@ ________##_______####________####______________
     listen_addr = "localhost"
     listen_port = 23333
 
-# Can' t update configuration of database in runtime
+[server_config.dns]
+    listen_addr = "localhost"
+    listen_port = 5321
+
+[server_config.ftp]
+    listen_addr = "localhost"
+    ctrl_port = 21
+    data_port = 20
+
+# Can't update configuration of database in runtime
 [server_config.database]
     # Yet to have a checking/filtering mechanism to determine 
     # whether database_addr:database_port is requried
@@ -87,7 +98,7 @@ ________##_______####________####______________
     database_port = 5432
     database_admin_name = "postgres"
     database_admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
-    # This redundant field is used for different sql like SQLite
+    # This redundant field is used for different SQLs like SQLite
     # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
     # explictly given. And default directory is set to `assets`, where stores the database
     # file that **have to be created** manually or by automatic scripts

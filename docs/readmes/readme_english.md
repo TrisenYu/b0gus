@@ -1,6 +1,6 @@
 #### Low-interative, Configuration-Directed golang Honeypots server 
 
-Currently, **B0gus** only supports to deploy _SSH_ as a functional honeypot by utilizing library `golang/x/crypto/ssh` and database ORM framework `gorm`. 'Functional' here means that you can assign non-privilege port number, fetch records (etc. `attackers' IP,`, `user name`, `passwords`, `public keys`, `ssh versions`, `accessing time`) from interactions and reload the configuration of ssh service in real time.
+Currently, **B0gus** is still under development. B0gus only supports to deploy _SSH_ as a functional honeypot. 'Functional' here means that you can assign non-privilege port number, fetch records (etc. `attackers' IP,`, `user name`, `passwords`, `public keys`, `ssh versions`, `accessing time`) from interactions and reload the configuration of ssh service in real time.
 
 In future, B0gus will:
 - use docker to further isolate itself from other benign processes;
@@ -11,6 +11,10 @@ In future, B0gus will:
 
 #### References
 
+#### License
+B0gus is distributed under the terms of the 3-Clause-BSD License. See the included file for more detail.
+
 #### Todo-list
 
 - if possible, set up [oss-fuzz](https://google.github.io/oss-fuzz/getting-started/new-project-guide/)
+- other todo mentioned in the source code

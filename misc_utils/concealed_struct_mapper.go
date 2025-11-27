@@ -4,9 +4,9 @@ package misc_utils
 import (
 	"fmt"
 	"reflect"
-	// "container/list"
 )
 
+// (Deprecated) Directly check fields
 func TurnStruct2Map(s any) map[string]any {
 	sval := reflect.ValueOf(s)
 	styp := reflect.TypeOf(s)

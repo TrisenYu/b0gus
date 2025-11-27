@@ -39,7 +39,10 @@ type DatabaseConfig struct {
 type LocalConfig struct {
 	// This field should refer the toml config defined in configs/config.toml
 	ServerConfig struct {
-		PemName  string         `toml:"pem_name" mapstructure:"pem_name"`
+		PemName string `toml:"pem_name" mapstructure:"pem_name"`
+		PemType string `toml:"pem_type" mapstructure:"pem_type"`
+		PemLen  uint64 `toml:"pem_len" mapstructure:"pem_len"`
+		// services
 		SSH      SSHconfig      `toml:"ssh" mapstructure:"ssh"`
 		Telnet   TelnetConfig   `toml:"telnet" mapstructure:"telnet"`
 		NTP      NTPconfig      `toml:"ntp"  mapstructure:"ntp"`

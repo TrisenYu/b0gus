@@ -1,5 +1,4 @@
 // SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
-// Last modified at 2025/11/15 星期六 22:22:42
 package main
 
 import (
@@ -9,9 +8,6 @@ import (
 
 	"sync"
 	"syscall"
-
-	// "net/http"
-	_ "net/http/pprof"
 
 	gorm "gorm.io/gorm"
 
@@ -32,7 +28,10 @@ func servicesBrancher(
 	// if so, b0gus won't running this and instead push such information into log
 	if b0gus_config.CheckSSHconfig(&server_conf.ServerConfig.SSH) {
 		pem_path, _ := filepath.Abs(filepath.Join(conf_path, server_conf.ServerConfig.PemName))
-		if host_key := b0gus_crypto_aux.LoadOrCreatePem(pem_path); host_key != nil {
+		if host_key := b0gus_crypto_aux.LoadOrCreateSSHpem(
+			pem_path, server_conf.ServerConfig.PemType,
+			server_conf.ServerConfig.PemLen); host_key != nil {
+			/* Add wait group */
 			wait_group.Add(1)
 			go b0gus_services.SSHserver(
 				need_shutdown, &server_conf.ServerConfig.SSH,
@@ -41,6 +40,7 @@ func servicesBrancher(
 		}
 	}
 	if b0gus_config.CheckTelnetConfig(nil) {
+		/* Add wait group */
 		wait_group.Add(1)
 		go b0gus_services.TelnetServer(
 			need_shutdown, &server_conf.ServerConfig.Telnet,
@@ -48,6 +48,7 @@ func servicesBrancher(
 		)
 	}
 	if b0gus_config.CheckNTPconfig(&server_conf.ServerConfig.NTP) {
+		/* Add wait group */
 		wait_group.Add(1)
 		go b0gus_services.NTPserver(
 			need_shutdown, &server_conf.ServerConfig.NTP,
@@ -80,13 +81,13 @@ func B0gusRun() {
 			b0gus_config.Logger.Warn("Won't update the database handler")
 			return
 		}
-		// TODO: Guard the database with concurrent protections
+		/* Guard the database with concurrent protections */
 		b0gus_config.Logger.Error(
 			"Won't update the database at present due to the complexity in different transactions of services",
 		)
 	}
 
-	/* signal notification to terminate the ssh server gracefully */
+	/* signal notification to terminate the whole server gracefully */
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	var (
@@ -108,11 +109,8 @@ func B0gusRun() {
 				sig.String(),
 			)
 			terminator.Flag.Store(true)
-			b0gus_config.Logger.Warnf("after storing terminated flag")
-			// terminator.Ch <- struct{}{}
-			b0gus_config.Logger.Warnf("after pushing struct")
+			terminator.Ch <- struct{}{}
 			close(terminator.Ch)
-			b0gus_config.Logger.Warnf("after closing")
 			close(signalChan)
 			signal.Stop(signalChan)
 
@@ -135,12 +133,7 @@ func B0gusRun() {
 	close(b0gus_config.UpdateFlag)
 }
 
-// The entry of b0gus. configuration in `./configs/` should be properly set up before executing
+/* The entry of b0gus. configuration in `./configs/` should be properly set up before executing */
 func main() {
-	/*
-		go func() {
-			b0gus_config.Logger.Info(http.ListenAndServe(":6060", nil))
-		}()
-	*/
 	B0gusRun()
 }

@@ -20,24 +20,26 @@ import (
 	b0gus_misc_utils "b0gus/misc_utils"
 )
 
+// default port number: 22
 // https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
-// SSH-protoversion-softwareversion SP comments CR LF
 var (
 	sshSoftwareArr = []string{
 		"OpenSSH", "libssh", "libssh2", "billsSSHP",
 		"PuTTY", "paramiko", "FlowSSH", "check_ssh",
+		"dropbear",
 	}
-	// TODO: falsify operating system version in the near future
+	// TODO: falsify operating system and its version in the future
 	sshOSCommentArr = []string{
 		"Debian-10", "Debian-11", "Ubuntu-18.04",
 		"Ubuntu-20.04", "Ubuntu-22.04", "Fedora-34",
 		"Fedora-35", "Fedora-36", "Alpine-3.14",
 		"Alpine-3.15", "Alpine-3.16", "FreeBSD-12",
 		"FreeBSD-13", "OpenWrt-21.02", "OpenWrt-22.03",
-		"Windows-10", "macOS-10.15",
+		"Windows-10", "macOS-10.15", "Raspbian-5+deb8u4",
 	}
 )
 
+/* SSH-protoversion-softwareversion SP comments CR LF */
 func getRandomSSHVersion() string {
 	buf := make([]byte, 5)
 	_, err := rand.Read(buf)
@@ -72,7 +74,8 @@ type SSHserverConf struct {
 		if not nil, then this field should be `func(string) string`
 	*/
 	commandHook any
-	// fields below need concurrenct control to follow the configuration
+	/* fields below need concurrenct control to follow the configuration */
+
 	TCPListenerSwitchDone sync.Mutex
 	ConfigGenericCtrl     b0gus_datatypes.ConcurrentCtrl
 	serverListenerPtr     *net.Listener // current listener on Addr:Port
@@ -80,10 +83,9 @@ type SSHserverConf struct {
 	LoginBanner           string        // ssh server login banner
 	ClientConnTimeout     time.Duration // initiated timeout setting
 	MaxClientNum          uint32        // maximum clients number handling in real time
-	/* NOTE that Port and Addr is hard to update in real time */
-	Port        uint16 // b0gus ssh server port number
-	PermitLogin bool   // whether reject or not
-	EmptyShell  bool   // no any response
+	Port                  uint16        // b0gus ssh server port number
+	PermitLogin           bool          // whether reject or not
+	EmptyShell            bool          // no any response
 }
 
 var (
@@ -290,7 +292,7 @@ func (s *SSHserverConf) requestsHandler(
 		case "shell":
 			_ = req.Reply(true, nil)
 			welcomeMsg := fmt.Sprintf(
-				strings.Replace(banner, "\n", "\r\n", -1)+"Last login: %s from %s\r\n$ ",
+				strings.ReplaceAll(banner, "\n", "\r\n")+"Last login: %s from %s\r\n$ ",
 				time.Now().Format(time.ANSIC),
 				ssh_conn.RemoteAddr().String(),
 			)
@@ -339,6 +341,9 @@ func (s *SSHserverConf) handle_new_ssh_chan(
 	s.requestsHandler(api_id, banner, ssh_conn, ssh_chan, reqs)
 }
 
+// TODO: Notice that the listener/connection setup phases of various
+// protocol are pretty similar, it will be better to extract the commoness
+// from these functions and orignize them as a generic function/interface
 func (s *SSHserverConf) clientConnHandler(
 	conn net.Conn,
 	host_key ssh.Signer,
@@ -636,10 +641,10 @@ func SSHserver(
 		Port:              ssh_conf_obj.ListenPort,
 		MaxClientNum:      ssh_conf_obj.MaxClientNum,
 		ClientConnTimeout: time.Duration(ssh_conf_obj.ClientConnTimeout) * time.Second,
-		DB_fd:             db,
 		PermitLogin:       ssh_conf_obj.PermitLogin,
 		EmptyShell:        ssh_conf_obj.EmptyShell,
 		LoginBanner:       ssh_conf_obj.LoginBanner,
+		DB_fd:             db,
 	}
 	ssh_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
 	defer close(ssh_server_conf.ConfigGenericCtrl.Ch)
