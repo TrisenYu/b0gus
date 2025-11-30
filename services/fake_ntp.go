@@ -1,4 +1,4 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
 import (
@@ -8,15 +8,14 @@ import (
 	"sync"
 	"time"
 
-	gorm "gorm.io/gorm"
-
 	b0gus_config "b0gus/configs"
-	b0gus_datatypes "b0gus/datatypes"
+	b0gus_databases "b0gus/databases"
+	b0gus_datatypes "b0gus/generic_datatypes"
 )
 
 /*
-	https://www.rfc-editor.org/rfc/rfc958.html
-
+	NTP-RFC: www.rfc-editor.org/rfc/rfc958.html
+	--------------------------------------------------------------------------------------------
 	Field Name              Request    Reply                                   bytes
 	--------------------------------------------------------------------------------------------
 	LI                      0 or 3     0
@@ -34,7 +33,9 @@ import (
 	Originate Timestamp     ignore     copied from transmit timestamp			 24
 	Receive Timestamp       ignore     time of day							     32
 	Transmit Timestamp      (see text) time of day                               40
+	--------------------------------------------------------------------------------------------
 	                                                                    total:   48
+	--------------------------------------------------------------------------------------------
 	For receive timestamp, if no request has ever arrived from the client the
     value is zero
 	For transmit timestamp, server need to specify the local time
@@ -143,7 +144,7 @@ func NTPServe(req []byte) ([]byte, error) {
 
 type NTPserverConf struct {
 	/* database handler for writing data */
-	DB_fd *gorm.DB
+	DB_fd *b0gus_databases.RecordDB
 	/* fields below need concurrenct control to follow the configuration */
 	AlterNTPListener  sync.Mutex
 	ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
@@ -227,10 +228,11 @@ func (n *NTPserverConf) NTPclientHandler(
 }
 
 // TODO: utilize database pointer
+// db *gorm.DB *redis.Client *mongo.Client
 func NTPserver(
 	terminator *b0gus_datatypes.ConcurrentCtrl,
 	ntp_conf_obj *b0gus_config.NTPconfig,
-	db *gorm.DB,
+	db *b0gus_databases.RecordDB,
 	wait_group *sync.WaitGroup,
 ) {
 	defer wait_group.Done()

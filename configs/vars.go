@@ -1,4 +1,4 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 //
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // Created at 2025/11/15 星期六 20:05:01

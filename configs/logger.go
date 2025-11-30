@@ -1,3 +1,4 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package configs
 
 import (
@@ -16,6 +17,7 @@ func init() {
 	logrus.SetFormatter(
 		&logrus.TextFormatter{
 			TimestampFormat: time.StampMilli,
+			FullTimestamp:   true,
 		},
 	)
 }

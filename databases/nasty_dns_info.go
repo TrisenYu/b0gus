@@ -1,4 +1,5 @@
-package datatypes
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+package databases
 
 type DNSQuery struct {
 	DQID            uint64 `gorm:"primaryKey;autoIncrement;not null"`

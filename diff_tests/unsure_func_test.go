@@ -1,4 +1,4 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package diff_tests
 
 import (
@@ -138,52 +138,64 @@ func TestIPvXparser(t *testing.T) {
 
 func TestPemHelper(t *testing.T) {
 
-	var del_pem = func() {
-		err := os.Remove("../assets/test.pem")
-		assert.Equal(t, err, nil, "Unable to delete test.pem")
-	}
-	what_we_have := b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ed25519", 0)
+	var (
+		pem_path = "../assets/test.pem"
+		del_pem  = func() {
+			err := os.Remove(pem_path)
+			assert.Equal(t, err, nil, "Unable to delete test.pem")
+		}
+	)
+
+	what_we_have := b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "ed25519", 0)
 	assert.NotEqual(t, what_we_have, nil, "Still got an nil after creating")
 	del_pem()
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 311)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "elliptic", 311)
 	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 521)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "elliptic", 521)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	del_pem()
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 384)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "elliptic", 384)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	del_pem()
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 0)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "elliptic", 0)
 	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ell1ptic", 0)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "ell1ptic", 0)
 	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 384)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 384)
 	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 1024)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 1024)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	del_pem()
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 2048)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 2048)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	del_pem()
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 4096)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 4096)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	del_pem()
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 1234)
+	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ed25519", 123456)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "ed25519", 123456)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	what_we_have = nil
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ed25519", 123456)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "ed25519", 123456)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
 	del_pem()
 
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ecdh", 123456)
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "ecdh", 123456)
+	assert.Equal(t, what_we_have, nil, "Still got an nil after creating")
+
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "dsa", 123456)
+	assert.Equal(t, what_we_have, nil, "Still got an nil after creating")
+
+	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "sm2", 123456)
 	assert.Equal(t, what_we_have, nil, "Still got an nil after creating")
 }

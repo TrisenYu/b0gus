@@ -1,6 +1,10 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package configs
 
-import "sync/atomic"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type SSHconfig struct {
 	ListenAddr        string `toml:"listen_addr" mapstructure:"listen_addr"`
@@ -19,6 +23,11 @@ type TelnetConfig struct {
 }
 
 type NTPconfig struct {
+	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
+	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
+}
+
+type DNSconfig struct {
 	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
 	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
 }
@@ -46,12 +55,13 @@ type LocalConfig struct {
 		SSH      SSHconfig      `toml:"ssh" mapstructure:"ssh"`
 		Telnet   TelnetConfig   `toml:"telnet" mapstructure:"telnet"`
 		NTP      NTPconfig      `toml:"ntp"  mapstructure:"ntp"`
+		DNS      DNSconfig      `toml:"dns" mapstructure:"dns"`
 		Database DatabaseConfig `toml:"database"`
 	} `toml:"server_config" mapstructure:"server_config"`
 }
 
 type ConfigMaintainer struct {
 	updateCallback []func()
-	blockedSign    chan struct{}
+	blockedSign    sync.Mutex
 	initiated      atomic.Bool
 }

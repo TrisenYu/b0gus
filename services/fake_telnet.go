@@ -1,13 +1,12 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
 import (
 	"sync"
 
-	gorm "gorm.io/gorm"
-
 	b0gus_config "b0gus/configs"
-	b0gus_datatypes "b0gus/datatypes"
+	b0gus_databases "b0gus/databases"
+	b0gus_datatypes "b0gus/generic_datatypes"
 )
 
 // reference online documentation: https://www.rfc-editor.org/rfc/rfc854
@@ -15,10 +14,11 @@ import (
 type Telnet struct {
 }
 
+// db *gorm.DB *redis.Client *mongo.Client
 func TelnetServer(
 	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
 	bogus_conf *b0gus_config.TelnetConfig,
-	db *gorm.DB,
+	db *b0gus_databases.RecordDB,
 	wait_group *sync.WaitGroup,
 ) {
 	wait_group.Done()

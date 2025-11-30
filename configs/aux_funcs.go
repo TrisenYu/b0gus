@@ -1,11 +1,16 @@
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package configs
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"path/filepath"
 	"strings"
 
+	redis "github.com/redis/go-redis/v9"
+	mongo "go.mongodb.org/mongo-driver/mongo"
+	mongo_opts "go.mongodb.org/mongo-driver/mongo/options"
 	gorm_pg "gorm.io/driver/postgres" // pg stands for PostGreSQL
 	gorm_sqlite "gorm.io/driver/sqlite"
 	gorm "gorm.io/gorm"
@@ -14,7 +19,8 @@ import (
 	viper "github.com/spf13/viper"
 )
 
-func SelectDatabaseBackend(db_conf DatabaseConfig) (*gorm.DB, string, error) {
+// any here is always a pointer
+func SelectDatabaseBackend(db_conf DatabaseConfig) (any, string, error) {
 	switch strings.ToLower(db_conf.DatabaseType) {
 	case "postgresql":
 		db_addr := db_conf.DatabaseAddr
@@ -22,6 +28,7 @@ func SelectDatabaseBackend(db_conf DatabaseConfig) (*gorm.DB, string, error) {
 			Logger.WithField("database addr", db_addr).
 				Fatal("Invalid database address was gained from configuration!")
 		}
+		/* TODO: sslmode=verify-full&sslrootcert=/var/lib/postgresql/ssl/root.crt */
 		pg_db_config := fmt.Sprintf(
 			"host=%s port=%d user=%s password=%s dbname=%s search_path=public",
 			db_addr, db_conf.DatabasePort, db_conf.DatabaseAdminName,
@@ -33,47 +40,66 @@ func SelectDatabaseBackend(db_conf DatabaseConfig) (*gorm.DB, string, error) {
 		abs_assets_dir_path, _ := filepath.Abs(Assets_dir_as_str)
 		sqlite_path := db_conf.DatabasePath
 		sqlite_path = filepath.Join(abs_assets_dir_path, sqlite_path)
-		Logger.Info(sqlite_path)
+		// Logger.Info(sqlite_path)
 		db, err := gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
 		return db, "sqlite", err
+	/* TODO: no-relation database, we might need a more generic handler and concurrent protector */
 	case "mongodb":
-		// TODO: no-relation database, we might need a more generic handler
-		fallthrough
+		db_addr := db_conf.DatabaseAddr
+		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
+			Logger.WithField("database addr", db_addr).
+				Fatal("Invalid database address was gained from configuration!")
+		}
+		mongo_client, err := mongo.Connect(
+			context.Background(),
+			// TODO: There are multiple ways to connect to standalone database
+			mongo_opts.Client().ApplyURI(fmt.Sprintf(
+				"mongodb://%s:%s@%s:%d",
+				// could not include `: / ? # [ ] @` in admin_name or password,
+				// otherwise they need convert in the way that url encoding criterion
+				// that enforces
+				db_conf.DatabaseAdminName, db_conf.DatabaseAdminPassword,
+				db_addr, db_conf.DatabasePort,
+			)),
+		)
+		return mongo_client, "mongodb", err
 	case "redis":
-		fallthrough
+		db_addr := db_conf.DatabaseAddr
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     fmt.Sprintf("%s:%d", db_addr, db_conf.DatabasePort),
+			Password: db_conf.DatabaseAdminPassword,
+			DB:       0,
+			/*TODO:
+			TLSConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				ServerName: "you domain",
+				//Certificates: []tls.Certificate{cert}
+			},
+			*/
+		})
+		if rdb == nil {
+			return nil, "", fmt.Errorf("can't create redis-client")
+		}
+		ctx := context.Background()
+		_, err := rdb.Ping(ctx).Result()
+		if err != nil {
+			return nil, "", fmt.Errorf("can't create redis-client due to: %v", err)
+		}
+		// rdb.Do(ctx, "cmd-type1", "val1", ..., "typen", "valn")
+		return rdb, "redis", nil
 	default:
 		Logger.Errorf(
-			`Unknown and unsupported database type was found, 
-only support PostgreSQL and SQLite at present...database you selecte: %v`,
+			`Unknown or unsupported database type was found, 
+only support PostgreSQL and SQLite at present...Database you selecte: %v`,
 			db_conf.DatabaseType,
 		)
-		return nil, "", fmt.Errorf("unsupported database type<%v> was found", db_conf.DatabaseType)
+		return nil, "", fmt.Errorf(
+			"unknown or unsupported database type<%v> was found",
+			db_conf.DatabaseType,
+		)
 	}
 
 }
-
-// func pathChecker() string {
-// 	exePath, err := os.Executable()
-// 	if err != nil {
-// 		Logger.Fatal(err.Error())
-// 	}
-// 	res, _ := filepath.EvalSymlinks(filepath.Dir(exePath))
-// 	dir := os.Getenv("TEMP")
-// 	if dir == "" {
-// 		dir = os.Getenv("TMP")
-// 	}
-// 	ans, _ := filepath.EvalSymlinks(dir)
-
-// 	if strings.Contains(res, ans) {
-// 		var abs_path string
-// 		_, filename, _, ok := runtime.Caller(0)
-// 		if ok {
-// 			abs_path = path.Dir(filename)
-// 		}
-// 		return abs_path
-// 	}
-// 	return res
-// }
 
 func CheckSSHconfig(ssh_conf *SSHconfig) bool {
 	// ssh_conf.ListenAddr might be localhost, which can not be accepted by net.ParseIP
@@ -100,6 +126,11 @@ func CheckTelnetConfig(telnet_conf *TelnetConfig) bool {
 func CheckNTPconfig(ntp_conf *NTPconfig) bool {
 	return ntp_conf != nil && ntp_conf.ListenAddr != "" &&
 		ntp_conf.ListenPort > 1024
+}
+
+func CheckDNSconfig(dns_conf *DNSconfig) bool {
+	return dns_conf != nil && dns_conf.ListenAddr != "" &&
+		dns_conf.ListenPort > 1024
 }
 
 func inspectConfig(conf_data *LocalConfig) bool {
@@ -145,18 +176,17 @@ func (cm *ConfigMaintainer) Init() {
 		return
 	}
 	cm.initiated.Store(true)
-	cm.blockedSign = make(chan struct{}, 1)
 	cm.updateCallback = make([]func(), 0)
 }
 
-// Currently we don't have unregister callback functions
+// TO-Evaluate: Currently we don't have callback function for unregistering
 func (cm *ConfigMaintainer) Regist(f func()) {
 	if !cm.initiated.Load() {
 		return
 	}
-	cm.blockedSign <- struct{}{}
+	cm.blockedSign.Lock()
 	cm.updateCallback = append(cm.updateCallback, f)
-	<-cm.blockedSign
+	cm.blockedSign.Unlock()
 }
 
 func (cm *ConfigMaintainer) UpdateConfig() {
@@ -164,7 +194,7 @@ func (cm *ConfigMaintainer) UpdateConfig() {
 		return
 	}
 	for _, fn := range cm.updateCallback {
-		// run each callback function in different go routines
+		/* run each callback function in different go routines */
 		if fn == nil {
 			continue
 		}
@@ -174,6 +204,5 @@ func (cm *ConfigMaintainer) UpdateConfig() {
 
 func (cm *ConfigMaintainer) SelfDestroy() {
 	cm.initiated.Store(false)
-	close(cm.blockedSign)
 	cm.updateCallback = nil
 }

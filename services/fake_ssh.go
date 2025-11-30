@@ -1,8 +1,9 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
 import (
 	"crypto/rand"
+	// "encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -12,11 +13,14 @@ import (
 
 	logrus "github.com/sirupsen/logrus"
 	ssh "golang.org/x/crypto/ssh"
-	gorm "gorm.io/gorm"
+
+	// gorm "gorm.io/gorm"
 
 	b0gus_config "b0gus/configs"
 	b0gus_crypto_aux "b0gus/crypto_aux"
-	b0gus_datatypes "b0gus/datatypes"
+	"b0gus/databases"
+	b0gus_databases "b0gus/databases"
+	b0gus_datatypes "b0gus/generic_datatypes"
 	b0gus_misc_utils "b0gus/misc_utils"
 )
 
@@ -35,7 +39,8 @@ var (
 		"Fedora-35", "Fedora-36", "Alpine-3.14",
 		"Alpine-3.15", "Alpine-3.16", "FreeBSD-12",
 		"FreeBSD-13", "OpenWrt-21.02", "OpenWrt-22.03",
-		"Windows-10", "macOS-10.15", "Raspbian-5+deb8u4",
+		"Windows-11", "Windows-10", "macOS-10.15",
+		"Raspbian-5+deb8u4",
 	}
 )
 
@@ -68,7 +73,7 @@ func getRandomSSHVersion() string {
 
 type SSHserverConf struct {
 	clientLimitor atomic.Uint32
-	DB_fd         *gorm.DB // database handler for writing data.
+	DB_fd         *databases.RecordDB // database handler for writing data.
 	/*
 		use for replacing command in repeat mode.
 		if not nil, then this field should be `func(string) string`
@@ -131,17 +136,11 @@ func (s *SSHserverConf) cmdRepeater(
 ) {
 	buf := make([]byte, 1)
 	defer ssh_chan.Close()
-
-	/*
-		Do not try to identify what I am doing. 2-nested `while True` loop,
-		but use labels and goto statments for less ident
-	*/
 rewind:
 	payload, last_char, prompt_char := "", "", "$ "
-
 inner_loop:
-	if len(payload) > 256 {
-		// 256, if longger than this threshold, then abort this
+	if len(payload) > 384 {
+		// 384=256+128, if longger than this threshold, then abort this
 		ssh_chan.Write([]byte("\r\nExceed the maximum input limit\r\n"))
 		ssh_chan.CloseWrite()
 		return
@@ -232,18 +231,21 @@ jump_out:
 		ssh_chan.CloseWrite()
 		return
 	}
+
+	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 	go func() {
-		cmd_text_record := b0gus_datatypes.CommandTextDef{
+		cmd_text_record := b0gus_databases.CommandTextDef{
 			CMD: payload,
 		}
 		s.DB_fd.Where(cmd_text_record).FirstOrCreate(&cmd_text_record)
 
-		cmd_record := b0gus_datatypes.PortCmdRelated{
+		cmd_record := b0gus_databases.PortCmdRelated{
 			LoginedID: api_id,
 			CMDid:     cmd_text_record.CmdID,
 		}
 		s.DB_fd.Where(cmd_record).FirstOrCreate(&cmd_record)
 	}()
+	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
 	prompt_char = "$ "
 	var (
@@ -376,14 +378,18 @@ func (s *SSHserverConf) clientConnHandler(
 		return
 	}
 	ip, port := b0gus_misc_utils.IPaddrSplit(conn.RemoteAddr().String())
+	// binary.BigEndian.Uint32(net.ParseIP(ip).To4())
+
+	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database types Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
+
 	var (
-		attacker_addr_query_cond = b0gus_datatypes.AddrInfoDef{IP: ip}
-		attacker_port_query_cond = b0gus_datatypes.PortInfoDef{Port: port}
+		attacker_addr_query_cond = b0gus_databases.AddrInfoDef{IP: ip}
+		attacker_port_query_cond = b0gus_databases.PortInfoDef{Port: port}
 	)
 
 	s.DB_fd.Where(attacker_addr_query_cond).
 		FirstOrCreate(&attacker_addr_query_cond).
-		Updates(b0gus_datatypes.AddrInfoDef{
+		Updates(b0gus_databases.AddrInfoDef{
 			ID:       attacker_addr_query_cond.ID,
 			IP:       ip,
 			TryTimes: attacker_addr_query_cond.TryTimes + 1,
@@ -392,30 +398,47 @@ func (s *SSHserverConf) clientConnHandler(
 	s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+		/*
+			TODO:
+			What if we use a generic metatable as a form and decide them in the backend?
+
+			Though we Only have to push them into the table define in redis/mongodb,
+			still have to consider the side-effect impacting on traditional database
+		*/
 		// Record password in this function
-		password_record := b0gus_datatypes.PassInfoDef{
+		password_record := b0gus_databases.PassInfoDef{
 			Password: string(password),
 		}
-		s.DB_fd.Where(password_record).FirstOrCreate(&password_record)
-		username_record := b0gus_datatypes.UsernameDef{
+		s.DB_fd.Where(password_record).
+			FirstOrCreate(&password_record).
+			Updates(b0gus_databases.PassInfoDef{
+				PasswordID: password_record.PasswordID,
+				Counter:    password_record.Counter + 1,
+			})
+		username_record := b0gus_databases.UsernameDef{
 			Username: conn.User(),
 		}
-		s.DB_fd.Where(username_record).FirstOrCreate(&username_record)
-		port_name_related := b0gus_datatypes.PortNameRelated{
+		s.DB_fd.Where(username_record).
+			FirstOrCreate(&username_record).
+			Updates(b0gus_databases.UsernameDef{
+				UserID:  username_record.UserID,
+				Counter: username_record.Counter + 1,
+			})
+		port_name_related := b0gus_databases.PortNameRelated{
 			LoginedID:  attacker_port_query_cond.APIid,
 			UsernameID: username_record.UserID,
 		}
 		s.DB_fd.Where(port_name_related).FirstOrCreate(&port_name_related)
-		client_ssh_version := b0gus_datatypes.SSHClientversionStrDef{
+		client_ssh_version := b0gus_databases.SSHClientversionStrDef{
 			ClientVersion: string(conn.ClientVersion()),
 		}
 		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
-		port_pass_related := b0gus_datatypes.PortPassRelated{
+		port_pass_related := b0gus_databases.PortPassRelated{
 			LoginedID: attacker_port_query_cond.APIid,
 			PassID:    password_record.PasswordID,
 		}
 		s.DB_fd.Where(port_pass_related).FirstOrCreate(&port_pass_related)
-		port_ver_related := b0gus_datatypes.PortVerRelated{
+		port_ver_related := b0gus_databases.PortVerRelated{
 			LoginedID:          attacker_port_query_cond.APIid,
 			SSHClientVersionID: client_ssh_version.VerID,
 		}
@@ -426,21 +449,22 @@ func (s *SSHserverConf) clientConnHandler(
 
 	pubkey_func := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 		// Record public key in this function
-		pubkey_record := b0gus_datatypes.PubInfoDef{
+		pubkey_record := b0gus_databases.PubInfoDef{
 			PubKeyFingerprint: b0gus_crypto_aux.PubKeyDeserialize(key.Marshal()),
 		}
 		s.DB_fd.Where(pubkey_record).FirstOrCreate(&pubkey_record)
-		client_ssh_version := b0gus_datatypes.SSHClientversionStrDef{
+		client_ssh_version := b0gus_databases.SSHClientversionStrDef{
 			ClientVersion: string(conn.ClientVersion()),
 		}
 		s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
-		port_ver_related := b0gus_datatypes.PortVerRelated{
+		port_ver_related := b0gus_databases.PortVerRelated{
 			LoginedID:          attacker_port_query_cond.APIid,
 			SSHClientVersionID: client_ssh_version.VerID,
 		}
 		s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
 		return nil, fmt.Errorf("public key authentication is not allowed")
 	}
+	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database types Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
 	ssh_config := &ssh.ServerConfig{
 		ServerVersion:     getRandomSSHVersion(),
@@ -487,6 +511,7 @@ func (s *SSHserverConf) clientConnHandler(
 }
 
 func (s *SSHserverConf) UpdateConfig(src *b0gus_config.SSHconfig) {
+	// TODO: Maybe user want to cease the execution immediately by explictly modifying the configuration
 	if !b0gus_config.CheckSSHconfig(src) {
 		b0gus_config.Logger.Error("Invalid SSH configuration, skip updating")
 		return
@@ -506,7 +531,7 @@ func (s *SSHserverConf) NewListener(addr string, port uint16) {
 	s.TCPListenerSwitchDone.Lock()
 	defer func() { s.TCPListenerSwitchDone.Unlock() }()
 	if addr == s.Addr && port == s.Port {
-		return // no need to update
+		return /* no need to update */
 	}
 
 	/* apply new configuration here */
@@ -607,34 +632,38 @@ keep_spinning:
 	goto keep_spinning
 }
 
+// *gorm.DB *redis.Client *mongo.Client
 func SSHserver(
 	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
 	ssh_conf_obj *b0gus_config.SSHconfig,
 	host_key ssh.Signer,
-	db *gorm.DB,
+	db *b0gus_databases.RecordDB,
 	wait_group *sync.WaitGroup,
 ) {
 	defer wait_group.Done()
+	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 	// ssh-related tables
-	err := db.AutoMigrate(
-		&b0gus_datatypes.AddrInfoDef{},
-		&b0gus_datatypes.PortInfoDef{},
-		&b0gus_datatypes.UsernameDef{},
-		&b0gus_datatypes.SSHClientversionStrDef{},
-		&b0gus_datatypes.PubInfoDef{},
-		&b0gus_datatypes.PassInfoDef{},
-		&b0gus_datatypes.CommandTextDef{},
+	err := db.CreateTable(
+		&b0gus_databases.AddrInfoDef{},
+		&b0gus_databases.PortInfoDef{},
+		&b0gus_databases.UsernameDef{},
+		&b0gus_databases.SSHClientversionStrDef{},
+		&b0gus_databases.PubInfoDef{},
+		&b0gus_databases.PassInfoDef{},
+		&b0gus_databases.CommandTextDef{},
 		// Relation Tables
-		&b0gus_datatypes.PortNameRelated{},
-		&b0gus_datatypes.PortVerRelated{},
-		&b0gus_datatypes.PortPubKeyRelated{},
-		&b0gus_datatypes.PortPassRelated{},
-		&b0gus_datatypes.PortCmdRelated{},
+		&b0gus_databases.PortNameRelated{},
+		&b0gus_databases.PortVerRelated{},
+		&b0gus_databases.PortPubKeyRelated{},
+		&b0gus_databases.PortPassRelated{},
+		&b0gus_databases.PortCmdRelated{},
 	)
 	if err != nil {
 		b0gus_config.Logger.Error(err)
 		return
 	}
+	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
+
 	// Fill SSH Server Configuration with definitions in config file
 	ssh_server_conf := SSHserverConf{
 		Addr:              ssh_conf_obj.ListenAddr,

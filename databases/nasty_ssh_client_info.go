@@ -1,15 +1,14 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 //
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 // Created at 2025/11/15 星期六 17:19:53
-package datatypes
-
-// Recommends for struct tags:
-// 	1. multiple struct tags in one field should split by space key
-// 	2. read manual and code, or debug multiple times
+package databases
 
 /*
-	too abstract and also too precious
+	TODO: Make this file easier to define and more generatable
+		 While supporting to add definitions for NoSQL
+
+	too abstract and also too precious for Relation Databases
 	can not modify their definition in the future due to the labrious work and efforts on audit
 
 	{ssh -V}
@@ -141,4 +140,12 @@ type PortCmdRelated struct {
 	LoginedID      uint64
 	CommandRelated CommandTextDef `gorm:"primaryKey;foreignKey:CMDid;references:CmdID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	PortRelated    PortInfoDef    `gorm:"primaryKey;foreignKey:LoginedID;references:APIid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+}
+
+/* TODO: Consider setting up a boundary for data rotation */
+type SSHforNoSQL struct {
+	IP   string // as hash
+	Port uint16
+	// username, password, publicKey, commands, ssh-version they used might be different
+
 }

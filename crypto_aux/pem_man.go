@@ -1,4 +1,4 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package crypto_aux
 
 import (
@@ -24,28 +24,27 @@ import (
  * return ssh.Signer, error; if success, return ssh.Signer object and nil,
  * else return nil and error
  */
-func LoadSSHhostPem(pem_path string) (ssh.Signer, error) {
+func loadSSHhostPem(pem_path string) (ssh.Signer, error) {
 	pem_fd, err := os.Open(pem_path)
 	if err != nil {
 		b0gus_config.Logger.
 			WithField("pem_path", pem_path).
-			Error("Failed to open PEM file for SSH host key!\n")
+			Error("Failed to open PEM file for SSH host key!")
 		return nil, err
 	}
 	pem_bytes, err := io.ReadAll(pem_fd)
 	if err != nil {
 		b0gus_config.Logger.
-			Error("Failed to read PEM file for SSH host key!\n")
+			Error("Failed to read PEM file for SSH host key!")
 		return nil, err
 	}
 	pem_fd.Close()
 	pem_block, _ := pem.Decode(pem_bytes)
 	if pem_block == nil {
 		b0gus_config.Logger.
-			Error("Failed to decode PEM block for SSH host key!\n")
+			Error("Failed to decode PEM block for SSH host key!")
 		return nil, err
 	}
-
 	switch pem_block.Type {
 	case "RSA PRIVATE KEY":
 		rsa_private, err := x509.ParsePKCS1PrivateKey(pem_block.Bytes)
@@ -99,7 +98,7 @@ func handle_elliptic(pem_len uint64) (*ecdsa.PrivateKey, error) {
 func handle_rsa(pem_len uint64) (*rsa.PrivateKey, error) {
 	switch pem_len {
 	case 1024:
-		// Use 2048 instead
+		// this is not secure at all. Use 2048 instead
 		pem_len = 2048
 	case 2048:
 	case 4096:
@@ -112,7 +111,7 @@ func handle_rsa(pem_len uint64) (*rsa.PrivateKey, error) {
 
 // Generate a new host key when a PEM file given by configuration is invalid/corrupted
 // or not exists
-func CreateSSHpem(
+func createSSHpem(
 	pem_path string,
 	pem_type string,
 	pem_len uint64,
@@ -150,14 +149,14 @@ func CreateSSHpem(
 	pem_file, err := os.Create(pem_path)
 	if err != nil {
 		b0gus_config.Logger.Errorf(
-			"Failed to create pem file into path:%v!\n", pem_path,
+			"Failed to create pem file into path:%v!", pem_path,
 		)
 		return nil, err
 	}
 	defer pem_file.Close()
 	host_pem_bytes, err := x509.MarshalPKCS8PrivateKey(host_pem)
 	if err != nil {
-		b0gus_config.Logger.Error("Failed to marshal pem bytes!\n")
+		b0gus_config.Logger.Error("Failed to marshal pem bytes!")
 		return nil, err
 	}
 	host_pem_block := pem.Block{
@@ -166,7 +165,7 @@ func CreateSSHpem(
 	}
 	err = pem.Encode(pem_file, &host_pem_block)
 	if err != nil {
-		b0gus_config.Logger.Error("Failed to encode pem bytes into pem file!\n")
+		b0gus_config.Logger.Error("Failed to encode pem bytes into pem file!")
 		return nil, err
 	}
 	return host_key, err
@@ -176,9 +175,8 @@ func LoadOrCreateSSHpem(
 	pem_path string,
 	pem_type string,
 	pem_len uint64,
-
 ) ssh.Signer {
-	pem_obj, err := LoadSSHhostPem(pem_path)
+	pem_obj, err := loadSSHhostPem(pem_path)
 	if err == nil {
 		return pem_obj
 	}
@@ -187,7 +185,7 @@ func LoadOrCreateSSHpem(
 		"Pem seems to be invalid or unsupported... detail:<%v>, b0gus will new one for you",
 		err,
 	)
-	res, err = CreateSSHpem(pem_path, pem_type, pem_len)
+	res, err = createSSHpem(pem_path, pem_type, pem_len)
 	if err == nil {
 		return res
 	}

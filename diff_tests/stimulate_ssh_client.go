@@ -1,4 +1,4 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package diff_tests
 
 import (
@@ -7,5 +7,5 @@ import (
 )
 
 func TestSSHclient(t *testing.T) {
-
+	// TODO
 }

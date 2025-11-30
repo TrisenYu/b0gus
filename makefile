@@ -1,4 +1,4 @@
-# SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+# SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 .PHONY: deps build release
 
 debug: deps

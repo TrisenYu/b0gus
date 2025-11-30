@@ -1,5 +1,5 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
-package datatypes
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+package generic_datatypes
 
 import (
 	"sync/atomic"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+# SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 from socket import AF_INET, SOCK_DGRAM, socket
 import struct, time
 """

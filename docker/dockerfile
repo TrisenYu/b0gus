@@ -7,7 +7,10 @@ COPY . .
 
 # install dependancies
 # For Chinese users, it will be better to modify the sources.list
-RUN apt update && apt upgrade && apt install -y postgresql sqlite3 make build-essential ssh vsftpd
+RUN apt update && apt upgrade 
+RUN apt install -y  gnupg curl postgresql sqlite3 redis make build-essential ssh vsftpd
+
+# TODO: mongodb
 
 RUN make release
 # configuration for b0gus is copied from example.toml
