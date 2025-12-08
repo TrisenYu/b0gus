@@ -12,7 +12,7 @@ In future, B0gus will:
 #### References
 
 #### License
-B0gus is distributed under the terms of the 3-Clauses-BSD License. See the included file `license` in the root direnctory for more detail.
+B0gus is distributed under the terms of the 3-Clauses-BSD License. See the included file `license` in the root direnctory of b0gus for more details.
 
 #### Todo-list
 

@@ -6,7 +6,6 @@ import (
 
 	b0gus_config "b0gus/configs"
 	b0gus_databases "b0gus/databases"
-	b0gus_datatypes "b0gus/generic_datatypes"
 )
 
 // Reference: https://github.com/EmilHernvall/dnsguide/
@@ -19,7 +18,6 @@ type DNSserverConf struct {
 	DB_fd *b0gus_databases.RecordDB
 	/* fields below need concurrenct control to follow the configuration */
 	AlterDNSListener  sync.Mutex
-	ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
 	Addr              string       // b0gus NTP server addr
 	Port              uint16       // b0gus NTP server port number
@@ -27,10 +25,11 @@ type DNSserverConf struct {
 
 // db *gorm.DB *redis.Client *mongo.Client
 func DNSserver(
-	terminator *b0gus_datatypes.ConcurrentCtrl,
+	link_gadget *serviceReadCtrl,
 	ntp_conf_obj *b0gus_config.DNSconfig,
 	db *b0gus_databases.RecordDB,
 	wait_group *sync.WaitGroup,
+	args ...any,
 ) {
 	defer wait_group.Done()
 	ntp_server_conf := DNSserverConf{
@@ -38,10 +37,7 @@ func DNSserver(
 		Port:  ntp_conf_obj.ListenPort,
 		DB_fd: db,
 	}
-	ntp_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
-	ntp_server_conf.ConfigGenericCtrl.Flag.Store(false)
-
+	b0gus_config.Logger.Infof("%v", ntp_server_conf)
 	// ntp_server_conf.NTPclientHandler(terminator)
-	close(ntp_server_conf.ConfigGenericCtrl.Ch)
 
 }

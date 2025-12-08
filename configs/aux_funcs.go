@@ -44,25 +44,6 @@ func SelectDatabaseBackend(db_conf DatabaseConfig) (any, string, error) {
 		db, err := gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
 		return db, "sqlite", err
 	/* TODO: no-relation database, we might need a more generic handler and concurrent protector */
-	case "mongodb":
-		db_addr := db_conf.DatabaseAddr
-		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
-			Logger.WithField("database addr", db_addr).
-				Fatal("Invalid database address was gained from configuration!")
-		}
-		mongo_client, err := mongo.Connect(
-			context.Background(),
-			// TODO: There are multiple ways to connect to standalone database
-			mongo_opts.Client().ApplyURI(fmt.Sprintf(
-				"mongodb://%s:%s@%s:%d",
-				// could not include `: / ? # [ ] @` in admin_name or password,
-				// otherwise they need convert in the way that url encoding criterion
-				// that enforces
-				db_conf.DatabaseAdminName, db_conf.DatabaseAdminPassword,
-				db_addr, db_conf.DatabasePort,
-			)),
-		)
-		return mongo_client, "mongodb", err
 	case "redis":
 		db_addr := db_conf.DatabaseAddr
 		rdb := redis.NewClient(&redis.Options{
@@ -87,6 +68,25 @@ func SelectDatabaseBackend(db_conf DatabaseConfig) (any, string, error) {
 		}
 		// rdb.Do(ctx, "cmd-type1", "val1", ..., "typen", "valn")
 		return rdb, "redis", nil
+	case "mongodb":
+		db_addr := db_conf.DatabaseAddr
+		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
+			Logger.WithField("database addr", db_addr).
+				Fatal("Invalid database address was gained from configuration!")
+		}
+		mongo_client, err := mongo.Connect(
+			context.Background(),
+			// TODO: There are multiple ways to connect to standalone database
+			mongo_opts.Client().ApplyURI(fmt.Sprintf(
+				"mongodb://%s:%s@%s:%d",
+				// could not include `: / ? # [ ] @` in admin_name or password,
+				// otherwise they need convert in the way that url encoding criterion
+				// that enforces
+				db_conf.DatabaseAdminName, db_conf.DatabaseAdminPassword,
+				db_addr, db_conf.DatabasePort,
+			)),
+		)
+		return mongo_client, "mongodb", err
 	default:
 		Logger.Errorf(
 			`Unknown or unsupported database type was found, 
@@ -133,9 +133,12 @@ func CheckDNSconfig(dns_conf *DNSconfig) bool {
 		dns_conf.ListenPort > 1024
 }
 
+// TODO: This function should be taken down due to the ambiguous definition is acceptable at b0gus now.
+// Specific service can selectively update its domain
 func inspectConfig(conf_data *LocalConfig) bool {
-	var flag bool = conf_data.ServerConfig.SSH == SSHconfig{}
-	return !(flag || conf_data.ServerConfig.Telnet == TelnetConfig{})
+	Logger.Infof("%v", conf_data)
+	// res &= CheckDNSconfig(conf_data.ServerConfig.DNS)
+	return false
 }
 
 func LoadDefaultConfig(conf_path string) *LocalConfig {
@@ -159,8 +162,9 @@ func LoadDefaultConfig(conf_path string) *LocalConfig {
 			return
 		}
 		if inspectConfig(&tmp_conf) {
+			UpdateFlag <- &tmp_conf
+			// change and update
 			curr_config = tmp_conf
-			UpdateFlag <- struct{}{}
 		}
 	})
 	viper.WatchConfig()
@@ -169,6 +173,29 @@ func LoadDefaultConfig(conf_path string) *LocalConfig {
 		Logger.Fatalf("Unmarshal config failed: %v", err)
 	}
 	return &curr_config
+}
+
+func genericChecker[T AbsServType](inp any, inf func(*T) bool) bool {
+	curr, ok := inp.(T)
+	if !ok {
+		return false
+	}
+	return inf(&curr)
+}
+
+func InfoEvalator(tag string, conf any) bool {
+	switch tag {
+	case "SSHconfig":
+		return genericChecker(conf, CheckSSHconfig)
+	case "TelnetConfig":
+		return genericChecker(conf, CheckTelnetConfig)
+	case "NTPconfig":
+		return genericChecker(conf, CheckNTPconfig)
+	case "DNSconfig":
+		return genericChecker(conf, CheckDNSconfig)
+	default:
+		return false
+	}
 }
 
 func (cm *ConfigMaintainer) Init() {

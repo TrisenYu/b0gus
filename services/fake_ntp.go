@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	b0gus_config "b0gus/configs"
 	b0gus_databases "b0gus/databases"
-	b0gus_datatypes "b0gus/generic_datatypes"
 )
 
 /*
@@ -146,24 +146,27 @@ type NTPserverConf struct {
 	/* database handler for writing data */
 	DB_fd *b0gus_databases.RecordDB
 	/* fields below need concurrenct control to follow the configuration */
-	AlterNTPListener  sync.Mutex
-	ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
+	AlterNTPListener sync.Mutex
+	// ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
 	Addr              string       // b0gus NTP server addr
 	Port              uint16       // b0gus NTP server port number
 }
 
 func (n *NTPserverConf) NTPclientHandler(
-	terminator *b0gus_datatypes.ConcurrentCtrl,
+	link_gadget *serviceReadCtrl,
 ) {
 	var (
-		addr string
-		port uint16
+		addr    string
+		port    uint16
+		end_ntp atomic.Bool
 	)
-	n.ConfigGenericCtrl.Ch <- struct{}{}
+	end_ntp.Store(false)
+
+	// n.ConfigGenericCtrl.Ch <- struct{}{}
 	addr = n.Addr
 	port = n.Port
-	<-n.ConfigGenericCtrl.Ch
+	// <-n.ConfigGenericCtrl.Ch
 
 	udp_conn, err := net.ListenUDP(
 		"udp", &net.UDPAddr{
@@ -181,25 +184,44 @@ func (n *NTPserverConf) NTPclientHandler(
 
 	defer udp_conn.Close()
 
-	n.AlterNTPListener.Lock()
-	n.serverListenerPtr = udp_conn
-	n.AlterNTPListener.Unlock()
-
 	go func() {
-		/* signal to this channels will use as termination determinant */
-		<-terminator.Ch // stuck here until receiving termination signal
+	stuck:
+		select {
+		case <-link_gadget.Ctx.Done(): // we are done
+		case suspected_datum := <-link_gadget.Data_ch:
+			switch suspected_datum.(type) {
+			case nil: // terminated signal checked from updated configuration
+			case *b0gus_config.NTPconfig:
+				b0gus_config.Logger.Infof(
+					"yet to have capacity for updating ntp configuration<%v>",
+					suspected_datum,
+				)
+				n.AlterNTPListener.Lock()
+				// TODO: we need an updater for connection listener
+				n.AlterNTPListener.Unlock()
+
+				goto stuck
+			default:
+				goto stuck
+			}
+		}
 		b0gus_config.Logger.Warn(
 			"Catch a signal requirement for shuting down b0gus NTP server ",
 		)
+		end_ntp.Store(true)
 		udp_conn.Close()
 		n.AlterNTPListener.Lock()
 		n.serverListenerPtr.Close()
 		n.AlterNTPListener.Unlock()
 	}()
 
+	n.AlterNTPListener.Lock()
+	n.serverListenerPtr = udp_conn
+	n.AlterNTPListener.Unlock()
+
 	var curr_listener *net.UDPConn
 	for {
-		if terminator.Flag.Load() {
+		if end_ntp.Load() {
 			break
 		}
 		data_buf := make([]byte, 1024)
@@ -230,10 +252,11 @@ func (n *NTPserverConf) NTPclientHandler(
 // TODO: utilize database pointer
 // db *gorm.DB *redis.Client *mongo.Client
 func NTPserver(
-	terminator *b0gus_datatypes.ConcurrentCtrl,
+	link_gadget *serviceReadCtrl,
 	ntp_conf_obj *b0gus_config.NTPconfig,
 	db *b0gus_databases.RecordDB,
 	wait_group *sync.WaitGroup,
+	args ...any,
 ) {
 	defer wait_group.Done()
 	ntp_server_conf := NTPserverConf{
@@ -241,10 +264,10 @@ func NTPserver(
 		Port:  ntp_conf_obj.ListenPort,
 		DB_fd: db,
 	}
-	ntp_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
-	ntp_server_conf.ConfigGenericCtrl.Flag.Store(false)
+	// ntp_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
+	// ntp_server_conf.ConfigGenericCtrl.Flag.Store(false)
 
-	ntp_server_conf.NTPclientHandler(terminator)
-	close(ntp_server_conf.ConfigGenericCtrl.Ch)
+	ntp_server_conf.NTPclientHandler(link_gadget)
+	// close(ntp_server_conf.ConfigGenericCtrl.Ch)
 
 }

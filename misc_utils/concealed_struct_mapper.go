@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-// (Deprecated) Directly check fields
+// ...reflect seems to lack ability to save us
 func TurnStruct2Map(s any) map[string]any {
 	sval := reflect.ValueOf(s)
 	styp := reflect.TypeOf(s)
@@ -35,4 +35,44 @@ func TurnStruct2Map(s any) map[string]any {
 		res[styp.Field(i).Name] = sval.Field(i).Interface()
 	}
 	return res
+}
+
+func GetTypeNameViaType(v any) string {
+	t := reflect.TypeOf(v)
+	switch t.Kind() {
+	case reflect.Pointer:
+		return t.String()
+	case reflect.Slice:
+		return t.String()
+	case reflect.Func:
+		return t.String()
+	case reflect.Map:
+		return t.String()
+	case reflect.Struct:
+		if t.Name() == "" {
+			return "concealed-struct"
+		}
+		return t.Name()
+	default:
+		return t.Name()
+	}
+}
+
+func GetFieldValueByName(obj any, fieldName string) (any, error) {
+	v := reflect.ValueOf(obj)
+	for v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return v.Interface(), nil
+	}
+	field := v.FieldByName(fieldName)
+
+	if !field.IsValid() {
+		return struct{}{}, fmt.Errorf("field '%s' not found in struct %T", fieldName, obj)
+	}
+	if !field.CanAddr() {
+		return field.Interface(), nil
+	}
+	return field.Addr().Interface(), nil
 }

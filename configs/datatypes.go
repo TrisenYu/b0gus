@@ -52,12 +52,18 @@ type LocalConfig struct {
 		PemType string `toml:"pem_type" mapstructure:"pem_type"`
 		PemLen  uint64 `toml:"pem_len" mapstructure:"pem_len"`
 		// services
-		SSH      SSHconfig      `toml:"ssh" mapstructure:"ssh"`
-		Telnet   TelnetConfig   `toml:"telnet" mapstructure:"telnet"`
-		NTP      NTPconfig      `toml:"ntp"  mapstructure:"ntp"`
-		DNS      DNSconfig      `toml:"dns" mapstructure:"dns"`
-		Database DatabaseConfig `toml:"database"`
+		// The reason why to use struct name as ServerConfig's member name is
+		// the iteration in `services_man.go` upon struct for data/control path needs refect
+		SSHconfig      SSHconfig      `toml:"ssh" mapstructure:"ssh"`
+		TelnetConfig   TelnetConfig   `toml:"telnet" mapstructure:"telnet"`
+		NTPconfig      NTPconfig      `toml:"ntp"  mapstructure:"ntp"`
+		DNSconfig      DNSconfig      `toml:"dns" mapstructure:"dns"`
+		DatabaseConfig DatabaseConfig `toml:"database"` // currently used for local recording
 	} `toml:"server_config" mapstructure:"server_config"`
+}
+
+type AbsServType interface {
+	SSHconfig | TelnetConfig | NTPconfig | DNSconfig | DatabaseConfig | interface{} | struct{}
 }
 
 type ConfigMaintainer struct {

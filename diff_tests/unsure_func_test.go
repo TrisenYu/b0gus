@@ -4,13 +4,91 @@ package diff_tests
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
+	b0gus_config "b0gus/configs"
 	b0gus_crypto_aux "b0gus/crypto_aux"
 	b0gus_misc_utils "b0gus/misc_utils"
 
 	assert "github.com/stretchr/testify/assert"
 )
+
+func TestReflection(t *testing.T) {
+	// assemble to b0gus_config.Config_path_as_str
+	exam_conf_path := "../configs/example.toml"
+	test_conf_path, _ := filepath.Abs(exam_conf_path)
+	local_conf := b0gus_config.LoadDefaultConfig(test_conf_path)
+	res_map := b0gus_misc_utils.TurnStruct2Map(local_conf.ServerConfig)
+	assert.NotEqual(t, res_map, nil)
+	for k, v := range res_map {
+		fmt.Println(k, v)
+	}
+	ssh_name := b0gus_misc_utils.GetTypeNameViaType(local_conf.ServerConfig.SSHconfig)
+	assert.Equal(t, "SSHconfig", ssh_name)
+	pssh_name := b0gus_misc_utils.GetTypeNameViaType(&local_conf.ServerConfig.SSHconfig)
+	fmt.Println(pssh_name)
+	_, ok := res_map[ssh_name]
+	assert.Equal(t, true, ok)
+	res_map = b0gus_misc_utils.TurnStruct2Map(local_conf.ServerConfig.SSHconfig)
+	for k := range res_map {
+		fmt.Println(k)
+	}
+
+	curr, err := b0gus_misc_utils.GetFieldValueByName(local_conf.ServerConfig, ssh_name)
+	assert.Equal(t, nil, err)
+	_, ok = curr.(*b0gus_config.SSHconfig)
+	assert.Equal(t, false, ok)
+	_, ok = curr.(b0gus_config.SSHconfig)
+	assert.Equal(t, true, ok)
+	recur, ok := curr.(b0gus_config.SSHconfig)
+	assert.Equal(t, true, ok)
+	assert.IsType(t, &b0gus_config.SSHconfig{}, &recur)
+
+	curr, err = b0gus_misc_utils.GetFieldValueByName(
+		local_conf.ServerConfig,
+		b0gus_misc_utils.GetTypeNameViaType(local_conf.ServerConfig.TelnetConfig),
+	)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, local_conf.ServerConfig.TelnetConfig, curr)
+	_, ok = curr.(b0gus_config.TelnetConfig)
+	assert.Equal(t, true, ok)
+}
+
+func TestAnyType(t *testing.T) {
+	var (
+		a int = 1
+		b ***int
+		c struct {
+			concealedPtr **int
+			HellYeah     *string
+			WhatCanIsay  []int
+			JustTestIt   []string
+			AnOpenFunc   func() int
+		}
+		d = &c
+	)
+	curr, err := b0gus_misc_utils.GetFieldValueByName(a, "")
+	assert.Equal(t, nil, err)
+	t.Logf("%v", curr)
+	var aa any
+	assert.IsNotType(t, struct{}{}, nil)
+	assert.IsNotType(t, struct{}{}, aa)
+	b_name := b0gus_misc_utils.GetTypeNameViaType(b)
+	assert.NotEqual(t, "", b_name)
+	c_name := b0gus_misc_utils.GetTypeNameViaType(c.HellYeah)
+	assert.NotEqual(t, "", c_name)
+	c_name = b0gus_misc_utils.GetTypeNameViaType(c.WhatCanIsay)
+	assert.NotEqual(t, "", c_name)
+	c_name = b0gus_misc_utils.GetTypeNameViaType(c.JustTestIt)
+	assert.NotEqual(t, "", c_name)
+	c_name = b0gus_misc_utils.GetTypeNameViaType(c.AnOpenFunc)
+	assert.NotEqual(t, "", c_name)
+	c_name = b0gus_misc_utils.GetTypeNameViaType(c)
+	assert.NotEqual(t, "", c_name)
+	d_name := b0gus_misc_utils.GetTypeNameViaType(d)
+	assert.NotEqual(t, "", d_name)
+}
 
 type ipPort struct {
 	Addr string

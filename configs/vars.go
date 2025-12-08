@@ -15,6 +15,6 @@ const (
 var (
 	curr_config LocalConfig
 	/* UpdateFlag requires manually close after the whole lifetime of b0gus */
-	UpdateFlag           chan struct{} = make(chan struct{}, 1)
+	UpdateFlag           chan *LocalConfig = make(chan *LocalConfig, 1)
 	GlobConfigMaintainer ConfigMaintainer
 )

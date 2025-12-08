@@ -6,7 +6,6 @@ import (
 
 	b0gus_config "b0gus/configs"
 	b0gus_databases "b0gus/databases"
-	b0gus_datatypes "b0gus/generic_datatypes"
 )
 
 // reference online documentation: https://www.rfc-editor.org/rfc/rfc854
@@ -16,10 +15,11 @@ type Telnet struct {
 
 // db *gorm.DB *redis.Client *mongo.Client
 func TelnetServer(
-	need_shutdown *b0gus_datatypes.ConcurrentCtrl,
+	link_gadget *serviceReadCtrl,
 	bogus_conf *b0gus_config.TelnetConfig,
 	db *b0gus_databases.RecordDB,
 	wait_group *sync.WaitGroup,
+	args ...any,
 ) {
 	wait_group.Done()
 }
