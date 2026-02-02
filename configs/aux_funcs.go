@@ -134,7 +134,7 @@ func CheckDNSconfig(dns_conf *DNSconfig) bool {
 }
 
 // TODO: This function should be taken down due to the ambiguous definition is acceptable at b0gus now.
-// Specific service can selectively update its domain
+// Some service can selectively update its domain
 func inspectConfig(conf_data *LocalConfig) bool {
 	Logger.Infof("%v", conf_data)
 	// res &= CheckDNSconfig(conf_data.ServerConfig.DNS)

@@ -67,8 +67,9 @@ func getRandomSSHVersion() string {
 }
 
 type SSHserverConf struct {
-	clientLimitor atomic.Uint32
-	DB_fd         *b0gus_databases.RecordDB // database handler for writing data.
+	clientLimitor                 atomic.Uint32
+	tcpListenerGuard, configGuard sync.RWMutex
+	DB_fd                         *b0gus_databases.RuntimeDB // database handler for writing data.
 	/*
 		use for replacing command in repeat mode.
 		if not nil, then this field should be `func(string) string`
@@ -76,15 +77,14 @@ type SSHserverConf struct {
 	commandHook any
 	/* fields below need concurrenct control to follow the configuration */
 
-	TCPListenerSwitchDone, configGuard sync.RWMutex
-	serverListenerPtr                  *net.Listener // current listener on Addr:Port
-	Addr                               string        // b0gus ssh server addr
-	LoginBanner                        string        // ssh server login banner
-	ClientConnTimeout                  time.Duration // initiated timeout setting
-	MaxClientNum                       uint32        // maximum clients number handling in real time
-	Port                               uint16        // b0gus ssh server port number
-	PermitLogin                        bool          // whether reject or not
-	EmptyShell                         bool          // no any response
+	serverListenerPtr *net.Listener // current listener on Addr:Port
+	Addr              string        // b0gus ssh server addr
+	LoginBanner       string        // ssh server login banner
+	ClientConnTimeout time.Duration // initiated timeout setting
+	MaxClientNum      uint32        // maximum clients number handling in real time
+	Port              uint16        // b0gus ssh server port number
+	PermitLogin       bool          // whether reject or not
+	EmptyShell        bool          // no any response
 }
 
 var (
@@ -228,8 +228,8 @@ jump_out:
 
 	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 	go func() {
-		cmd_text_record := b0gus_databases.CommandTextDef{
-			CMD: payload,
+		cmd_text_record := b0gus_databases.CommandInfo{
+			Cmd: payload,
 		}
 		s.DB_fd.CreateOrUpdateItem(&cmd_text_record, nil)
 		// s.DB_fd.Where(cmd_text_record).FirstOrCreate(&cmd_text_record)
@@ -378,8 +378,9 @@ func (s *SSHserverConf) clientConnHandler(
 	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database types Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
 	var (
-		attacker_addr_query_cond = b0gus_databases.AddrInfoDef{IP: ip}
-		attacker_port_query_cond = b0gus_databases.PortInfoDef{Port: port}
+		// Context created by these data
+		attacker_addr_query_cond = b0gus_databases.AddrInfo{Ip: ip}
+		attacker_port_query_cond = b0gus_databases.PortInfo{Port: int64(port)}
 	)
 
 	// s.DB_fd.Where(attacker_addr_query_cond).
@@ -404,7 +405,7 @@ func (s *SSHserverConf) clientConnHandler(
 			still have to consider the side-effect impacting on traditional database
 		*/
 		// Record password in this function
-		password_record := b0gus_databases.PassInfoDef{
+		password_record := b0gus_databases.PasswordInfo{
 			Password: string(password),
 		}
 		// s.DB_fd.Where(password_record).
@@ -413,11 +414,11 @@ func (s *SSHserverConf) clientConnHandler(
 		// 		PasswordID: password_record.PasswordID,
 		// 		Counter:    password_record.Counter + 1,
 		// 	})
-		username_record := b0gus_databases.UsernameDef{
-			Username: conn.User(),
+		username_record := b0gus_databases.UsernameInfo{
+			Name: conn.User(),
 		}
-		client_ssh_version := b0gus_databases.SSHClientversionStrDef{
-			ClientVersion: string(conn.ClientVersion()),
+		client_ssh_version := b0gus_databases.SshVersionInfo{
+			Version: string(conn.ClientVersion()),
 		}
 		// TODO: what about making counter as an attribute and automatically maintained by our program?
 		// how do we deal with relation tables?
@@ -454,11 +455,11 @@ func (s *SSHserverConf) clientConnHandler(
 
 	pubkey_func := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 		// Record public key in this function
-		pubkey_record := b0gus_databases.PubInfoDef{
-			PubKeyFingerprint: b0gus_crypto_aux.PubKeyDeserialize(key.Marshal()),
+		pubkey_record := b0gus_databases.PublickeyInfo{
+			PubFp: b0gus_crypto_aux.PubKeyDeserialize(key.Marshal()),
 		}
-		client_ssh_version := b0gus_databases.SSHClientversionStrDef{
-			ClientVersion: string(conn.ClientVersion()),
+		client_ssh_version := b0gus_databases.SshVersionInfo{
+			Version: string(conn.ClientVersion()),
 		}
 		s.DB_fd.CreateOrUpdateItemsInSeq(
 			[]any{&pubkey_record, &client_ssh_version},
@@ -523,7 +524,9 @@ func (s *SSHserverConf) clientConnHandler(
 func (s *SSHserverConf) UpdateConfig(src *b0gus_config.SSHconfig) {
 	// TODO: Maybe user want to cease the execution immediately by explictly modifying the configuration
 	if !b0gus_config.CheckSSHconfig(src) {
-		b0gus_config.Logger.Error("Invalid SSH configuration, skip updating")
+		b0gus_config.Logger.Error(
+			"Invalid SSH configuration, skip updating",
+		)
 		return
 	}
 	s.configGuard.Lock()
@@ -538,8 +541,8 @@ func (s *SSHserverConf) UpdateConfig(src *b0gus_config.SSHconfig) {
 }
 
 func (s *SSHserverConf) NewListener(addr string, port uint16) {
-	s.TCPListenerSwitchDone.Lock()
-	defer func() { s.TCPListenerSwitchDone.Unlock() }()
+	s.tcpListenerGuard.Lock()
+	defer func() { s.tcpListenerGuard.Unlock() }()
 	if addr == s.Addr && port == s.Port {
 		return /* no need to update */
 	}
@@ -564,7 +567,7 @@ func (s *SSHserverConf) NewListener(addr string, port uint16) {
 }
 
 type resolveUpdConfig interface {
-	interface{} | *b0gus_config.SSHconfig
+	any | *b0gus_config.SSHconfig
 }
 
 func (s *SSHserverConf) SSHMaliciousClientHandler(
@@ -577,10 +580,10 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(
 		end_sig atomic.Bool
 	)
 	end_sig.Store(false)
-	s.TCPListenerSwitchDone.RLock()
+	s.tcpListenerGuard.RLock()
 	addr, port = s.Addr, s.Port
-	s.TCPListenerSwitchDone.RUnlock()
-	// only accept tcp stream
+	s.tcpListenerGuard.RUnlock()
+	/* only accept tcp stream */
 	listener, err := net.Listen(
 		"tcp", fmt.Sprintf("%s:%d", addr, port),
 	)
@@ -593,14 +596,14 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(
 	}
 	defer listener.Close()
 
-	s.TCPListenerSwitchDone.Lock()
+	s.tcpListenerGuard.Lock()
 	s.serverListenerPtr = &listener
-	s.TCPListenerSwitchDone.Unlock()
+	s.tcpListenerGuard.Unlock()
 
 	var locker = func() {
-		s.TCPListenerSwitchDone.Lock()
+		s.tcpListenerGuard.Lock()
 		(*s.serverListenerPtr).Close()
-		s.TCPListenerSwitchDone.Unlock()
+		s.tcpListenerGuard.Unlock()
 	}
 
 	s.clientLimitor.Store(0)
@@ -634,12 +637,12 @@ keep_spinning:
 		return
 	}
 
-	s.TCPListenerSwitchDone.RLock()
+	s.tcpListenerGuard.RLock()
 	// when we have to hot-plug with new configuration,
 	// we need a block mechanism to stop accept new connection
 	// until the listener is ready to be put in use again
 	curr_listener = *s.serverListenerPtr
-	s.TCPListenerSwitchDone.RUnlock()
+	s.tcpListenerGuard.RUnlock()
 
 	in_conn, err := curr_listener.Accept()
 	if err != nil {
@@ -659,22 +662,14 @@ keep_spinning:
 	goto keep_spinning
 }
 
-type SSHOptConf struct {
-	host_key ssh.Signer
-}
-
-type ServerOption func(*SSHOptConf)
-
 func SSHserver(
 	link_gadget *serviceReadCtrl,
 	ssh_conf_obj *b0gus_config.SSHconfig,
-	db *b0gus_databases.RecordDB,
-	wait_group *sync.WaitGroup,
+	db *b0gus_databases.RuntimeDB,
 	args ...any,
 ) {
-	defer wait_group.Done()
 
-	// have to use this constraint
+	// constrain by length of arguments
 	if len(args) != 1 {
 		return
 	}
@@ -684,20 +679,37 @@ func SSHserver(
 	}
 	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 	// ssh-related tables
+	// err := db.CreateTable(
+	// 	&b0gus_databases.AddrInfoDef{},
+	// 	&b0gus_databases.PortInfoDef{},
+	// 	&b0gus_databases.UsernameDef{},
+	// 	&b0gus_databases.SSHClientversionStrDef{},
+	// 	&b0gus_databases.PubInfoDef{},
+	// 	&b0gus_databases.PassInfoDef{},
+	// 	&b0gus_databases.CommandTextDef{},
+	// 	// Relation Tables
+	// 	// TODO: can program automatically identify
+	// 	// which domain should connect with others during compilation time?
+	// 	&b0gus_databases.PortNameRelated{},
+	// 	&b0gus_databases.PortVerRelated{},
+	// 	&b0gus_databases.PortPubKeyRelated{},
+	// 	&b0gus_databases.PortPassRelated{},
+	// 	&b0gus_databases.PortCmdRelated{},
+	// )
 	err := db.CreateTable(
-		&b0gus_databases.AddrInfoDef{},
-		&b0gus_databases.PortInfoDef{},
-		&b0gus_databases.UsernameDef{},
-		&b0gus_databases.SSHClientversionStrDef{},
-		&b0gus_databases.PubInfoDef{},
-		&b0gus_databases.PassInfoDef{},
-		&b0gus_databases.CommandTextDef{},
-		// Relation Tables
-		&b0gus_databases.PortNameRelated{},
-		&b0gus_databases.PortVerRelated{},
-		&b0gus_databases.PortPubKeyRelated{},
-		&b0gus_databases.PortPassRelated{},
-		&b0gus_databases.PortCmdRelated{},
+		&b0gus_databases.AddrInfo{},
+		&b0gus_databases.PortInfo{},
+		&b0gus_databases.UsernameInfo{},
+		&b0gus_databases.PasswordInfo{},
+		&b0gus_databases.SshVersionInfo{},
+		&b0gus_databases.PublickeyInfo{},
+		// extended relations
+		&b0gus_databases.RemoteInfo{},
+		&b0gus_databases.RemoteUsernameRelation{},
+		&b0gus_databases.RemotePasswordRelation{},
+		&b0gus_databases.RemotePublickeyRelation{},
+		&b0gus_databases.RemoteSshverRelation{},
+		// TODO: add commands
 	)
 	if err != nil {
 		b0gus_config.Logger.Error(err)
@@ -718,9 +730,6 @@ func SSHserver(
 		LoginBanner:       ssh_conf_obj.LoginBanner,
 		DB_fd:             db,
 	}
-	// ssh_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
-	// defer close(ssh_server_conf.ConfigGenericCtrl.Ch)
-
 	/// callback function for updating when there is any modification in the monitored configuration file
 
 	// var ssh_callback = func() {

@@ -10,12 +10,14 @@ import (
 
 // Reference: https://github.com/EmilHernvall/dnsguide/
 
+// TODO: What if we send a wrong response to other computer?
+
 // Answers dns queries with a random ip address.
 // Responds to versionbind queries with an old and unpatched version.
 
 type DNSserverConf struct {
 	/* database handler for writing data */
-	DB_fd *b0gus_databases.RecordDB
+	DB_fd *b0gus_databases.RuntimeDB
 	/* fields below need concurrenct control to follow the configuration */
 	AlterDNSListener  sync.Mutex
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
@@ -27,17 +29,15 @@ type DNSserverConf struct {
 func DNSserver(
 	link_gadget *serviceReadCtrl,
 	ntp_conf_obj *b0gus_config.DNSconfig,
-	db *b0gus_databases.RecordDB,
-	wait_group *sync.WaitGroup,
+	db *b0gus_databases.RuntimeDB,
 	args ...any,
 ) {
-	defer wait_group.Done()
 	ntp_server_conf := DNSserverConf{
 		Addr:  ntp_conf_obj.ListenAddr,
 		Port:  ntp_conf_obj.ListenPort,
 		DB_fd: db,
 	}
-	b0gus_config.Logger.Infof("%v", ntp_server_conf)
+	b0gus_config.Logger.Infof("%v", ntp_server_conf.Addr)
 	// ntp_server_conf.NTPclientHandler(terminator)
 
 }

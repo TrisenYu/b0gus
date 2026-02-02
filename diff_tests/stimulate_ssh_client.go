@@ -6,6 +6,10 @@ import (
 	// assert "github.com/stretchr/testify/assert"
 )
 
+func TestGenDefForSSH(t *testing.T) {
+	// ?
+}
+
 func TestSSHclient(t *testing.T) {
 	// TODO
 }

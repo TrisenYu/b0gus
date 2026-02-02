@@ -13,11 +13,25 @@ import (
 	b0gus_services "b0gus/services"
 )
 
+/* Overview:
+
+          +-> record_database
+	conf -+                     +--> ssh 	(almost there)
+	      |         b0gus       |--> telnet (draft)
+		  +-> services_manager -+--> smtp 	(draft)
+		                        |--> ftp 	(draft)
+								|--> ntp 	(almost there)
+								|--> database services (not even a draft)
+								+--> dns 	(draft)
+								...
+	configuration-directed honeypot
+*/
+
 func B0gusRun() {
-	// TODO: neccessary executable binary files/dependencies imediate check inside b0gus
+	// TODO: neccessary executable binary files/dependencies immediate check inside b0gus
 	bogus_conf := b0gus_config.LoadDefaultConfig("")
 
-	var glob_record_db = bogus_databases.RecordDB{}
+	var glob_record_db = bogus_databases.RuntimeDB{}
 
 	db, db_str, err := b0gus_config.SelectDatabaseBackend(
 		bogus_conf.ServerConfig.DatabaseConfig,

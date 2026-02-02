@@ -144,7 +144,7 @@ func NTPServe(req []byte) ([]byte, error) {
 
 type NTPserverConf struct {
 	/* database handler for writing data */
-	DB_fd *b0gus_databases.RecordDB
+	DB_fd *b0gus_databases.RuntimeDB
 	/* fields below need concurrenct control to follow the configuration */
 	AlterNTPListener sync.Mutex
 	// ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
@@ -254,11 +254,9 @@ func (n *NTPserverConf) NTPclientHandler(
 func NTPserver(
 	link_gadget *serviceReadCtrl,
 	ntp_conf_obj *b0gus_config.NTPconfig,
-	db *b0gus_databases.RecordDB,
-	wait_group *sync.WaitGroup,
+	db *b0gus_databases.RuntimeDB,
 	args ...any,
 ) {
-	defer wait_group.Done()
 	ntp_server_conf := NTPserverConf{
 		Addr:  ntp_conf_obj.ListenAddr,
 		Port:  ntp_conf_obj.ListenPort,

@@ -1,0 +1,68 @@
+# this is a comment line
+
+# we use auto-generated rules to represent rather than 
+# hard-encoded implementation by hand for specifc structures
+
+# and NoSQL may benefit from these reduced definitions
+
+addr_info:
+    # actually we can use the hex representation of address as primary key
+    id:integer(primary, autoincrement, notnull)
+    ip:text (unique, counter 0, index ip_name_idx);
+
+port_info:
+    # Decouple this:
+    #   addr_id:integer (foreign -> addr:id)
+    port:integer (primary, notnull)
+
+remote_info:
+    remote_id:integer (primary)
+    port_num:integer (foreign -> port_info:port)
+    addr_id:integer (foreign -> addr_info:id)
+
+ssh_version_info:
+    id:integer (primary, createtime ns, updatetime ns, counter 0)
+    version:text (unique, notnull)
+
+
+# *** foreign key must define after its dependencies ***
+remote_sshver_relation:
+    rid:integer (primary, foreign -> remote_info:remote_id);
+    sid:integer (primary, foreign -> ssh_version_info:id)
+
+username_info:
+    username_id:integer (primary, createtime ns, updatetime ns, counter 0)
+    name:text (unique)
+
+remote_username_relation:
+    rur_id:integer (primary, autoincrement)
+    rid:integer (primary, foreign -> remote_info:remote_id);
+    uid:integer (primary, foreign -> username_info:username_id)
+
+password_info:
+    password_id:integer(primary, createtime ns, updatetime ns, counter 0)
+    password:text (unique);
+    # port_id:integer (foreign -> port:id)
+
+remote_password_relation:
+    rid:integer (primary, foreign -> remote_info:remote_id);
+    pid:integer (primary, foreign -> password_info:password_id)
+
+publickey_info:
+    pub_id:integer (primary, createtime ns, updatetime ns)
+    pub_fp:text (unique, notnull)
+    # port_id:integer (foreign -> port:id)
+
+remote_publickey_relation:
+    rid:integer (primary, foreign -> remote_info:remote_id);
+    pid:integer (primary, foreign -> publickey_info:pub_id);
+
+command_info:
+    command_id:integer (primary, notnull, createtime ns)
+    cmd:text ();
+
+# who did send a command at given time?
+remote_command_relation:
+    cid:integer (foreign -> command_info:command_id)
+    rid:integer (foreign -> remote_username_relation:rur_id)
+

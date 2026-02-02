@@ -63,7 +63,7 @@ type LocalConfig struct {
 }
 
 type AbsServType interface {
-	SSHconfig | TelnetConfig | NTPconfig | DNSconfig | DatabaseConfig | interface{} | struct{}
+	SSHconfig | TelnetConfig | NTPconfig | DNSconfig | DatabaseConfig | any | struct{}
 }
 
 type ConfigMaintainer struct {

@@ -56,6 +56,12 @@ func TestReflection(t *testing.T) {
 }
 
 func TestAnyType(t *testing.T) {
+	type innerStruct struct {
+		A int
+		B string
+		C func()
+		D *testing.T
+	}
 	var (
 		a int = 1
 		b ***int
@@ -65,8 +71,10 @@ func TestAnyType(t *testing.T) {
 			WhatCanIsay  []int
 			JustTestIt   []string
 			AnOpenFunc   func() int
+			ManHaha      map[int]string
 		}
 		d = &c
+		e innerStruct
 	)
 	curr, err := b0gus_misc_utils.GetFieldValueByName(a, "")
 	assert.Equal(t, nil, err)
@@ -74,20 +82,41 @@ func TestAnyType(t *testing.T) {
 	var aa any
 	assert.IsNotType(t, struct{}{}, nil)
 	assert.IsNotType(t, struct{}{}, aa)
+
 	b_name := b0gus_misc_utils.GetTypeNameViaType(b)
 	assert.NotEqual(t, "", b_name)
+	fmt.Println(b_name)
+
 	c_name := b0gus_misc_utils.GetTypeNameViaType(c.HellYeah)
 	assert.NotEqual(t, "", c_name)
+	fmt.Println(c_name)
 	c_name = b0gus_misc_utils.GetTypeNameViaType(c.WhatCanIsay)
 	assert.NotEqual(t, "", c_name)
+	fmt.Println(c_name)
+
 	c_name = b0gus_misc_utils.GetTypeNameViaType(c.JustTestIt)
 	assert.NotEqual(t, "", c_name)
+	fmt.Println(c_name)
+
 	c_name = b0gus_misc_utils.GetTypeNameViaType(c.AnOpenFunc)
 	assert.NotEqual(t, "", c_name)
+	fmt.Println(c_name)
+
+	c_name = b0gus_misc_utils.GetTypeNameViaType(c.ManHaha)
+	assert.NotEqual(t, "", c_name)
+	fmt.Println(c_name)
+
 	c_name = b0gus_misc_utils.GetTypeNameViaType(c)
 	assert.NotEqual(t, "", c_name)
+	fmt.Println(c_name)
+
 	d_name := b0gus_misc_utils.GetTypeNameViaType(d)
 	assert.NotEqual(t, "", d_name)
+	fmt.Println(d_name)
+
+	e_name := b0gus_misc_utils.GetTypeNameViaType(e)
+	assert.NotEqual(t, "", e_name)
+	fmt.Println(e_name)
 }
 
 type ipPort struct {

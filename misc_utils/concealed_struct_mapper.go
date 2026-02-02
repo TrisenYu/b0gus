@@ -6,6 +6,14 @@ import (
 	"reflect"
 )
 
+func GetStructNameByType(x any) string {
+	t := reflect.TypeOf(x)
+	if t.Kind() != reflect.Struct {
+		return "unk_kind"
+	}
+	return t.Name()
+}
+
 // ...reflect seems to lack ability to save us
 func TurnStruct2Map(s any) map[string]any {
 	sval := reflect.ValueOf(s)
@@ -69,7 +77,10 @@ func GetFieldValueByName(obj any, fieldName string) (any, error) {
 	field := v.FieldByName(fieldName)
 
 	if !field.IsValid() {
-		return struct{}{}, fmt.Errorf("field '%s' not found in struct %T", fieldName, obj)
+		return struct{}{}, fmt.Errorf(
+			"field '%s' not found in struct %T",
+			fieldName, obj,
+		)
 	}
 	if !field.CanAddr() {
 		return field.Interface(), nil

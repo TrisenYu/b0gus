@@ -1,0 +1,8 @@
+dns_query:
+    dqid:integer (primary, autoincrement, notnull);
+    domain_name:text (
+        unique, notnull, counter 0, 
+        default 0,
+        createtime ns, updatetime ns
+    );
+

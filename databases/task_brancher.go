@@ -1,19 +1,20 @@
 package databases
 
 import (
-	b0gus_config "b0gus/configs"
 	"context"
 	"fmt"
 	"sync"
 
-	redis "github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	gorm "gorm.io/gorm"
+
+	b0gus_config "b0gus/configs"
+	b0gus_misc_utils "b0gus/misc_utils"
 )
 
 const (
 	GormSQL = iota
-	RedisSQL
 	MongodbSQL
 	UnkSQL
 )
@@ -22,13 +23,9 @@ func GuessAndDetermine(db any) int {
 	switch db.(type) {
 	case *gorm.DB:
 		return GormSQL
-	case *redis.Client:
-		return RedisSQL
-	case *mongo.Client:
+	case *mongo.Database:
 		return MongodbSQL
 	default:
-		resp := fmt.Sprintf("Unknown datatype<%v> was provided", db)
-		b0gus_config.Logger.Warn(resp)
 		return UnkSQL
 	}
 }
@@ -45,22 +42,29 @@ type DBhandler interface {
 
 	// multiple inserting /updating tasks
 	CreateOrUpdateItemsInSeq(target_items []any, update_obj []any) error
+
+	// set context for foreign fields
+	SetupContext()
 }
 
-type RecordDB struct {
+// callback functions and context might be required
+type RuntimeDB struct {
 	db    any
 	Mutex sync.Mutex
 }
 
-func (r *RecordDB) CreateTable(structures ...any) error {
+func (r *RuntimeDB) CreateTable(structures ...any) error {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
 		return r.db.(*gorm.DB).AutoMigrate(structures...)
-	case RedisSQL:
-		return nil
+	// won't provide an interface for Redis due to the infeasibility to maintain primary key
 	case MongodbSQL:
+		for tab_struct := range structures {
+			// TODO: reflect help to unwrap ? can not make me convinced
+			r.db.(*mongo.Database).Collection(b0gus_misc_utils.GetTypeNameViaType(tab_struct))
+		}
 		return nil
 	default:
 		return fmt.Errorf("unsupported database<%v> was found", r.db)
@@ -68,67 +72,52 @@ func (r *RecordDB) CreateTable(structures ...any) error {
 }
 
 type DBtype interface {
-	interface{} | string
+	any | string
 }
 
-func (r *RecordDB) CreateOrUpdateItem(
-	target_item_ptr *struct{},
+func (r *RuntimeDB) CreateOrUpdateItem(
+	cond, goal_state *struct{},
 	update_obj any,
 ) {
+	// TODO: how to help counter or foreign key?
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
-		tx := r.db.(*gorm.DB).Where(*target_item_ptr).FirstOrCreate(target_item_ptr)
+		tx := r.db.(*gorm.DB).Where(*cond).FirstOrCreate(goal_state)
 		if update_obj != nil {
 			tx.Updates(update_obj)
 		}
-	case RedisSQL:
-		ctx := context.Background()
-		// First of all, we don't have keyID at all so we have to generate a unique key ID
-		// Second, we also want to search a row via fuzzy content and bypass key ID but it is not trival to do
-		// TODO:
-		// *target_item_ptr is a structure which can represent the target_item
-		// what we want is to extract struct as a key-value dict, where the key is the name of field defined in struct,
-		// and the value is the corresponding value that has assigned before
-		//
-		// we also have defined primaryKey in structure by tagging techique
-		// So maybe we can utilize them as hash
-
-		// HGet(ctx context.Context, key string, field string)
-		_, err := r.db.(*redis.Client).HGet(ctx, "", "").Result()
-		if err != nil {
-			if err != redis.Nil {
-				b0gus_config.Logger.Warnf(
-					"Catpure an unknown error when trying to get result from redis: %v", err,
-				)
-				return
-			}
-			// then we could insert it to redis
-			r.db.(*redis.Client).HSet(ctx, "", fmt.Errorf("yet to implement AND TODO TODO TODO TODO"))
-			return
-		}
-		// otherwise we have to update this value
 	case MongodbSQL:
 		// MongoDB is like a json manager
+		// collection for specific name and the interface is for struct
+		// r.db.(*mongo.Database).Collection().InsertOne(context.TODO(), )
+
+		// however, we met problem if we want to partially modify
+		update := bson.M{ // changed position
+			"$set": *goal_state,
+		}
+		res, err := r.db.(*mongo.Database).
+			Collection(b0gus_misc_utils.GetStructNameByType(cond)).
+			UpdateOne(context.TODO(), cond, update)
+		if err != nil {
+			b0gus_config.Logger.Errorf(
+				"update item to collection met an error: %v, id:%d",
+				err, res.UpsertedID,
+			)
+		}
 	default:
-		// fmt.Errorf("unsupported database<%v> was found", r.db)
+		b0gus_config.Logger.Errorf("unsupported database<%v> was found", r.db)
 	}
 
 }
 
-func (r *RecordDB) AlterDatabaseHandler(dst_db any) {
+func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
-		r.db = dst_db
-	case RedisSQL:
-		err := r.db.(*redis.Client).Close()
-		if err != nil {
-			b0gus_config.Logger.Warnf("Catpure an err: %v", err)
-		}
 		r.db = dst_db
 	case MongodbSQL:
 		// TODO
@@ -136,12 +125,18 @@ func (r *RecordDB) AlterDatabaseHandler(dst_db any) {
 		r.db = dst_db
 	default:
 		// Won't change but show an error if such condition is satisfied
-		b0gus_config.Logger.Errorf("unsupported database<%v> was found, won't change database", r.db)
+		b0gus_config.Logger.Errorf(
+			"unsupported database<%v> was found, won't change database",
+			r.db,
+		)
 	}
 
 }
 
 // Create/Update items sequentially
-func (r *RecordDB) CreateOrUpdateItemsInSeq(target_items []any, update_obj []any) error {
+func (r *RuntimeDB) CreateOrUpdateItemsInSeq(
+	target_items []any, update_obj []any,
+) error {
+	// TODO.
 	return nil
 }

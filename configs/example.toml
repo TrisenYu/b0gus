@@ -4,6 +4,7 @@
 # This is an example configuration. You should create your own `config.toml` in the
 # same directory so that b0gus can run as what you expect it to obey.
 ############################### NOTICE ###############################
+
 [server_config]
 # Will store pem in the same `configs` directory
 pem_name = "b0gus-host.pem"
@@ -23,13 +24,15 @@ pem_len = 512
     # Only store `ip, username, password, access time and public key` information
     # TODO: set them as strategy
     permit_login = true
-    empty_shell = false # if you type, just enter a new line for every command
+    # if you try typing, then the expected behaviour is just entering 
+    # another new line for every command.
+    empty_shell = false 
     
     # Just repeat what user inputs back to the terminal
     # TODO: add more response types which represent certain strategy 
     response_type = "repeater"
 
-    # banner after successfully logining
+    # banner for displaying after successfully logining into system
     login_banner = '''
 _______________#########_______________________
 ______________############_____________________
@@ -55,7 +58,8 @@ _____#####________####______#####_____###______
 ______#####______;###________###______#________
 ________##_______####________####______________
 '''
-
+# Or display a buddha but not a miku by uncommenting 
+# and set it as login_banner.
 #                   _oo0oo_
 #                  o8888888o
 #                  88" . "88
@@ -88,7 +92,11 @@ ________##_______####________####______________
     ctrl_port = 21
     data_port = 20
 
-# Can't update configuration of database in runtime
+[server_config.fake_db]
+    # database as honeypot
+    type = ""
+
+# Can't update configuration of database during executing time
 [server_config.database]
     # Yet to have a checking/filtering mechanism to determine 
     # whether database_addr:database_port is requried
