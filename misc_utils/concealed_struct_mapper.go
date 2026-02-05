@@ -26,7 +26,9 @@ func TurnStruct2Map(s any) map[string]any {
 		}
 	case reflect.Struct:
 		// do nothing and fall
+
 	default:
+		// TODO: fmt?
 		fmt.Println(styp.Kind())
 		return nil
 	}

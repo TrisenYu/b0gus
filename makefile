@@ -2,7 +2,7 @@
 .PHONY: deps build release
 
 debug: deps
-	go build
+	go build -asan
 
 release:deps
 	go build -ldflags="-s -w"

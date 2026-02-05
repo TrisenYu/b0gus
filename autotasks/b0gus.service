@@ -12,7 +12,9 @@ Type=simpleExecStart=/usr/local/bin/b0gus_startup.sh
 ExecStop=/usr/bin/docker stop fake-ssh-container
 Restart=on-failure
 RestartSec=30s
-
+User=www-data
+Group=www-data
+KillMode=process
 StandardOutput=journal+console
 StandardError=journal+console
 

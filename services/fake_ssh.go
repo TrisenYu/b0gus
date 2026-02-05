@@ -231,14 +231,13 @@ jump_out:
 		cmd_text_record := b0gus_databases.CommandInfo{
 			Cmd: payload,
 		}
-		s.DB_fd.CreateOrUpdateItem(&cmd_text_record, nil)
-		// s.DB_fd.Where(cmd_text_record).FirstOrCreate(&cmd_text_record)
+		s.DB_fd.CreateOrUpdateItem(&cmd_text_record, &cmd_text_record)
 
-		// cmd_record := b0gus_databases.PortCmdRelated{
-		// 	LoginedID: api_id,
-		// 	CMDid:     cmd_text_record.CmdID,
-		// }
-		// s.DB_fd.Where(cmd_record).FirstOrCreate(&cmd_record)
+		cmd_record := b0gus_databases.RemoteCommandRelation{
+			Rid: int64(api_id),
+			Cid: cmd_text_record.CommandId,
+		}
+		s.DB_fd.CreateOrUpdateItem(cmd_record, &cmd_record)
 	}()
 	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
@@ -393,7 +392,10 @@ func (s *SSHserverConf) clientConnHandler(
 	// attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
 	// s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
 	s.DB_fd.CreateOrUpdateItemsInSeq(
-		[]any{&attacker_addr_query_cond, &attacker_port_query_cond}, nil,
+		[]b0gus_databases.DBstruct{
+			&attacker_addr_query_cond,
+			&attacker_port_query_cond,
+		},
 	)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
@@ -408,30 +410,20 @@ func (s *SSHserverConf) clientConnHandler(
 		password_record := b0gus_databases.PasswordInfo{
 			Password: string(password),
 		}
-		// s.DB_fd.Where(password_record).
-		// 	FirstOrCreate(&password_record).
-		// 	Updates(b0gus_databases.PassInfoDef{
-		// 		PasswordID: password_record.PasswordID,
-		// 		Counter:    password_record.Counter + 1,
-		// 	})
 		username_record := b0gus_databases.UsernameInfo{
 			Name: conn.User(),
 		}
 		client_ssh_version := b0gus_databases.SshVersionInfo{
 			Version: string(conn.ClientVersion()),
 		}
-		// TODO: what about making counter as an attribute and automatically maintained by our program?
-		// how do we deal with relation tables?
+
 		s.DB_fd.CreateOrUpdateItemsInSeq(
-			[]any{&password_record, &username_record, &client_ssh_version},
-			nil,
+			[]b0gus_databases.DBstruct{
+				password_record,
+				username_record,
+				client_ssh_version,
+			},
 		)
-		// s.DB_fd.Where(username_record).
-		// 	FirstOrCreate(&username_record).
-		// 	Updates(b0gus_databases.UsernameDef{
-		// 		UserID:  username_record.UserID,
-		// 		Counter: username_record.Counter + 1,
-		// 	})
 		// port_name_related := b0gus_databases.PortNameRelated{
 		// 	LoginedID:  attacker_port_query_cond.APIid,
 		// 	UsernameID: username_record.UserID,
@@ -462,12 +454,11 @@ func (s *SSHserverConf) clientConnHandler(
 			Version: string(conn.ClientVersion()),
 		}
 		s.DB_fd.CreateOrUpdateItemsInSeq(
-			[]any{&pubkey_record, &client_ssh_version},
-			nil,
+			[]b0gus_databases.DBstruct{
+				pubkey_record,
+				client_ssh_version,
+			},
 		)
-		// s.DB_fd.Where(pubkey_record).FirstOrCreate(&pubkey_record)
-
-		// s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
 		// port_ver_related := b0gus_databases.PortVerRelated{
 		// 	LoginedID:          attacker_port_query_cond.APIid,
 		// 	SSHClientVersionID: client_ssh_version.VerID,
@@ -514,7 +505,7 @@ func (s *SSHserverConf) clientConnHandler(
 			continue
 		}
 		go s.handle_new_ssh_chan(
-			attacker_port_query_cond.APIid,
+			uint64(attacker_port_query_cond.Port),
 			login_banner,
 			ssh_conn, new_chan,
 		)
@@ -668,7 +659,6 @@ func SSHserver(
 	db *b0gus_databases.RuntimeDB,
 	args ...any,
 ) {
-
 	// constrain by length of arguments
 	if len(args) != 1 {
 		return
@@ -678,24 +668,6 @@ func SSHserver(
 		return
 	}
 	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
-	// ssh-related tables
-	// err := db.CreateTable(
-	// 	&b0gus_databases.AddrInfoDef{},
-	// 	&b0gus_databases.PortInfoDef{},
-	// 	&b0gus_databases.UsernameDef{},
-	// 	&b0gus_databases.SSHClientversionStrDef{},
-	// 	&b0gus_databases.PubInfoDef{},
-	// 	&b0gus_databases.PassInfoDef{},
-	// 	&b0gus_databases.CommandTextDef{},
-	// 	// Relation Tables
-	// 	// TODO: can program automatically identify
-	// 	// which domain should connect with others during compilation time?
-	// 	&b0gus_databases.PortNameRelated{},
-	// 	&b0gus_databases.PortVerRelated{},
-	// 	&b0gus_databases.PortPubKeyRelated{},
-	// 	&b0gus_databases.PortPassRelated{},
-	// 	&b0gus_databases.PortCmdRelated{},
-	// )
 	err := db.CreateTable(
 		&b0gus_databases.AddrInfo{},
 		&b0gus_databases.PortInfo{},
@@ -703,13 +675,14 @@ func SSHserver(
 		&b0gus_databases.PasswordInfo{},
 		&b0gus_databases.SshVersionInfo{},
 		&b0gus_databases.PublickeyInfo{},
+		&b0gus_databases.CommandInfo{},
 		// extended relations
 		&b0gus_databases.RemoteInfo{},
 		&b0gus_databases.RemoteUsernameRelation{},
 		&b0gus_databases.RemotePasswordRelation{},
 		&b0gus_databases.RemotePublickeyRelation{},
 		&b0gus_databases.RemoteSshverRelation{},
-		// TODO: add commands
+		&b0gus_databases.RemoteCommandRelation{},
 	)
 	if err != nil {
 		b0gus_config.Logger.Error(err)
@@ -730,6 +703,7 @@ func SSHserver(
 		LoginBanner:       ssh_conf_obj.LoginBanner,
 		DB_fd:             db,
 	}
+
 	/// callback function for updating when there is any modification in the monitored configuration file
 
 	// var ssh_callback = func() {

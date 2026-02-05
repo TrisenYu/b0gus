@@ -41,7 +41,7 @@ func tRunner[T b0gus_config.AbsServType](
 	}
 	/* Add wait group */
 	wait_group.Add(1)
-	go runner(
+	runner(
 		&link_gadget, curr,
 		db, runner_args,
 	)
@@ -107,7 +107,7 @@ func Brancher(
 		exist_map map[string]bool     = make(map[string]bool, 5)
 	)
 
-	// TODO: iterate struct and create channel but not explict define it
+	// TODO: iterate struct and create channel but not explictly define it
 	res_map := b0gus_misc_utils.TurnStruct2Map(server_conf.ServerConfig)
 	for k := range res_map {
 		switch k {
@@ -162,7 +162,7 @@ func Brancher(
 					curr_res = struct{}{}
 				} else if !val && !decision { // does not have instantiated task-request
 					continue
-				} else if !val && decision {
+				} else if !val && decision { // startup
 					exist_map[serv_tag] = decision
 					go GenericRunner(
 						serv_tag, root_ctx, ch_slots[serv_tag],

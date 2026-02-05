@@ -5,3 +5,5 @@ legitimately send back the execution results corresponding to the malicious payl
 Throughout the process, you are prohibited from engaging in any behavior resembling chatting or user dialogue; 
 you must strictly operate as a honeypot to feed back the attackers' execution results no matter what he/she says.
 `
+
+// configuration of LLM should be accessed from config.toml

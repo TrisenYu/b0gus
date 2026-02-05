@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	redis "github.com/redis/go-redis/v9"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	mongo_opts "go.mongodb.org/mongo-driver/mongo/options"
 	gorm_pg "gorm.io/driver/postgres" // pg stands for PostGreSQL
@@ -22,7 +21,7 @@ import (
 // any here is always a pointer
 func SelectDatabaseBackend(db_conf DatabaseConfig) (any, string, error) {
 	switch strings.ToLower(db_conf.DatabaseType) {
-	case "postgresql":
+	case "postgresql": // deploy on certain port
 		db_addr := db_conf.DatabaseAddr
 		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {
 			Logger.WithField("database addr", db_addr).
@@ -36,38 +35,37 @@ func SelectDatabaseBackend(db_conf DatabaseConfig) (any, string, error) {
 		)
 		db, err := gorm.Open(gorm_pg.Open(pg_db_config), &gorm.Config{})
 		return db, "postgresql", err
-	case "sqlite":
+	case "sqlite": // as a file
 		abs_assets_dir_path, _ := filepath.Abs(Assets_dir_as_str)
 		sqlite_path := db_conf.DatabasePath
 		sqlite_path = filepath.Join(abs_assets_dir_path, sqlite_path)
-		// Logger.Info(sqlite_path)
 		db, err := gorm.Open(gorm_sqlite.Open(sqlite_path), &gorm.Config{})
 		return db, "sqlite", err
 	/* TODO: no-relation database, we might need a more generic handler and concurrent protector */
-	case "redis":
-		db_addr := db_conf.DatabaseAddr
-		rdb := redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%d", db_addr, db_conf.DatabasePort),
-			Password: db_conf.DatabaseAdminPassword,
-			DB:       0,
-			/*TODO:
-			TLSConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				ServerName: "you domain",
-				//Certificates: []tls.Certificate{cert}
-			},
-			*/
-		})
-		if rdb == nil {
-			return nil, "", fmt.Errorf("can't create redis-client")
-		}
-		ctx := context.Background()
-		_, err := rdb.Ping(ctx).Result()
-		if err != nil {
-			return nil, "", fmt.Errorf("can't create redis-client due to: %v", err)
-		}
-		// rdb.Do(ctx, "cmd-type1", "val1", ..., "typen", "valn")
-		return rdb, "redis", nil
+	// case "redis":
+	// 	db_addr := db_conf.DatabaseAddr
+	// 	rdb := redis.NewClient(&redis.Options{
+	// 		Addr:     fmt.Sprintf("%s:%d", db_addr, db_conf.DatabasePort),
+	// 		Password: db_conf.DatabaseAdminPassword,
+	// 		DB:       0,
+	// 		/*TODO:
+	// 		TLSConfig: &tls.Config{
+	// 			MinVersion: tls.VersionTLS12,
+	// 			ServerName: "you domain",
+	// 			//Certificates: []tls.Certificate{cert}
+	// 		},
+	// 		*/
+	// 	})
+	// 	if rdb == nil {
+	// 		return nil, "", fmt.Errorf("can't create redis-client")
+	// 	}
+	// 	ctx := context.Background()
+	// 	_, err := rdb.Ping(ctx).Result()
+	// 	if err != nil {
+	// 		return nil, "", fmt.Errorf("can't create redis-client due to: %v", err)
+	// 	}
+	// 	// rdb.Do(ctx, "cmd-type1", "val1", ..., "typen", "valn")
+	// 	return rdb, "redis", nil
 	case "mongodb":
 		db_addr := db_conf.DatabaseAddr
 		if net.ParseIP(db_addr) == nil && strings.ToLower(db_addr) != "localhost" {

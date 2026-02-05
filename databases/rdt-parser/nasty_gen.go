@@ -8,8 +8,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/antlr4-go/antlr/v4"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/gobeam/stringy"
 )
 
@@ -29,6 +31,7 @@ func LowerSnakeConvertor(x string) string {
 	x = fieldNameSnakeConvertor(x)
 	return strings.ToLower(x)
 }
+
 func resolve_type(x string) string {
 	switch x {
 	case "text":
@@ -92,10 +95,10 @@ func timeUnitConvertor(x string) string {
 }
 
 // Requirements:
-// 	1. counter for some statstics
-// 	2. context for autorecoding foreign keys
-// 	3. generic for all database backends
-// these three requirements should be satisfied.
+// 	1. counter for some statstics 				(o)
+// 	2. context for autorecoding foreign keys 	(?)
+// 	3. generic for all database backends		(?, partially)
+// these three requirements should be satisfied at the same time.
 
 type RDTlistener struct {
 	*BaseRDTparserListener
@@ -107,13 +110,13 @@ func (r *RDTlistener) astAttributesAux(x []IField_attrContext) map[string]any {
 	var res = map[string]any{}
 	for _, field_attr := range x {
 		if field_attr.PRIMARY() != nil {
-			res["primary"] = ""
+			res["primary"] = struct{}{}
 		} else if field_attr.NOTNULL() != nil {
-			res["notnull"] = ""
+			res["notnull"] = struct{}{}
 		} else if field_attr.UNIQUE() != nil {
-			res["unique"] = ""
+			res["unique"] = struct{}{}
 		} else if field_attr.AUTOINCREMENT() != nil {
-			res["autoincrement"] = ""
+			res["autoincrement"] = struct{}{}
 		} else if field_attr.COUNTER() != nil {
 			res["counter"] = field_attr.INT_NUMBER().GetText()
 		} else if field_attr.FOREIGN() != nil {
@@ -186,7 +189,7 @@ func ResolveRDT(fpath string) *RDTlistener {
 type (
 	fieldInfo struct {
 		// keep this until definition needs extending
-		Type, Gtag, Bson string
+		Type, Gtag, Json, Bson string
 	}
 	fieldRec map[string]*fieldInfo
 	fieldArr []fieldRec
@@ -215,96 +218,132 @@ func (f fieldArr) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
 }
 
+func fieldAttrForeignHandler(
+	tab_name, field_name string,
+	store map[string]string,
+	ast_listener *RDTlistener,
+	res *formRec,
+) {
+	var ref_tab_name, ref_field_name string
+	for _k, _v := range store {
+		ref_tab_name = _k
+		ref_field_name = _v
+		break
+	}
+
+	// check whether filling an empty/invalid relation
+	_, ok := ast_listener.MetaStruct[ref_tab_name]
+	if !ok {
+		panic("invalid table name was set up as the origin table foreign key")
+	}
+	_, ok = ast_listener.MetaStruct[ref_tab_name][ref_field_name]
+	if !ok {
+		panic("invalid field name was provided as foreign key")
+	}
+
+	ext_field_name := field_name + "Related"
+	var ext_field_info = fieldRec{
+		ext_field_name: &fieldInfo{
+			TopUpperCamelConvertor(ref_tab_name), // type
+			fmt.Sprintf(
+				"foreignKey:%s;refences:%s;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;",
+				field_name, TopUpperCamelConvertor(ref_field_name),
+			), // gtag
+			"-", // json
+			"-", // bson
+		},
+	}
+	(*res)[tab_name] = append((*res)[tab_name], ext_field_info)
+	// For pointee, we might need add a new member
+	ref_tab_name = TopUpperCamelConvertor(ref_tab_name)
+	(*res)[ref_tab_name] = append(
+		(*res)[ref_tab_name],
+		fieldRec{
+			// which points back to where the pointer starts
+			fmt.Sprintf("OuterDef%s", tab_name): &fieldInfo{
+				fmt.Sprintf("[]%s", tab_name),
+				fmt.Sprintf("foreignKey:%s;", field_name),
+				"-", // json
+				"-",
+			},
+		},
+	)
+
+}
+
 func fieldAttrsHandler(
 	ast_listener *RDTlistener,
 	tab_name, field_name string,
-	v any,
+	v map[string]any,
 	res *formRec,
+	aux_func *mapset.Set,
 ) {
 	// create variables for further operations
 	curr_field := fieldRec{
 		field_name: &fieldInfo{
-			resolve_type((v.(map[string]any))["ty"].(string)),
-			"", "",
+			resolve_type(v["ty"].(string)),
+			"", "", "",
 		},
 	}
-	field_attrs := (v.(map[string]any))["attr"].(map[string]any)
-	bson_tag_flag := false
-
+	field_attrs := v["attr"].(map[string]any)
+	var (
+		bson_tag_flag = false
+		json_tag_flag = false
+		need_counter  = false
+	)
+	var (
+		snake_field_name = LowerSnakeConvertor(field_name)
+		ext_field_info   = fieldRec{
+			field_name + "CreateAt": &fieldInfo{
+				"time.Time", "",
+				snake_field_name + "_create_at",
+				snake_field_name + "_create_at,omitempty",
+			},
+		}
+	)
 	// handle attributes
 	for field_attr, maybe_store := range field_attrs {
 		if field_attr == "foreign" {
-			var ref_tab_name, ref_field_name string
-			for _k, _v := range maybe_store.(map[string]string) {
-				ref_tab_name = _k
-				ref_field_name = _v
-				break
-			}
-			// check whether filling an empty/invalid relation
-			_, ok := ast_listener.MetaStruct[ref_tab_name]
-			if !ok {
-				panic("invalid table name was set up as the origin table foreign key")
-			}
-			_, ok = ast_listener.MetaStruct[ref_tab_name][ref_field_name]
-			if !ok {
-				panic("invalid field name was provided as foreign key")
-			}
-
-			ext_field_name := field_name + "Related"
-			var ext_field_info = fieldRec{
-				ext_field_name: &fieldInfo{
-					TopUpperCamelConvertor(ref_tab_name), // type
-					fmt.Sprintf(
-						"foreignKey:%s;refences:%s;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;",
-						field_name, TopUpperCamelConvertor(ref_field_name),
-					), // gtag
-					"-", // bson
-				},
-			}
-			(*res)[tab_name] = append((*res)[tab_name], ext_field_info)
-			// For pointee, we might need add a new member
-			ref_tab_name = TopUpperCamelConvertor(ref_tab_name)
-			(*res)[ref_tab_name] = append((*res)[ref_tab_name], fieldRec{
-				// which points back to where the pointer starts
-				fmt.Sprintf("OuterDef%s", tab_name): &fieldInfo{
-					fmt.Sprintf("[]%s", tab_name),
-					fmt.Sprintf("foreignKey:%s;", field_name),
-					"-",
-				},
-			})
+			fieldAttrForeignHandler(
+				tab_name, field_name,
+				maybe_store.(map[string]string),
+				ast_listener, res,
+			)
 			curr_field[field_name].Bson += LowerSnakeConvertor(field_name) + ",omitempty;"
 			bson_tag_flag = true
+			json_tag_flag = true
 
 		} else if terminated_attr(field_attr) { // primary notnull autoincrement unique
 			curr_field[field_name].Gtag += attrConvertor(field_attr)
 		} else if field_attr == "createtime" {
 			curr_field[field_name].Gtag += "autoCreateTime:" +
 				timeUnitConvertor(maybe_store.(string)) + ";"
-			var ext_field_info = fieldRec{
-				field_name + "CreateAt": &fieldInfo{
-					"time.Time", "", LowerSnakeConvertor(field_name) + "create_at",
-				},
-			}
 			(*res)[tab_name] = append((*res)[tab_name], ext_field_info)
 		} else if field_attr == "updatetime" {
 			curr_field[field_name].Gtag += "autoUpdateTime:" +
 				timeUnitConvertor(maybe_store.(string)) + ";"
-			var ext_field_info = fieldRec{
+
+			ext_field_info = fieldRec{
 				field_name + "UpdateAt": &fieldInfo{
-					"time.Time", "", LowerSnakeConvertor(field_name) + "update_at",
+					"time.Time", "",
+					snake_field_name + "_update_at",
+					snake_field_name + "_update_at,omitempty",
 				},
 			}
 			(*res)[tab_name] = append((*res)[tab_name], ext_field_info)
 		} else if field_attr == "counter" {
 			// maintain a counter for current field
 			// just add as another member variable
+			var counter_str = LowerSnakeConvertor("CounterFor" + field_name)
 			var ext_field_info = fieldRec{
 				"CounterFor" + field_name: &fieldInfo{
 					"uint64", "default:0",
-					LowerSnakeConvertor("CounterFor"+field_name) + ",omitempty",
+					counter_str, counter_str + ",omitempty",
 				},
 			}
 			(*res)[tab_name] = append((*res)[tab_name], ext_field_info)
+			need_counter = true
+
 		} else if field_attr == "default" {
 			// we need type check for `default`.
 			if curr_field[field_name].Type == "int64" {
@@ -324,21 +363,33 @@ func fieldAttrsHandler(
 			panic(fmt.Sprintf("encounter an unknown attribute: %s", field_attr))
 		}
 	}
+
 	if !bson_tag_flag {
 		curr_field[field_name].Bson += fmt.Sprintf(
-			"%s,omitempty",
-			LowerSnakeConvertor(field_name),
+			"%s,omitempty", snake_field_name,
+		)
+	}
+	if !json_tag_flag {
+		curr_field[field_name].Json += fmt.Sprintf(
+			"%s,omitempty", snake_field_name,
 		)
 	}
 	(*res)[tab_name] = append((*res)[tab_name], curr_field)
+	if need_counter {
+		(*aux_func).Add(tab_name)
+	}
 }
 
 func formRecordsHandler(
 	should_import_time bool,
 	res formRec,
+	aux_func mapset.Set,
 ) {
-	fmt.Printf("// Code generated by go generate; DO NOT EDIT.\npackage databases;\n\n")
-	fmt.Printf("// Generated-Time: \n")
+	fmt.Printf("// Code generated by go generate; DO NOT EDIT.\n")
+	fmt.Printf(
+		"// Generated-time: %s\npackage databases;\n\n",
+		time.Now().Format("2006-01-02 15:04:05.000 -0700 MST"),
+	)
 	if should_import_time {
 		fmt.Printf("import \"time\"\n\n")
 	}
@@ -347,23 +398,31 @@ func formRecordsHandler(
 			tag  bool   = false
 			pace string = ""
 		)
+		setTag := func(flip bool) {
+			if flip {
+				tag = !tag
+			}
+			if !tag {
+				tag = true
+				pace = "`"
+			} else {
+				pace = ""
+			}
+		}
 		fmt.Printf("\t%s %s ", name, attrs.Type)
 		if len(attrs.Gtag) > 0 {
 			tag = true
 			fmt.Printf("`gorm:\"%s\" ", attrs.Gtag)
 		}
+		if len(attrs.Json) > 0 {
+			setTag(false)
+			fmt.Printf("%sjson:\"%s\" ", pace, attrs.Json)
+		}
 		if len(attrs.Bson) > 0 {
-			if !tag {
-				tag = true
-				pace = "`"
-			}
+			setTag(false)
 			fmt.Printf("%sbson:\"%s\" ", pace, attrs.Bson)
 		}
-		if tag {
-			pace = "`"
-		} else {
-			pace = ""
-		}
+		setTag(true)
 		fmt.Println(pace)
 	}
 
@@ -377,6 +436,17 @@ func formRecordsHandler(
 		}
 		fmt.Printf("}\n\n")
 	}
+	for kstruct_name := range res {
+		fmt.Printf(
+			`
+func (%s) TableName() string { return "%s"; }
+func (%s) HasCounter() bool { return %s; }
+`,
+			kstruct_name, kstruct_name, kstruct_name,
+			strconv.FormatBool(aux_func.Contains(kstruct_name)),
+		)
+
+	}
 }
 
 func RDTGenAux(
@@ -389,7 +459,10 @@ func RDTGenAux(
 		return
 	}
 	os.Stdout = fd
-	var res = formRec{}
+	var (
+		res      = formRec{}
+		aux_func = mapset.NewSet()
+	)
 	for tab_name, tab_mems := range listener.MetaStruct {
 		tab_name = TopUpperCamelConvertor(tab_name)
 		res[tab_name] = make(fieldArr, 0)
@@ -397,27 +470,26 @@ func RDTGenAux(
 		for field_name, v := range tab_mems {
 			field_name = TopUpperCamelConvertor(field_name)
 			fieldAttrsHandler(
-				listener, tab_name, field_name, v, &res,
+				listener, tab_name, field_name,
+				v.(map[string]any), &res, &aux_func,
 			)
 		}
 	}
-	formRecordsHandler(listener.ShouldImportTime, res)
+	formRecordsHandler(listener.ShouldImportTime, res, aux_func)
 }
 
 func GetFilesUnderDir(dir string) ([]string, error) {
 	var files []string
-	err := filepath.WalkDir(
-		dir,
-		func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if !d.IsDir() {
-				files = append(files, path)
-			}
-			return nil
-		},
-	)
+	aux_fn := func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".rdt" {
+			files = append(files, path)
+		}
+		return nil
+	}
+	err := filepath.WalkDir(dir, aux_fn)
 	return files, err
 }
 

@@ -10,7 +10,6 @@ import (
 	gorm "gorm.io/gorm"
 
 	b0gus_config "b0gus/configs"
-	b0gus_misc_utils "b0gus/misc_utils"
 )
 
 const (
@@ -30,40 +29,22 @@ func GuessAndDetermine(db any) int {
 	}
 }
 
-type DBhandler interface {
-	// close database when there is indeed an operating interface
-	Close()
-
-	// create table for relation database
-	CreateTable(structures ...any) error
-
-	// single inserting/updating task
-	CreateOrUpdateItem(target_item *any, update_obj any) error
-
-	// multiple inserting /updating tasks
-	CreateOrUpdateItemsInSeq(target_items []any, update_obj []any) error
-
-	// set context for foreign fields
-	SetupContext()
-}
-
 // callback functions and context might be required
 type RuntimeDB struct {
 	db    any
 	Mutex sync.Mutex
 }
 
-func (r *RuntimeDB) CreateTable(structures ...any) error {
+func (r *RuntimeDB) CreateTable(structures ...DBstruct) error {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
-		return r.db.(*gorm.DB).AutoMigrate(structures...)
-	// won't provide an interface for Redis due to the infeasibility to maintain primary key
+		return r.db.(*gorm.DB).AutoMigrate(structures)
+	/* won't provide an interface for Redis due to the infeasibility to maintain primary key */
 	case MongodbSQL:
-		for tab_struct := range structures {
-			// TODO: reflect help to unwrap ? can not make me convinced
-			r.db.(*mongo.Database).Collection(b0gus_misc_utils.GetTypeNameViaType(tab_struct))
+		for _, tab_struct := range structures {
+			r.db.(*mongo.Database).Collection(tab_struct.TableName())
 		}
 		return nil
 	default:
@@ -75,19 +56,51 @@ type DBtype interface {
 	any | string
 }
 
+type DBstruct interface {
+	// inspect if current struct has counter. If true, then autoincrement when
+	// creating or updating an item
+	HasCounter() bool
+
+	// restrict and get table name
+	TableName() string
+
+	// Access Counter member if having defined in structure
+
+}
+
+// won't provide querying interface, priviledges should be kept for O&M
+type DBhandler interface {
+	// close database when there is indeed an operating interface
+	Close()
+
+	// create table for relation database
+	CreateTable(structures ...DBstruct) error
+
+	// single inserting/updating task
+	CreateOrUpdateItem(cond *DBstruct, goal DBstruct) error
+
+	// multiple inserting /updating tasks
+	CreateOrUpdateItemsInSeq(target_items []DBstruct) error
+
+	// set context for foreign fields
+	SetupContext()
+}
+
 func (r *RuntimeDB) CreateOrUpdateItem(
-	cond, goal_state *struct{},
-	update_obj any,
+	cond, goal DBstruct,
 ) {
-	// TODO: how to help counter or foreign key?
+	// counter or foreign key should be maintained by assignments
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
-		tx := r.db.(*gorm.DB).Where(*cond).FirstOrCreate(goal_state)
-		if update_obj != nil {
-			tx.Updates(update_obj)
+		var gormDB = r.db.(*gorm.DB)
+		gormDB.Where(&cond).FirstOrCreate(goal)
+		if goal.HasCounter() {
+			gormDB.Where(goal).
+				FirstOrCreate(&goal) // .
+			// Update()
 		}
 	case MongodbSQL:
 		// MongoDB is like a json manager
@@ -96,17 +109,12 @@ func (r *RuntimeDB) CreateOrUpdateItem(
 
 		// however, we met problem if we want to partially modify
 		update := bson.M{ // changed position
-			"$set": *goal_state,
+			"$set": goal,
 		}
-		res, err := r.db.(*mongo.Database).
-			Collection(b0gus_misc_utils.GetStructNameByType(cond)).
-			UpdateOne(context.TODO(), cond, update)
-		if err != nil {
-			b0gus_config.Logger.Errorf(
-				"update item to collection met an error: %v, id:%d",
-				err, res.UpsertedID,
-			)
-		}
+		var mongoDB = r.db.(*mongo.Database)
+		mongoDB.Collection(cond.TableName()).
+			FindOneAndUpdate(context.TODO(), cond, update)
+
 	default:
 		b0gus_config.Logger.Errorf("unsupported database<%v> was found", r.db)
 	}
@@ -121,7 +129,7 @@ func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
 		r.db = dst_db
 	case MongodbSQL:
 		// TODO
-		r.db.(*mongo.Client).Disconnect(context.Background())
+		r.db.(*mongo.Client).Disconnect(context.TODO())
 		r.db = dst_db
 	default:
 		// Won't change but show an error if such condition is satisfied
@@ -135,8 +143,13 @@ func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
 
 // Create/Update items sequentially
 func (r *RuntimeDB) CreateOrUpdateItemsInSeq(
-	target_items []any, update_obj []any,
+	target_items []DBstruct,
 ) error {
 	// TODO.
 	return nil
+}
+
+func (r *RuntimeDB) SetupContext() {
+	// Consider how to maintain context for databases...
+	//
 }

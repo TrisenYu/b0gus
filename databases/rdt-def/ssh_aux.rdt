@@ -58,8 +58,8 @@ remote_publickey_relation:
     pid:integer (primary, foreign -> publickey_info:pub_id);
 
 command_info:
-    command_id:integer (primary, notnull, createtime ns)
-    cmd:text ();
+    command_id:integer (primary, notnull)
+    cmd:text (notnull, createtime ns);
 
 # who did send a command at given time?
 remote_command_relation:
