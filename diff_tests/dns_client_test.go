@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -70,19 +71,16 @@ func forwardToUpstream(req *dns.Msg) (*dns.Msg, error) {
 	)
 }
 
+// TODO: as an honeypot, do we really need to maintain a DNS record?
 func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	msg := r.Copy()
 	dnsutil.SetReply(msg, r)
 	msg.Authoritative = true
-	// qname, qtype := dnsutil.Question(r)
 	for _, q := range r.Question {
 		qName := dnsutil.Canonical(q.Header().Name)
 		h := dns.Header{Name: qName, Class: dns.ClassINET, TTL: 1800}
-
 		switch dns.RRToType(q) {
-
 		case dns.TypeA:
-			// TODO: as an honeypot, do we really need to maintain a DNS record?
 			rr := &dns.A{
 				Hdr: h,
 				A:   rdata.A{Addr: netip.Addr{}},
@@ -95,16 +93,19 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 			msg.Answer = append(msg.Answer, rr)
 		case dns.TypeCNAME:
-
+			rr := &dns.CNAME{}
+			msg.Answer = append(msg.Answer, rr)
 		case dns.TypeTXT:
 			rr := &dns.TXT{
 				Hdr: h,
 				TXT: rdata.TXT{Txt: []string{""}},
 			}
 			msg.Answer = append(msg.Answer, rr)
-		case dns.TypePTR: // PoinTeR
 		case dns.TypeCAA: // Certificate Authority Authorization record
-
+			rr := &dns.CAA{}
+			msg.Answer = append(msg.Answer, rr)
+		case dns.TypeANY:
+		case dns.TypePTR: // PoinTeR
 		case dns.TypeNS:
 		case dns.TypeSOA:
 		default: // nodata response
@@ -127,13 +128,15 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 func setupDNSserverLocally(
 	cease_ch <-chan struct{}, // read-only
 ) {
-	should_terminate := false
+	var should_terminate atomic.Bool
+
+	should_terminate.Store(false)
 	go func() {
 		<-cease_ch
-		should_terminate = true
+		should_terminate.Store(true)
 	}()
-
-	for !should_terminate {
+	// serv := dns.NewServer()
+	for !should_terminate.Load() {
 
 	}
 }

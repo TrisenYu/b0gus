@@ -36,7 +36,7 @@ func B0gusRun() {
 	db, db_str, err := b0gus_config.SelectDatabaseBackend(
 		bogus_conf.ServerConfig.DatabaseConfig,
 	)
-	// **Connect** to Database. Create table when ensuring to run the server
+	// **Connect** to Database. Create table when being ok to run the server
 	if err != nil {
 		b0gus_config.Logger.Errorf(
 			"Failed to connect to %s due to %s",

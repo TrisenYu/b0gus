@@ -7,5 +7,5 @@ docker images
 docker container ls -a
 docker ps -a
 
-# TODO: k8s
+# TODO: k8s or other container
 # docker run b0gus_in_docker -p22:22 -p123:123 -p20:20 -p21:21

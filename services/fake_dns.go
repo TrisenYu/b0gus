@@ -12,7 +12,6 @@ import (
 )
 
 // Reference: https://github.com/EmilHernvall/dnsguide/
-// 			  https://codeberg.org/miekg/dns/src/branch/main/cmd/atomdns
 // origin DNS packet arranges its structure in such a way:
 /*
 	header 				12 bytes
@@ -54,8 +53,8 @@ type DNSserverConf struct {
 	/* fields below need concurrenct control to follow the configuration */
 	AlterDNSListener  sync.Mutex
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
-	Addr              string       // b0gus NTP server addr
-	Port              uint16       // b0gus NTP server port number
+	Addr              string       // b0gus DNS server addr
+	Port              uint16       // b0gus DNS server port number
 }
 
 func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {

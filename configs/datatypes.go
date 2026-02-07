@@ -34,7 +34,7 @@ type DNSconfig struct {
 
 // TODO: database here means the recording database for attacker features
 //
-//	If we want database as a masquerading honeypot, then the name of this datatype might need altering
+//	If we want database as a masquerading honeypot, then the name of this datatype needs altering
 type DatabaseConfig struct {
 	DatabaseType          string `toml:"database_type" mapstructure:"database_type"`
 	DatabaseName          string `toml:"database_name" mapstructure:"database_name"`

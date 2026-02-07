@@ -64,8 +64,10 @@ type DBstruct interface {
 	// restrict and get table name
 	TableName() string
 
-	// Access Counter member if having defined in structure
+	// Change Counter member if having defined in structure
+	UpdateCounter()
 
+	// Auto-Set Foreign Key.
 }
 
 // won't provide querying interface, priviledges should be kept for O&M
@@ -88,7 +90,7 @@ type DBhandler interface {
 
 func (r *RuntimeDB) CreateOrUpdateItem(
 	cond, goal DBstruct,
-) {
+) error {
 	// counter or foreign key should be maintained by assignments
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
@@ -96,29 +98,30 @@ func (r *RuntimeDB) CreateOrUpdateItem(
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
 		var gormDB = r.db.(*gorm.DB)
-		gormDB.Where(&cond).FirstOrCreate(goal)
+		gormDB.Where(&cond).FirstOrCreate(&goal)
 		if goal.HasCounter() {
-			gormDB.Where(goal).
-				FirstOrCreate(&goal) // .
-			// Update()
+			goal.UpdateCounter()
+			gormDB.Where(goal).Updates(&goal)
 		}
 	case MongodbSQL:
 		// MongoDB is like a json manager
 		// collection for specific name and the interface is for struct
 		// r.db.(*mongo.Database).Collection().InsertOne(context.TODO(), )
-
-		// however, we met problem if we want to partially modify
 		update := bson.M{ // changed position
 			"$set": goal,
 		}
 		var mongoDB = r.db.(*mongo.Database)
 		mongoDB.Collection(cond.TableName()).
 			FindOneAndUpdate(context.TODO(), cond, update)
-
+		if goal.HasCounter() {
+			goal.UpdateCounter()
+			mongoDB.Collection(cond.TableName()).
+				FindOneAndUpdate(context.TODO(), cond, update)
+		}
 	default:
-		b0gus_config.Logger.Errorf("unsupported database<%v> was found", r.db)
+		return fmt.Errorf("unsupported database<%v> was found", r.db)
 	}
-
+	return nil
 }
 
 func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
@@ -145,8 +148,15 @@ func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
 func (r *RuntimeDB) CreateOrUpdateItemsInSeq(
 	target_items []DBstruct,
 ) error {
-	// TODO.
-	return nil
+	var err error = nil
+	// we can do one thing in this function: evaluate whether we can
+	for _, item := range target_items {
+		err = r.CreateOrUpdateItem(item, item)
+		if err != nil {
+			// TODO: rollback?
+		}
+	}
+	return err
 }
 
 func (r *RuntimeDB) SetupContext() {

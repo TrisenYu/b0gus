@@ -28,8 +28,6 @@ func TurnStruct2Map(s any) map[string]any {
 		// do nothing and fall
 
 	default:
-		// TODO: fmt?
-		fmt.Println(styp.Kind())
 		return nil
 	}
 

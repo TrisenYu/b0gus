@@ -229,10 +229,10 @@ func TestIPvXparser(t *testing.T) {
 			"::1:BillieJean",
 			ipPort{"", 0},
 		},
-		// {
-		// 	"fe80::1cc0:3e8c:119f:c2e1%ens18/1234",
-		// 	ipPort{"fe80::1cc0:3e8c:119f:c2e1", 1234},
-		// },
+		{
+			"fe80::1cc0:3e8c:119f:c2e1%ens18/1234",
+			ipPort{"fe80::1cc0:3e8c:119f:c2e1", 1234},
+		},
 	}
 	for idx, tt := range tests {
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
