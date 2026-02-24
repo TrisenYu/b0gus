@@ -139,6 +139,11 @@ func inspectConfig(conf_data *LocalConfig) bool {
 	return false
 }
 
+func GetLang() string {
+	// loose concurrent restriction
+	return curr_config.ServerConfig.Language
+}
+
 func LoadDefaultConfig(conf_path string) *LocalConfig {
 	if conf_path == "" {
 		conf_path = Config_path_as_str

@@ -1,3 +1,4 @@
+// / Last modified at 2026/02/11 星期三 22:20:29
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
@@ -14,6 +15,7 @@ import (
 	ssh "golang.org/x/crypto/ssh"
 
 	b0gus_config "b0gus/configs"
+
 	b0gus_crypto_aux "b0gus/crypto_aux"
 	b0gus_databases "b0gus/databases"
 	b0gus_misc_utils "b0gus/misc_utils"
@@ -226,20 +228,17 @@ jump_out:
 		return
 	}
 
-	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 	go func() {
 		cmd_text_record := b0gus_databases.CommandInfo{
 			Cmd: payload,
 		}
 		s.DB_fd.CreateOrUpdateItem(&cmd_text_record, &cmd_text_record)
-
 		cmd_record := b0gus_databases.RemoteCommandRelation{
 			Rid: int64(api_id),
 			Cid: cmd_text_record.CommandId,
 		}
 		s.DB_fd.CreateOrUpdateItem(cmd_record, &cmd_record)
 	}()
-	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
 	prompt_char = "$ "
 	var (
@@ -272,7 +271,9 @@ jump_out:
 	if err == nil {
 		goto rewind
 	}
-	b0gus_config.Logger.Infof("Capture an error when writing payload:%v", err)
+	b0gus_config.Logger.Infof(
+		"Capture an error when writing payload:%v", err,
+	)
 }
 
 func (s *SSHserverConf) requestsHandler(
@@ -288,7 +289,8 @@ func (s *SSHserverConf) requestsHandler(
 		case "shell":
 			_ = req.Reply(true, nil)
 			welcomeMsg := fmt.Sprintf(
-				strings.ReplaceAll(banner, "\n", "\r\n")+"Last login: %s from %s\r\n$ ",
+				strings.ReplaceAll(banner, "\n", "\r\n")+
+					"Last login: %s from %s\r\n$ ",
 				time.Now().Format(time.ANSIC),
 				ssh_conn.RemoteAddr().String(),
 			)
@@ -424,24 +426,21 @@ func (s *SSHserverConf) clientConnHandler(
 				client_ssh_version,
 			},
 		)
-		// port_name_related := b0gus_databases.PortNameRelated{
-		// 	LoginedID:  attacker_port_query_cond.APIid,
-		// 	UsernameID: username_record.UserID,
-		// }
-		// s.DB_fd.Where(port_name_related).FirstOrCreate(&port_name_related)
-
-		// s.DB_fd.Where(client_ssh_version).FirstOrCreate(&client_ssh_version)
-		// port_pass_related := b0gus_databases.PortPassRelated{
-		// 	LoginedID: attacker_port_query_cond.APIid,
-		// 	PassID:    password_record.PasswordID,
-		// }
-		// s.DB_fd.Where(port_pass_related).FirstOrCreate(&port_pass_related)
-		// port_ver_related := b0gus_databases.PortVerRelated{
-		// 	LoginedID:          attacker_port_query_cond.APIid,
-		// 	SSHClientVersionID: client_ssh_version.VerID,
-		// }
-		// s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
-
+		s.DB_fd.CreateOrUpdateItemsInSeq(
+			[]b0gus_databases.DBstruct{
+				b0gus_databases.RemoteUsernameRelation{
+					Rid: attacker_addr_query_cond.Id,
+					Uid: username_record.UsernameId,
+				},
+				b0gus_databases.RemoteSshverRelation{
+					Rid: attacker_addr_query_cond.Id,
+					Sid: client_ssh_version.Id,
+				},
+				b0gus_databases.RemotePasswordRelation{
+					Rid: attacker_addr_query_cond.Id,
+					Pid: password_record.PasswordId,
+				},
+			})
 		return &ssh.Permissions{}, nil
 	}
 
@@ -459,14 +458,13 @@ func (s *SSHserverConf) clientConnHandler(
 				client_ssh_version,
 			},
 		)
-		// port_ver_related := b0gus_databases.PortVerRelated{
-		// 	LoginedID:          attacker_port_query_cond.APIid,
-		// 	SSHClientVersionID: client_ssh_version.VerID,
-		// }
-		// s.DB_fd.Where(port_ver_related).FirstOrCreate(&port_ver_related)
+		port_ver_related := b0gus_databases.RemoteSshverRelation{
+			Rid: attacker_port_query_cond.Port,
+			Sid: client_ssh_version.Id,
+		}
+		s.DB_fd.CreateOrUpdateItem(port_ver_related, port_ver_related)
 		return nil, fmt.Errorf("public key authentication is not allowed")
 	}
-	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database types Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
 	ssh_config := &ssh.ServerConfig{
 		ServerVersion:     getRandomSSHVersion(),
@@ -630,7 +628,7 @@ keep_spinning:
 
 	s.tcpListenerGuard.RLock()
 	// when we have to hot-plug with new configuration,
-	// we need a block mechanism to stop accept new connection
+	// we need a block mechanism to stop accepting new connection
 	// until the listener is ready to be put in use again
 	curr_listener = *s.serverListenerPtr
 	s.tcpListenerGuard.RUnlock()
@@ -667,7 +665,6 @@ func SSHserver(
 	if !ok {
 		return
 	}
-	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 	err := db.CreateTable(
 		&b0gus_databases.AddrInfo{},
 		&b0gus_databases.PortInfo{},
@@ -688,7 +685,6 @@ func SSHserver(
 		b0gus_config.Logger.Error(err)
 		return
 	}
-	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
 
 	// TODO: Reduplicated copy introduces non-negligible performance loss and memory stress
 

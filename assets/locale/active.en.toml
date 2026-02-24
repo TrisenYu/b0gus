@@ -1,0 +1,30 @@
+[main]
+    [main.DatabaseConnectionError]
+    other = "Failed to connect to {{.DatabaseStr}} due to {{.ErrStr}}"
+    [main.DatabaseEmptyError]
+    other = "Empty database file descriptor"
+    [main.DatabaseChangingWarn]
+    other = "Won't update the database handler"
+    [main.TerminationSignalWarn]
+    other = "Catch an OS signal<{{.SignalStr}}> for terminating b0gus server"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "Failed to open PEM file<{{.PemPath}}> for SSH host key!"
+    [crypto_aux.PemFileReadFailure]
+    other = "Failed to read PEM file!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "Failed to decode PEM block!"
+    [crypto_aux.PemFileUnsupportedType]
+    other = "Unsupported PEM file type!"
+    [crypto_aux.InvalidLengthForEllipticCurve]
+    other = "unsupported length<{{.PemLen}}> for elliptic curve encryption algorithm"
+    [crypto_aux.InvalidLengthForRSA]
+    other = "unsupported length<{{.PemLen}}> for rsa public key"
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "Unsupported Database<{{.Database}}> was found!"
+    
+# [services]
+#    [services.ssh]

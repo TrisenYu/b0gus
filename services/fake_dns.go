@@ -87,5 +87,4 @@ func DNSserver(
 	}
 	b0gus_config.Logger.Infof("%v", ntp_server_conf.Addr)
 	// ntp_server_conf.NTPclientHandler(terminator)
-
 }

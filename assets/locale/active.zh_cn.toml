@@ -1,0 +1,32 @@
+[main]
+    [main.DatabaseConnectionError]
+    other = "无法连接到数据库{{.DatabaseStr}}。检出错误：`{{.ErrStr}}`。"
+    [main.DatabaseEmptyError]
+    other = "按给定配置获取到了空的数据库操作符。"
+    [main.DatabaseChangingWarn]
+    other = "因内部错误，不更换当前正在使用的数据库。"
+    [main.TerminationSignalWarn]
+    other = "捕获到终止运行b0gus服务器的信号<{{.SignalStr}}>。"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "无法打开PEM文件<{{.PemPath}}>来配置本地的SSH公钥！"
+    [crypto_aux.PemFileReadFailure]
+    other = "无法读取给定的PEM文件！"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "无法正确解码PEM文件！"
+    [crypto_aux.PemFileUnsupportedType]
+    other = "不受支持的PEM文件！"
+    [crypto_aux.InvalidLengthForEllipticCurve]
+    other = "所提供的公钥长度<{{.PemLen}}>不适用于已知的椭圆曲线加密算法"
+    [crypto_aux.InvalidLengthForRSA]
+    other = "所提供的公钥长度<{{.PemLen}}>不适用于RSA加密算法"
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "发现了不受支持的数据库<{{.Database}}>！"
+
+
+# [services]
+#    [services.ssh]
+

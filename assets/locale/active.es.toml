@@ -1,0 +1,28 @@
+# AI-generated
+[main]
+    [main.DatabaseConnectionError]
+    other = "No se pudo conectar a {{.DatabaseStr}} debido a {{.ErrStr}}"
+    [main.DatabaseEmptyError]
+    other = "Descriptor de archivo de base de datos vacío"
+    [main.DatabaseChangingWarn]
+    other = "No se actualizará el controlador de la base de datos"
+    [main.TerminationSignalWarn]
+    other = "Se detectó una señal del sistema operativo<{{.SignalStr}}> para finalizar el servidor b0gus"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "¡No se pudo abrir el archivo PEM<{{.PemPath}}> para la clave de host SSH!"
+    [crypto_aux.PemFileReadFailure]
+    other = "¡No se pudo leer el archivo PEM!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "¡No se pudo decodificar el bloque PEM!"
+    [crypto_aux.PemFileUnsupportedType]
+    other = "¡Tipo de archivo PEM no compatible!"
+    [crypto_aux.InvalidLengthForEllipticCurve]
+    other = "longitud<{{.PemLen}}> no compatible para el algoritmo de cifrado de curva elíptica"
+    [crypto_aux.InvalidLengthForRSA]
+    other = "longitud<{{.PemLen}}> no compatible para la clave pública RSA"
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "¡Se encontró una Base de Datos<{{.Database}}> no compatible!"

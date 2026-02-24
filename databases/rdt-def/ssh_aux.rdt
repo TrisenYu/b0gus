@@ -25,7 +25,7 @@ ssh_version_info:
     version:text (unique, notnull)
 
 
-# *** foreign key must define after its dependencies ***
+# *** must define foreign key after its dependencies ***
 remote_sshver_relation:
     rid:integer (primary, foreign -> remote_info:remote_id);
     sid:integer (primary, foreign -> ssh_version_info:id)

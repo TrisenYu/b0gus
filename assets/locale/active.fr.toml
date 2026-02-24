@@ -1,0 +1,28 @@
+# AI-generated
+[main]
+    [main.DatabaseConnectionError]
+    other = "Échec de la connexion à {{.DatabaseStr}} en raison de {{.ErrStr}}"
+    [main.DatabaseEmptyError]
+    other = "Descripteur de fichier de base de données vide"
+    [main.DatabaseChangingWarn]
+    other = "Le gestionnaire de base de données ne sera pas mis à jour"
+    [main.TerminationSignalWarn]
+    other = "Capture d'un signal du système d'exploitation<{{.SignalStr}}> pour terminer le serveur b0gus"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "Échec de l'ouverture du fichier PEM<{{.PemPath}}> pour la clé d'hôte SSH !"
+    [crypto_aux.PemFileReadFailure]
+    other = "Échec de la lecture du fichier PEM !"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "Échec du décodage du bloc PEM !"
+    [crypto_aux.PemFileUnsupportedType]
+    other = "Type de fichier PEM non pris en charge !"
+    [crypto_aux.InvalidLengthForEllipticCurve]
+    other = "longueur<{{.PemLen}}> non prise en charge pour l'algorithme de chiffrement par courbe elliptique"
+    [crypto_aux.InvalidLengthForRSA]
+    other = "longueur<{{.PemLen}}> non prise en charge pour la clé publique RSA"
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "Base de données<{{.Database}}> non prise en charge détectée !"

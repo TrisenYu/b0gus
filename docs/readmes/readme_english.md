@@ -17,4 +17,4 @@ B0gus is distributed under the terms of the 3-Clauses-BSD License. See the inclu
 #### Todo-list
 
 - if possible, set up [oss-fuzz](https://google.github.io/oss-fuzz/getting-started/new-project-guide/)
-- other todo mentioned in the source code
+- other todos mentioned in the source code

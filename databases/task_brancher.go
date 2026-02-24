@@ -2,13 +2,14 @@ package databases
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	gorm "gorm.io/gorm"
 
+	b0gus_assets "b0gus/assets"
 	b0gus_config "b0gus/configs"
 )
 
@@ -48,7 +49,14 @@ func (r *RuntimeDB) CreateTable(structures ...DBstruct) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("unsupported database<%v> was found", r.db)
+		unsupported_msg := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"databases.DatabaseTypeError",
+			map[string]any{
+				"Database": r.db,
+			},
+		)
+		return errors.New(unsupported_msg)
 	}
 }
 
@@ -119,7 +127,14 @@ func (r *RuntimeDB) CreateOrUpdateItem(
 				FindOneAndUpdate(context.TODO(), cond, update)
 		}
 	default:
-		return fmt.Errorf("unsupported database<%v> was found", r.db)
+		unsupported_msg := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"databases.DatabaseTypeError",
+			map[string]any{
+				"Database": r.db,
+			},
+		)
+		return errors.New(unsupported_msg)
 	}
 	return nil
 }
@@ -136,10 +151,14 @@ func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
 		r.db = dst_db
 	default:
 		// Won't change but show an error if such condition is satisfied
-		b0gus_config.Logger.Errorf(
-			"unsupported database<%v> was found, won't change database",
-			r.db,
+		unsupported_msg := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"databases.SQLtypeError",
+			map[string]any{
+				"Database": r.db,
+			},
 		)
+		b0gus_config.Logger.Error(unsupported_msg)
 	}
 
 }

@@ -125,6 +125,7 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	io.Copy(w, r)
 }
 
+// TODO!
 func setupDNSserverLocally(
 	cease_ch <-chan struct{}, // read-only
 ) {
@@ -142,6 +143,7 @@ func setupDNSserverLocally(
 }
 
 func TestLocalDNSserver(t *testing.T) {
+
 	domain_arr := []string{
 		"abcd.com",
 		"alipay.com",

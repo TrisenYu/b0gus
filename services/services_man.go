@@ -91,10 +91,11 @@ func GenericArgs(tag string, serv_conf *b0gus_config.LocalConfig) any {
 
 }
 
+// brancher as the services' steward of b0gus
 func Brancher(
 	need_shutdown chan struct{},
 	server_conf *b0gus_config.LocalConfig,
-	db *b0gus_databases.RuntimeDB, // *gorm.DB, *redis.Client, *mongo.Client
+	db *b0gus_databases.RuntimeDB, // *gorm.DB, *mongo.Client
 	wait_group *sync.WaitGroup,
 ) {
 	// TODO: length should be directly caculated from b0gus_config.LocalConfig
@@ -115,6 +116,7 @@ func Brancher(
 		case "PemType":
 		case "PemLen":
 		case "DatabaseConfig":
+		case "Language":
 		default:
 			ch_slots[k] = make(chan any, 1)
 			exist_map[k] = false
@@ -151,8 +153,7 @@ func Brancher(
 
 				// check service_ex whether should be killed or updated in this loop
 				curr_res, _ := b0gus_misc_utils.GetFieldValueByName(
-					curr_config.ServerConfig,
-					serv_tag,
+					curr_config.ServerConfig, serv_tag,
 				) // interface{} needs explictly unwrapping by enforced type convertion,
 
 				// but we only have tag-string

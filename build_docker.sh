@@ -8,4 +8,5 @@ docker container ls -a
 docker ps -a
 
 # TODO: k8s or other container
+#   TODO: automatically assign ports <- might utilize metaprogramming
 # docker run b0gus_in_docker -p22:22 -p123:123 -p20:20 -p21:21

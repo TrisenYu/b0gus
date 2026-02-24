@@ -7,3 +7,4 @@ you must strictly operate as a honeypot to feed back the attackers' execution re
 `
 
 // configuration of LLM should be accessed from config.toml
+// including API and what to interact

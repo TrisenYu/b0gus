@@ -9,11 +9,13 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	b0gus_assets "b0gus/assets"
 	b0gus_config "b0gus/configs"
 
 	ssh "golang.org/x/crypto/ssh"
@@ -27,22 +29,33 @@ import (
 func loadSSHhostPem(pem_path string) (ssh.Signer, error) {
 	pem_fd, err := os.Open(pem_path)
 	if err != nil {
-		b0gus_config.Logger.
-			WithField("pem_path", pem_path).
-			Error("Failed to open PEM file for SSH host key!")
+		open_pem_failure := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.PemFileOpenFailure",
+			map[string]any{"PemPath": pem_path},
+		)
+		// "Failed to read PEM file for SSH host key!"
+		b0gus_config.Logger.Error(open_pem_failure)
 		return nil, err
 	}
 	pem_bytes, err := io.ReadAll(pem_fd)
 	if err != nil {
-		b0gus_config.Logger.
-			Error("Failed to read PEM file for SSH host key!")
+		read_pem_failure := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.PemFileReadFailure", nil,
+		)
+		// "Failed to read PEM file for SSH host key!"
+		b0gus_config.Logger.Error(read_pem_failure)
 		return nil, err
 	}
 	pem_fd.Close()
 	pem_block, _ := pem.Decode(pem_bytes)
 	if pem_block == nil {
-		b0gus_config.Logger.
-			Error("Failed to decode PEM block for SSH host key!")
+		pem_decode_failure := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.PemFileDecodeFailure", nil,
+		)
+		b0gus_config.Logger.Error(pem_decode_failure)
 		return nil, err
 	}
 	switch pem_block.Type {
@@ -66,7 +79,7 @@ func loadSSHhostPem(pem_path string) (ssh.Signer, error) {
 		}
 		return ssh.NewSignerFromKey(any_private)
 	default:
-		return nil, fmt.Errorf("unsupported signing pem format")
+		return nil, errors.New("unsupported signing pem format")
 	}
 }
 
@@ -87,10 +100,14 @@ func handle_elliptic(pem_len uint64) (*ecdsa.PrivateKey, error) {
 	case 521:
 		choice = elliptic.P521()
 	default:
-		return nil, fmt.Errorf(
-			"unsupported length<%d> for elliptic curve encryption algorithm",
-			pem_len,
+		invalid_len := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.InvalidLengthForEllipticCurve",
+			map[string]any{
+				"PemLen": pem_len,
+			},
 		)
+		return nil, errors.New(invalid_len)
 	}
 	return ecdsa.GenerateKey(choice, rand.Reader)
 }
@@ -104,7 +121,14 @@ func handle_rsa(pem_len uint64) (*rsa.PrivateKey, error) {
 	case 4096:
 	case 8192:
 	default:
-		return nil, fmt.Errorf("invalid length<%d> for rsa public key", pem_len)
+		invalid_len := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.InvalidLengthForRSA",
+			map[string]any{
+				"PemLen": pem_len,
+			},
+		)
+		return nil, errors.New(invalid_len)
 	}
 	return rsa.GenerateKey(rand.Reader, int(pem_len&0xFFFF_FFFF))
 }

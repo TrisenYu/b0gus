@@ -48,9 +48,10 @@ type DatabaseConfig struct {
 type LocalConfig struct {
 	// This field should refer the toml config defined in configs/config.toml
 	ServerConfig struct {
-		PemName string `toml:"pem_name" mapstructure:"pem_name"`
-		PemType string `toml:"pem_type" mapstructure:"pem_type"`
-		PemLen  uint64 `toml:"pem_len" mapstructure:"pem_len"`
+		PemName  string `toml:"pem_name" mapstructure:"pem_name"`
+		PemType  string `toml:"pem_type" mapstructure:"pem_type"`
+		PemLen   uint64 `toml:"pem_len" mapstructure:"pem_len"`
+		Language string `toml:"language" mapstructure:"language"`
 		// services
 		// The reason why to use struct name as ServerConfig's member name is
 		// the iteration in `services_man.go` upon struct for data/control path needs refect

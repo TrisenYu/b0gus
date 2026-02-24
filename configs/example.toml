@@ -10,6 +10,7 @@
 pem_name = "b0gus-host.pem"
 pem_type = "ecdh"
 pem_len = 512
+language = "en"
 
 # It might be identical to run this program in port 22 as a b0gus ssh server
 # but for non-root user, binding to port < 1024 is not allowed

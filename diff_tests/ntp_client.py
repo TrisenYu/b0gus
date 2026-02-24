@@ -38,9 +38,9 @@ addr = (
 ) 
 FROM_1900_TO_1970 = 2208988800
 """
-get_LI = lambda x: (x >> 6) & 0b11
-get_VN = lambda x: (x >> 3) & 0b111
-get_MODE = lambda x: (x & 0b111)
+    get_LI = lambda x: (x >> 6) & 0b11
+    get_VN = lambda x: (x >> 3) & 0b111
+    get_MODE = lambda x: (x & 0b111)
 """
 li_vn_mode = 0b00_011_011
 

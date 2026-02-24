@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 
+	b0gus_assets "b0gus/assets"
 	b0gus_config "b0gus/configs"
 	bogus_databases "b0gus/databases"
 	b0gus_services "b0gus/services"
@@ -38,13 +39,23 @@ func B0gusRun() {
 	)
 	// **Connect** to Database. Create table when being ok to run the server
 	if err != nil {
-		b0gus_config.Logger.Errorf(
-			"Failed to connect to %s due to %s",
-			db_str, err.Error(),
+		b0gus_config.Logger.Error(
+			b0gus_assets.GetLocalizedMsg(
+				b0gus_config.GetLang(),
+				"main.DatabaseConnectionError",
+				map[string]any{
+					"DatabaseStr": db_str,
+					"ErrStr":      err.Error(),
+				},
+			),
 		)
 		return
 	} else if db == nil {
-		b0gus_config.Logger.Error("Empty database file descriptor")
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"main.DatabaseEmptyError", nil,
+		)
+		b0gus_config.Logger.Error(payload)
 		return
 	}
 
@@ -55,7 +66,11 @@ func B0gusRun() {
 			bogus_conf.ServerConfig.DatabaseConfig,
 		)
 		if tmp_db == nil || _err != nil || tmp_db_str == "" {
-			b0gus_config.Logger.Warn("Won't update the database handler")
+			payload := b0gus_assets.GetLocalizedMsg(
+				b0gus_config.GetLang(),
+				"main.DatabaseChangingWarn", nil,
+			)
+			b0gus_config.Logger.Warn(payload)
 			return
 		}
 		glob_record_db.AlterDatabaseHandler(tmp_db)
@@ -74,16 +89,21 @@ func B0gusRun() {
 	go b0gus_config.GlobConfigMaintainer.Regist(db_update_callback)
 	go func() {
 		sig := <-signalChan
-		b0gus_config.Logger.Warnf(
-			"Catch an OS signal<%s> for terminating b0gus server",
-			sig.String(),
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"main.TerminationSignalWarn",
+			map[string]any{"SignalStr": sig.String()},
 		)
+		b0gus_config.Logger.Warn(payload)
 		terminator <- struct{}{}
 		close(terminator)
 		signal.Stop(signalChan)
 		close(signalChan)
 	}()
-	b0gus_services.Brancher(terminator, bogus_conf, &glob_record_db, &wait_group)
+	b0gus_services.Brancher(
+		terminator, bogus_conf,
+		&glob_record_db, &wait_group,
+	)
 	b0gus_config.GlobConfigMaintainer.SelfDestroy()
 	close(b0gus_config.UpdateFlag)
 }
