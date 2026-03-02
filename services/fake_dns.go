@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	b0gus_config "b0gus/configs"
-	b0gus_databases "b0gus/databases"
 	"io"
 
 	"codeberg.org/miekg/dns"
@@ -49,7 +48,7 @@ import (
 
 type DNSserverConf struct {
 	/* database handler for writing data */
-	DB_fd *b0gus_databases.RuntimeDB
+	DB_fd *b0gus_config.RuntimeDB
 	/* fields below need concurrenct control to follow the configuration */
 	AlterDNSListener  sync.Mutex
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
@@ -75,9 +74,9 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 // db *gorm.DB *redis.Client *mongo.Client
 func DNSserver(
-	link_gadget *serviceReadCtrl,
 	ntp_conf_obj *b0gus_config.DNSconfig,
-	db *b0gus_databases.RuntimeDB,
+	scc *b0gus_config.ServicesConcurrencyCtrl,
+	db *b0gus_config.RuntimeDB,
 	args ...any,
 ) {
 	ntp_server_conf := DNSserverConf{

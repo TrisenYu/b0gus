@@ -26,7 +26,6 @@ func TurnStruct2Map(s any) map[string]any {
 		}
 	case reflect.Struct:
 		// do nothing and fall
-
 	default:
 		return nil
 	}
@@ -36,10 +35,15 @@ func TurnStruct2Map(s any) map[string]any {
 	// TODO: use a queue instead of recursion
 	for i := range styp.NumField() {
 		child := styp.Field(i).Type
+		if len(child.Name()) == 0 {
+			continue
+		}
 		if child.Kind() == reflect.Struct {
 			res[styp.Field(i).Name] = TurnStruct2Map(sval.Field(i).Interface())
 			continue
 		}
+		// for concealing type, just skip.
+
 		res[styp.Field(i).Name] = sval.Field(i).Interface()
 	}
 	return res

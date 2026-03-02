@@ -1,0 +1,85 @@
+# AI-generated
+[main]
+    [main.DatabaseConnectionError]
+    other = "Impossibile connettersi al database {{.DatabaseStr}}. Errore: `{{.ErrInfo}}`."
+    [main.DatabaseEmptyError]
+    other = "Ottenuto un operatore di database vuoto in base alla configurazione fornita."
+    [main.DatabaseChangingWarn]
+    other = "A causa di un errore interno, non viene cambiato il database attualmente in uso."
+    [main.TerminationSignalWarn]
+    other = "Ricevuto segnale di terminazione del server B0gus <{{.SignalStr}}>."
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "Impossibile aprire il file PEM <{{.PemPath}}> per configurare la chiave pubblica SSH locale!"
+    [crypto_aux.PemFileReadFailure]
+    other = "Impossibile leggere il file PEM specificato!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "Impossibile decodificare correttamente il file PEM!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "File PEM non supportato!"
+    [crypto_aux.PemFileFormatError]
+    other = "Formato di certificato di firma non supportato"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "La lunghezza della chiave pubblica fornita <{{.PemLen}}> non è adatta per algoritmi di crittografia a curva ellittica noti."
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "La lunghezza della chiave pubblica fornita <{{.PemLen}}> non è adatta per l'algoritmo di crittografia RSA."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Utilizzato un certificato non valido o non supportato. Dettagli: <{{.ErrInfo}}>. B0gus tenterà di generare un certificato secondo la configurazione."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Impossibile creare il certificato nel percorso <{{.pemPath}}> a causa dell'errore <{{.ErrInfo}}>. Il servizio B0gus non verrà avviato."
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Impossibile generare la chiave privata SSH secondo l'algoritmo fornito a causa dell'errore <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Impossibile impostare la chiave privata per il servizio SSH a causa dell'errore <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Impossibile creare il certificato nel percorso fornito <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Impossibile codificare correttamente il certificato in una stringa Base64."
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "Rilevato database non supportato <{{.Database}}>!"
+
+[configs]
+    # Database
+    [configs.InvalidDatabaseAddrError]
+    other = "Indirizzo di connessione al database non valido nel file di configurazione <{{.DatabaseAddr}}>!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Rilevato tipo di database sconosciuto. B0gus attualmente supporta PostgreSQL, SQLite e MongoDB, è stato selezionato <{{.DatabaseType}}>."
+    # Configurazione globale
+    [configs.ReadingConfigurationFailure]
+    other = "Impossibile leggere la configurazione. Motivo: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Ricaricamento del file di configurazione fallito! La configurazione corrente non viene modificata. Motivo: <{{.ErrInfo}}>."
+    [configs.UnmarshalingConfigurationFailure]
+    other = "Impossibile analizzare il file di configurazione. Motivo: <{{.ErrInfo}}>."
+
+
+[services]
+    [services.SSHversionWarn]
+    other = "Impossibile generare 3 byte casuali. Viene restituito un valore predefinito per la versione SSH."
+    [services.SSHWriteResponseError]
+    other = "Errore durante la scrittura del risultato del comando <{{.ErrInfo}}>."
+    [services.SSHsetTimeoutError]
+    other = "Impossibile impostare il timeout per le connessioni in arrivo a causa dell'errore <{{.ErrInfo}}>."
+    [services.SSHEstablishConnectionFailure]
+    other = "Impossibile stabilire la connessione SSH. (Indirizzo remoto, versione SSH corrente, errore): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "Impossibile accettare il canale SSH fornito per l'indirizzo remoto <{{.RemoteAddr}}> a causa dell'errore <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Configurazione SSH non valida, aggiornamento saltato"
+    [services.SSHSwitchListenerError]
+    other = "Impossibile passare all'indirizzo <{{.ListenAddr}}> per riascoltare. Il server SSH B0gus corrente non viene modificato."
+    [services.SSHSetupListenerError]
+    other = "Impossibile avviare l'ascolto del server SSH sull'indirizzo <{{.ListenAddr}}>."
+    [services.SSHAcceptConnWarn]
+    other = "Impossibile accettare connessioni SSH in arrivo a causa dell'errore <{{.ErrInfo}}>."
+    [services.SSHCanNotUseSigner]
+    other = "Impossibile utilizzare il certificato specificato <{{.Signer}}> per eseguire la firma durante le interazioni del protocollo SSH."
+    [services.SSHQuitInfo]
+    other = "Il server SSH è uscito."
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "Il server NTP ha ricevuto una richiesta di query temporale di lunghezza <{{.Len}}> da <{{.IP}}>."
+    [services.NTPQuitInfo]
+    other = "Il server NTP è uscito."

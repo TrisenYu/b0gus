@@ -7,78 +7,55 @@ import (
 
 	b0gus_config "b0gus/configs"
 	b0gus_crypto_aux "b0gus/crypto_aux"
-	b0gus_databases "b0gus/databases"
 	b0gus_misc_utils "b0gus/misc_utils"
 )
 
-type serviceReadCtrl struct {
-	Ctx     context.Context
-	Data_ch <-chan any
-}
-
-type serviceRunnerType[T b0gus_config.AbsServType] func(
-	*serviceReadCtrl, *T,
-	*b0gus_databases.RuntimeDB,
-	...any,
-)
-
-func tRunner[T b0gus_config.AbsServType](
-	ctx context.Context,
-	ch <-chan any,
-	conf any,
-	wait_group *sync.WaitGroup,
-	db *b0gus_databases.RuntimeDB,
-	runner serviceRunnerType[T],
-	runner_args ...any,
-) {
-	curr, ok := conf.(*T)
-	if !ok {
-		return
-	}
-	var link_gadget = serviceReadCtrl{
-		Ctx:     ctx,
-		Data_ch: ch,
-	}
-	/* Add wait group */
-	wait_group.Add(1)
-	runner(
-		&link_gadget, curr,
-		db, runner_args,
-	)
-	wait_group.Done()
-}
-
-func GenericRunner(
-	tag string,
-	ctx context.Context,
-	ch <-chan any,
-	conf any,
-	wait_group *sync.WaitGroup,
-	db *b0gus_databases.RuntimeDB,
-	runner_extra_args ...any,
-) {
-	if !b0gus_config.InfoEvalator(tag, conf) {
-		return
-	}
+// Since the definition of SSHserverConf is seperated from b0gus_config
+// SetSpecConfViaTag is thus used as a bizzare generic function
+// in the scope of golang programming.
+func SetSpecConfViaTag(tag string, conf any) b0gus_config.AbsServType {
 	switch tag {
 	case "SSHconfig":
-		tRunner(ctx, ch, conf, wait_group, db, SSHserver, runner_extra_args)
+		res, ok := conf.(b0gus_config.SSHconfig)
+		if !ok || !b0gus_config.GenericConfChecker(conf, b0gus_config.CheckSSHconfig) {
+			return nil
+		}
+		var s SSHserverConf
+		res.RegistRunner(s.Run)
+		return res
 	case "NTPconfig":
-		tRunner(ctx, ch, conf, wait_group, db, NTPserver, runner_extra_args)
+		res, ok := conf.(b0gus_config.NTPconfig)
+		if !ok || !b0gus_config.GenericConfChecker(conf, b0gus_config.CheckNTPconfig) {
+			return nil
+		}
+		var n NTPserverConf
+		res.RegistRunner(n.Run)
+		return res
 	case "DNSconfig":
-		tRunner(ctx, ch, nil, wait_group, db, DNSserver, runner_extra_args)
+		res, ok := conf.(b0gus_config.DNSconfig)
+		if !ok || !b0gus_config.GenericConfChecker(conf, b0gus_config.CheckDNSconfig) {
+			return nil
+		}
+		res.RegistRunner(nil)
+		return res
 	case "TelnetConfig":
-		tRunner(ctx, ch, nil, wait_group, db, TelnetServer, runner_extra_args)
+		res, ok := conf.(b0gus_config.TelnetConfig)
+		if !ok || !b0gus_config.GenericConfChecker(conf, b0gus_config.CheckTelnetConfig) {
+			return nil
+		}
+		res.RegistRunner(nil)
+		return res
 	default: // unknown tag
-		return
+		return nil
 	}
 }
 
+// adjust arguments for different services
 func GenericArgs(tag string, serv_conf *b0gus_config.LocalConfig) any {
 	switch tag {
 	case "SSHconfig":
 		pem_path, _ := filepath.Abs(filepath.Join(
-			b0gus_config.Config_dir_as_str,
+			b0gus_config.ConfigDirAsStr,
 			serv_conf.ServerConfig.PemName,
 		))
 		return b0gus_crypto_aux.LoadOrCreateSSHpem(
@@ -91,11 +68,53 @@ func GenericArgs(tag string, serv_conf *b0gus_config.LocalConfig) any {
 
 }
 
+func updatationHandler(
+	curr_config *b0gus_config.LocalConfig,
+	db *b0gus_config.RuntimeDB,
+	serv_alive_map map[string]bool,
+	root_ctx context.Context,
+	ch_slots map[string]chan any,
+	wait_group *sync.WaitGroup,
+) {
+	for serv_tag, val := range serv_alive_map {
+		// check service_ex whether should be killed or updated in this loop
+		curr_conf, _ := b0gus_misc_utils.GetFieldValueByName(
+			curr_config.ServerConfig, serv_tag,
+		) // interface{}/any needs explictly unwrapping by enforced type convertion,
+
+		// we only have tag-strings
+		decision := SetSpecConfViaTag(serv_tag, curr_conf)
+		about_to_run := func() {
+			decision.InvokeRunner(
+				&b0gus_config.ServicesConcurrencyCtrl{
+					Ctx:     root_ctx,
+					Data_ch: ch_slots[serv_tag],
+				}, db,
+				GenericArgs(serv_tag, curr_config),
+			)
+		}
+		if val && decision == nil {
+			// apparently without side-effects
+			serv_alive_map[serv_tag] = false
+			curr_conf = struct{}{}
+		} else if !val && decision == nil {
+			// does not have instantiated task-request
+			continue
+		} else if !val && decision != nil {
+			// startup
+			serv_alive_map[serv_tag] = true
+			wait_group.Go(about_to_run)
+			continue
+		}
+		ch_slots[serv_tag] <- curr_conf
+	}
+}
+
 // brancher as the services' steward of b0gus
 func Brancher(
 	need_shutdown chan struct{},
 	server_conf *b0gus_config.LocalConfig,
-	db *b0gus_databases.RuntimeDB, // *gorm.DB, *mongo.Client
+	db *b0gus_config.RuntimeDB, // *gorm.DB, *mongo.Client
 	wait_group *sync.WaitGroup,
 ) {
 	// TODO: length should be directly caculated from b0gus_config.LocalConfig
@@ -104,8 +123,8 @@ func Brancher(
 	root_ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var (
-		ch_slots  map[string]chan any = make(map[string]chan any, 5)
-		exist_map map[string]bool     = make(map[string]bool, 5)
+		ch_slots       map[string]chan any = make(map[string]chan any, 5)
+		serv_alive_map map[string]bool     = make(map[string]bool, 5)
 	)
 
 	// TODO: iterate struct and create channel but not explictly define it
@@ -115,11 +134,11 @@ func Brancher(
 		case "PemName":
 		case "PemType":
 		case "PemLen":
-		case "DatabaseConfig":
 		case "Language":
+		case "DatabaseConfig": // TODO
 		default:
 			ch_slots[k] = make(chan any, 1)
-			exist_map[k] = false
+			serv_alive_map[k] = false
 		}
 	}
 	defer func() {
@@ -133,8 +152,8 @@ func Brancher(
 		select {
 		case <-need_shutdown:
 			cancel() /* ctx.cancel() used as a global shutdown convention */
-			for ex := range exist_map {
-				exist_map[ex] = false
+			for ex := range serv_alive_map {
+				serv_alive_map[ex] = false
 			}
 			return
 		case curr_config, ok := <-b0gus_config.UpdateFlag:
@@ -142,57 +161,44 @@ func Brancher(
 				goto stuck
 			}
 			// help for the only database that has registed in frontend
-			go b0gus_config.GlobConfigMaintainer.UpdateConfig()
+			go b0gus_config.GlobConfigMaintainer.UpdateConfig(curr_config)
 
 			// TODO: 0. we still have to inspect the curr_config to determine whether we
 			// 			should shut down/reload a service or not.
-			//		 1. inspect curr_res and consider if ch_slots[ex] will be blocked
+			//		 1. inspect curr_conf and consider if ch_slots[ex] will be blocked
 			//		 2. should be able to invoke a new service as long as
 			// 			the configuration of child is confirmed and accepted?
-			for serv_tag, val := range exist_map {
-
-				// check service_ex whether should be killed or updated in this loop
-				curr_res, _ := b0gus_misc_utils.GetFieldValueByName(
-					curr_config.ServerConfig, serv_tag,
-				) // interface{} needs explictly unwrapping by enforced type convertion,
-
-				// but we only have tag-string
-				decision := b0gus_config.InfoEvalator(serv_tag, curr_res)
-				if val && !decision {
-					exist_map[serv_tag] = decision
-					curr_res = struct{}{}
-				} else if !val && !decision { // does not have instantiated task-request
-					continue
-				} else if !val && decision { // startup
-					exist_map[serv_tag] = decision
-					go GenericRunner(
-						serv_tag, root_ctx, ch_slots[serv_tag],
-						curr_res, wait_group, db,
-						GenericArgs(serv_tag, server_conf),
-					)
-					continue
-				}
-				ch_slots[serv_tag] <- curr_res
-			}
+			updatationHandler(
+				curr_config, db,
+				serv_alive_map, root_ctx,
+				ch_slots, wait_group,
+			)
 			goto stuck
 		}
 	}()
 
 	for k := range ch_slots {
-		curr_val, err := b0gus_misc_utils.GetFieldValueByName(server_conf.ServerConfig, k)
+		curr_conf, err := b0gus_misc_utils.GetFieldValueByName(server_conf.ServerConfig, k)
 		if err != nil {
 			continue
 		}
-		exist_map[k] = true
-		go GenericRunner(
-			k, root_ctx, ch_slots[k],
-			curr_val, wait_group, db,
-			GenericArgs(k, server_conf),
-		)
+		decision := SetSpecConfViaTag(k, curr_conf)
+		if decision == nil {
+			continue
+		}
+		serv_alive_map[k] = true
+		wait_group.Go(func() {
+			decision.InvokeRunner(
+				&b0gus_config.ServicesConcurrencyCtrl{
+					Ctx:     root_ctx,
+					Data_ch: ch_slots[k],
+				}, db,
+				GenericArgs(k, server_conf),
+			)
+		})
 	}
 
 	wait_group.Wait()
-
 	// still need a coroutine to monitor whether the configuration is updated
 	// and send corresponding signal/struct to specific service
 }

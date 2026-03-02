@@ -1,14 +1,13 @@
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
-//
 // (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 package configs
 
 const (
 	// since go use compiler rather than interpreter, we can not assign a . as relative path
 	// otherwise the executable file will deem there is a configuration in the same direnctory as its,
-	Config_dir_as_str  string = "./configs/"
-	Assets_dir_as_str  string = "./assets/"
-	Config_path_as_str string = Config_dir_as_str + "config.toml"
+	ConfigDirAsStr  string = "./configs/"
+	AssetsDirAsStr  string = "./assets/"
+	ConfigPathAsStr string = ConfigDirAsStr + "config.toml"
 )
 
 var (

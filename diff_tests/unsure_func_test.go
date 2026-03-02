@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	ssh "golang.org/x/crypto/ssh"
+
 	b0gus_config "b0gus/configs"
 	b0gus_crypto_aux "b0gus/crypto_aux"
 	b0gus_misc_utils "b0gus/misc_utils"
@@ -53,6 +55,18 @@ func TestReflection(t *testing.T) {
 	assert.Equal(t, local_conf.ServerConfig.TelnetConfig, curr)
 	_, ok = curr.(b0gus_config.TelnetConfig)
 	assert.Equal(t, true, ok)
+
+	curr, err = b0gus_misc_utils.GetFieldValueByName(
+		map[string]map[string]any{
+			"ok": nil,
+			"nok": map[string]any{
+				"hello": "world",
+				"123":   123,
+			},
+		},
+		"nok",
+	)
+	assert.Equal(t, nil, err)
 }
 
 func TestAnyType(t *testing.T) {
@@ -286,6 +300,11 @@ func TestPemHelper(t *testing.T) {
 
 	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 4096)
 	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
+
+	tmp := what_we_have.(any)
+	_, ok := tmp.(ssh.Signer)
+	assert.Equal(t, true, ok)
+
 	del_pem()
 	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem(pem_path, "rsa", 1234)
 	assert.Equal(t, what_we_have, nil, "unexpected nil pem")

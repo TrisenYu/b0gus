@@ -10,7 +10,6 @@ import (
 
 	b0gus_assets "b0gus/assets"
 	b0gus_config "b0gus/configs"
-	bogus_databases "b0gus/databases"
 	b0gus_services "b0gus/services"
 )
 
@@ -28,27 +27,25 @@ import (
 	configuration-directed honeypot
 */
 
-func B0gusRun() {
-	// TODO: neccessary executable binary files/dependencies immediate check inside b0gus
-	bogus_conf := b0gus_config.LoadDefaultConfig("")
+// The entry of b0gus. configuration in `./configs/` should be properly set up before executing
+func main() {
+	bogusConf := b0gus_config.LoadDefaultConfig("")
+	var globRecordDb = b0gus_config.RuntimeDB{}
 
-	var glob_record_db = bogus_databases.RuntimeDB{}
-
-	db, db_str, err := b0gus_config.SelectDatabaseBackend(
-		bogus_conf.ServerConfig.DatabaseConfig,
+	db, dbStr, err := b0gus_config.SelectDatabaseBackend(
+		&bogusConf.ServerConfig.RecDBConfig,
 	)
 	// **Connect** to Database. Create table when being ok to run the server
 	if err != nil {
-		b0gus_config.Logger.Error(
-			b0gus_assets.GetLocalizedMsg(
-				b0gus_config.GetLang(),
-				"main.DatabaseConnectionError",
-				map[string]any{
-					"DatabaseStr": db_str,
-					"ErrStr":      err.Error(),
-				},
-			),
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"main.DatabaseConnectionError",
+			map[string]any{
+				"DatabaseStr": dbStr,
+				"ErrInfo":     err.Error(),
+			},
 		)
+		b0gus_config.Logger.Error(payload)
 		return
 	} else if db == nil {
 		payload := b0gus_assets.GetLocalizedMsg(
@@ -59,13 +56,13 @@ func B0gusRun() {
 		return
 	}
 
-	glob_record_db.AlterDatabaseHandler(db)
+	globRecordDb.AlterDatabaseHandler(db)
 
-	var db_update_callback = func() {
-		tmp_db, tmp_db_str, _err := b0gus_config.SelectDatabaseBackend(
-			bogus_conf.ServerConfig.DatabaseConfig,
+	dbUpdateCallback := func(updConfig *b0gus_config.LocalConfig) {
+		tmpDB, tmpDBstr, _err := b0gus_config.SelectDatabaseBackend(
+			&updConfig.ServerConfig.RecDBConfig,
 		)
-		if tmp_db == nil || _err != nil || tmp_db_str == "" {
+		if tmpDB == nil || _err != nil || tmpDBstr == "" {
 			payload := b0gus_assets.GetLocalizedMsg(
 				b0gus_config.GetLang(),
 				"main.DatabaseChangingWarn", nil,
@@ -73,20 +70,18 @@ func B0gusRun() {
 			b0gus_config.Logger.Warn(payload)
 			return
 		}
-		glob_record_db.AlterDatabaseHandler(tmp_db)
+		globRecordDb.AlterDatabaseHandler(tmpDB)
 	}
-
-	// TODO: move function below to certain package
-	/* signal notification to terminate the whole server gracefully */
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	var (
-		wait_group sync.WaitGroup
+		waitGroup  sync.WaitGroup
 		terminator = make(chan struct{}, 1)
+		signalChan = make(chan os.Signal, 1)
 	)
 
+	// signal notification to terminate the whole server gracefully
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	b0gus_config.GlobConfigMaintainer.Init()
-	go b0gus_config.GlobConfigMaintainer.Regist(db_update_callback)
+	go b0gus_config.GlobConfigMaintainer.Regist(dbUpdateCallback)
 	go func() {
 		sig := <-signalChan
 		payload := b0gus_assets.GetLocalizedMsg(
@@ -101,14 +96,9 @@ func B0gusRun() {
 		close(signalChan)
 	}()
 	b0gus_services.Brancher(
-		terminator, bogus_conf,
-		&glob_record_db, &wait_group,
+		terminator, bogusConf,
+		&globRecordDb, &waitGroup,
 	)
 	b0gus_config.GlobConfigMaintainer.SelfDestroy()
 	close(b0gus_config.UpdateFlag)
-}
-
-/* The entry of b0gus. configuration in `./configs/` should be properly set up before executing */
-func main() {
-	B0gusRun()
 }

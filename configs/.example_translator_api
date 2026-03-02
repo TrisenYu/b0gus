@@ -1,0 +1,6 @@
+# This is an example file for description which field is required for `translator_api.py`.
+
+token = 123
+url = "https://it.is.an.example"
+password = doNotExpose2Others
+prompt = "Please translate this content reading from a toml file into these language(s):. The content is \"\""

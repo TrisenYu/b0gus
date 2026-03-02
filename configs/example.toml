@@ -99,18 +99,21 @@ ________##_______####________####______________
     type = ""
 
 # Can't update configuration of database during executing time
-[server_config.database]
+[server_config.rec_db_config]
     # Yet to have a checking/filtering mechanism to determine 
     # whether database_addr:database_port is requried
-    database_type = "PostgreSQL"
-    database_name = "postgres"
-    database_addr = "localhost"
-    database_port = 5432
-    database_admin_name = "postgres"
-    database_admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
+    type = "PostgreSQL"
+    name = "postgres"
+    # Some database can be deemed as a distributed cluster
+    # so an IP address is require.
+    addr = "localhost"
+    port = 5432
+    # Some database requires an admin to operate.
+    admin_name = "postgres"
+    admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
     # This redundant field is used for different SQLs like SQLite
     # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
     # explictly given. And default directory is set to `assets`, where stores the database
     # file that **have to be created** manually or by automatic scripts
     # Lastly, the corresponding dataname should fill with `sqlite`, `SQLITE`, or `SQLite`
-    database_path = "nasty-ssh-client.db"
+    path = "nasty-ssh-client.db"

@@ -1,12 +1,12 @@
 [main]
     [main.DatabaseConnectionError]
-    other = "无法连接到数据库{{.DatabaseStr}}。检出错误：`{{.ErrStr}}`。"
+    other = "无法连接到数据库{{.DatabaseStr}}。检出错误：`{{.ErrInfo}}`。"
     [main.DatabaseEmptyError]
     other = "按给定配置获取到了空的数据库操作符。"
     [main.DatabaseChangingWarn]
     other = "因内部错误，不更换当前正在使用的数据库。"
     [main.TerminationSignalWarn]
-    other = "捕获到终止运行b0gus服务器的信号<{{.SignalStr}}>。"
+    other = "捕获到终止运行B0gus服务器的信号<{{.SignalStr}}>。"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -15,18 +15,69 @@
     other = "无法读取给定的PEM文件！"
     [crypto_aux.PemFileDecodeFailure]
     other = "无法正确解码PEM文件！"
-    [crypto_aux.PemFileUnsupportedType]
+    [crypto_aux.PemFileUnsupportedTypeError]
     other = "不受支持的PEM文件！"
-    [crypto_aux.InvalidLengthForEllipticCurve]
-    other = "所提供的公钥长度<{{.PemLen}}>不适用于已知的椭圆曲线加密算法"
-    [crypto_aux.InvalidLengthForRSA]
-    other = "所提供的公钥长度<{{.PemLen}}>不适用于RSA加密算法"
+    [crypto_aux.PemFileFormatError]
+    other = "不支持此类签名证书的格式"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "所提供的公钥长度<{{.PemLen}}>不适用于已知的椭圆曲线加密算法。"
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "所提供的公钥长度<{{.PemLen}}>不适用于RSA加密算法。"
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "因错误<{{.ErrInfo}}>无法根据给定的算法生成SSH私钥。"
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "因错误<{{.ErrInfo}}>无法为SSH服务设置私钥。"
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "无法创建证书到给定路径<{{.PemPath}}>。"
+    [crypto_aux.Base64EncodeFailure]
+    other = "无法正确将证书编码为Base64字符串。"
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "使用了无效或者不受支持的证书，细节：<{{.ErrInfo}}>。B0gus将按配置情况尝试生成出一个证书。"
+    [crypto_aux.PemFileCreateFailure]
+    other = "因错误<{{.ErrInfo}}>无法在路径<{{.PemPath}}>下创建证书，且将不会启动B0gus服务。"
 
 [databases]
     [databases.DatabaseTypeError]
     other = "发现了不受支持的数据库<{{.Database}}>！"
 
+[configs]
+    # 数据库
+    [configs.InvalidDatabaseAddrError]
+    other = "配置文件内提供了无效的数据库连接地址<{{.DatabaseAddr}}>！"
+    [configs.UnsupportDatabaseTypeError]
+    other = "发现了未知的数据库类型。当前B0gus支持PostgreSQL、SQLite和MongoDB，而你选择了<{{.DatabaseType}}>。"
+    # 全局配置信息
+    [configs.ReadingConfigurationFailure]
+    other = "无法读取配置。失败原因：<{{.ErrInfo}}>。"
+    [configs.ReloadingConfigurationFailure]
+    other = "重载配置文件失败！不会更换当前配置。失败原因：<{{.ErrInfo}}>。"
+    [configs.UnmarshalingConfigurationFailure]
+    other = "无法解析配置文件。失败原因：<{{.ErrInfo}}>。"
 
-# [services]
-#    [services.ssh]
-
+[services]
+    [services.SSHversionWarn]
+    other = "无法生成3个随机字节。将为SSH版本返回一个默认值。"
+    [services.SSHWriteResponseError]
+    other = "写回命令结果时遇到一个错误<{{.ErrInfo}}>。"
+    [services.SSHsetTimeoutError]
+    other = "因错误<{{.ErrInfo}}>无法为即将到来的连接设置超时时间。"
+    [services.SSHEstablishConnectionFailure]
+    other = "无法建立SSH连接。（远程地址，当前SSH版本号，失败原因）：（<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>）。"
+    [services.SSHchannelAcceptanceError]
+    other = "因错误<{{.ErrInfo}}>无法接受当前提供给远程地址<{{.RemoteAddr}}>的SSH通道。"
+    [services.SSHinvalidConfigurationWarn]
+    other = "无效的SSH配置，跳过更新"
+    [services.SSHSwitchListenerError]
+    other = "无法切换到给定地址<{{.ListenAddr}}>来重新监听。受此影响不会修改当前的B0gus SSH服务器。"
+    [services.SSHSetupListenerError]
+    other = "无法在给定地址<{{.ListenAddr}}>上让SSH服务器监听。"
+    [services.SSHAcceptConnWarn]
+    other = "因错误<{{.ErrInfo}}>无法接受外部的SSH连接请求。"
+    [services.SSHCanNotUseSigner]
+    other = "无法使用给定的证书<{{.Signer}}>用于SSH协议交互期间实施签名。"
+    [services.SSHQuitInfo]
+    other = "SSH服务器已退出。"
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "NTP服务器接收到来自<{{.IP}}>发来的长度为<{{.Len}}>的时间查询请求。"
+    [services.NTPQuitInfo]
+    other = "NTP服务器已退出。"

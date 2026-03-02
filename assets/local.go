@@ -2,7 +2,6 @@ package assets
 
 import (
 	"embed"
-	"path/filepath"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/pelletier/go-toml"
@@ -22,8 +21,7 @@ func init() {
 		if e.IsDir() {
 			continue
 		}
-		filePath := filepath.Join("locale", e.Name())
-		content, err := local_description.ReadFile(filePath)
+		content, err := local_description.ReadFile("locale/" + e.Name())
 		if err != nil {
 			continue
 		}

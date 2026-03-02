@@ -1,0 +1,84 @@
+# AI-generated
+[main]
+    [main.DatabaseConnectionError]
+    other = "Keine Verbindung zur Datenbank {{.DatabaseStr}} möglich. Fehler: `{{.ErrInfo}}`."
+    [main.DatabaseEmptyError]
+    other = "Leerer Datenbank-Operator gemäß der angegebenen Konfiguration erhalten."
+    [main.DatabaseChangingWarn]
+    other = "Aufgrund eines internen Fehlers wird die aktuell verwendete Datenbank nicht gewechselt."
+    [main.TerminationSignalWarn]
+    other = "Signal zum Beenden des B0gus-Servers empfangen <{{.SignalStr}}>."
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "PEM-Datei <{{.PemPath}}> zum Einrichten des lokalen SSH-Public-Keys konnte nicht geöffnet werden!"
+    [crypto_aux.PemFileReadFailure]
+    other = "Die angegebene PEM-Datei konnte nicht gelesen werden!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "PEM-Datei konnte nicht korrekt dekodiert werden!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Nicht unterstützte PEM-Datei!"
+    [crypto_aux.PemFileFormatError]
+    other = "Format dieses Signaturzertifikats wird nicht unterstützt"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "Die angegebene Public-Key-Länge <{{.PemLen}}> ist für bekannte elliptische Kurvenkryptographie ungeeignet."
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "Die angegebene Public-Key-Länge <{{.PemLen}}> ist für den RSA-Verschlüsselungsalgorithmus ungeeignet."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Ungültiges oder nicht unterstütztes Zertifikat verwendet. Details: <{{.ErrInfo}}>. B0gus wird versuchen, ein Zertifikat gemäß der Konfiguration zu generieren."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Zertifikat konnte unter Pfad <{{.pemPath}}> aufgrund von Fehler <{{.ErrInfo}}> nicht erstellt werden. B0gus-Dienst wird nicht gestartet."
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Generierung des SSH-Privatschlüssels gemäß dem angegebenen Algorithmus ist aufgrund des Fehlers <{{.ErrInfo}}> fehlgeschlagen."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Einrichten des Privatschlüssels für den SSH-Dienst ist aufgrund des Fehlers <{{.ErrInfo}}> fehlgeschlagen."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Erstellung des Zertifikats im angegebenen Pfad <{{.PemPath}}> ist fehlgeschlagen."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Korrekte Kodierung des Zertifikats in einen Base64-String ist fehlgeschlagen."
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "Nicht unterstützte Datenbank erkannt <{{.Database}}>!"
+
+[configs]
+    # Datenbank
+    [configs.InvalidDatabaseAddrError]
+    other = "Ungültige Datenbank-Adresse in der Konfigurationsdatei angegeben <{{.DatabaseAddr}}>!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Unbekannter Datenbanktyp erkannt. B0gus unterstützt derzeit PostgreSQL, SQLite und MongoDB, ausgewählt wurde <{{.DatabaseType}}>."
+    # Globale Konfiguration
+    [configs.ReadingConfigurationFailure]
+    other = "Konfiguration konnte nicht gelesen werden. Grund: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Neuladen der Konfigurationsdatei fehlgeschlagen! Aktuelle Konfiguration bleibt unverändert. Grund: <{{.ErrInfo}}>."
+    [configs.UnmarshalingConfigurationFailure]
+    other = "Konfigurationsdatei konnte nicht geparst werden. Grund: <{{.ErrInfo}}>."
+
+[services]
+    [services.SSHversionWarn]
+    other = "Konnte keine 3 zufälligen Bytes erzeugen. Es wird ein Standardwert für die SSH-Version zurückgegeben."
+    [services.SSHWriteResponseError]
+    other = "Fehler beim Schreiben des Befehlsergebnisses <{{.ErrInfo}}>."
+    [services.SSHsetTimeoutError]
+    other = "Timeout für eingehende Verbindungen konnte aufgrund von Fehler <{{.ErrInfo}}> nicht festgelegt werden."
+    [services.SSHEstablishConnectionFailure]
+    other = "SSH-Verbindung konnte nicht hergestellt werden. (Remote-Adresse, aktuelle SSH-Version, Fehler): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "Konnte den bereitgestellten SSH-Kanal für die Remote-Adresse <{{.RemoteAddr}}> aufgrund des Fehlers <{{.ErrInfo}}> nicht akzeptieren."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Ungültige SSH-Konfiguration, Aktualisierung wird übersprungen"
+    [services.SSHSwitchListenerError]
+    other = "Konnte nicht zur Adresse <{{.ListenAddr}}> zum erneuten Lauschen wechseln. Der aktuelle B0gus SSH-Server bleibt unverändert."
+    [services.SSHSetupListenerError]
+    other = "SSH-Server konnte nicht auf Adresse <{{.ListenAddr}}> lauschen."
+    [services.SSHAcceptConnWarn]
+    other = "Eingehende SSH-Verbindungen konnten aufgrund von Fehler <{{.ErrInfo}}> nicht akzeptiert werden."
+    [services.SSHCanNotUseSigner]
+    other = "Das angegebene Zertifikat <{{.Signer}}> kann nicht zum Signieren während der SSH-Protokollinteraktionen verwendet werden."
+    [services.SSHQuitInfo]
+    other = "Der SSH-server wurde beendet."
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "Der NTP-Server hat eine Zeitabfrage-Anfrage der Länge <{{.Len}}> von <{{.IP}}> empfangen."
+    [services.NTPQuitInfo]
+    other = "Der NTP-Server wurde beendet."

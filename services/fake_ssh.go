@@ -1,4 +1,4 @@
-// / Last modified at 2026/02/11 星期三 22:20:29
+// Last modified at 2026/02/11 星期三 22:20:29
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	logrus "github.com/sirupsen/logrus"
 	ssh "golang.org/x/crypto/ssh"
 
+	b0gus_assets "b0gus/assets"
 	b0gus_config "b0gus/configs"
 
 	b0gus_crypto_aux "b0gus/crypto_aux"
@@ -29,7 +29,7 @@ var (
 		"PuTTY", "paramiko", "FlowSSH", "check_ssh",
 		"dropbear",
 	}
-	// TODO: falsify operating system and its version in the future
+	// TODO: falsify operating system and its version string in the future
 	sshOSCommentArr = []string{
 		"Debian-10", "Debian-11", "Ubuntu-18.04",
 		"Ubuntu-20.04", "Ubuntu-22.04", "Fedora-34",
@@ -39,62 +39,11 @@ var (
 		"Windows-11", "Windows-10", "macOS-10.15",
 		"Raspbian-5+deb8u4",
 	}
-)
-
-/* SSH-protoversion-softwareversion SP comments CR LF */
-func getRandomSSHVersion() string {
-	buf := make([]byte, 5)
-	_, err := rand.Read(buf)
-	if err != nil {
-		b0gus_config.Logger.Error(
-			"unable to generate 3 random bytes! Will return a default one!",
-		)
-		return "SSH-2.0-OpenSSH_10.0p2_3.5.4 Debian-7"
-	}
-	for i := range 3 {
-		buf[i] %= 10
-	}
-	buf[3] %= uint8(len(sshSoftwareArr))
-	buf[4] %= uint8(len(sshOSCommentArr))
-	var (
-		header      = "SSH-2.0-%s_%d.%d.%d %s"
-		ssh_version = fmt.Sprintf(
-			header,
-			sshSoftwareArr[buf[3]],
-			buf[0], buf[1], buf[2],
-			sshOSCommentArr[buf[4]],
-		)
-	)
-	return ssh_version
-}
-
-type SSHserverConf struct {
-	clientLimitor                 atomic.Uint32
-	tcpListenerGuard, configGuard sync.RWMutex
-	DB_fd                         *b0gus_databases.RuntimeDB // database handler for writing data.
-	/*
-		use for replacing command in repeat mode.
-		if not nil, then this field should be `func(string) string`
-	*/
-	commandHook any
-	/* fields below need concurrenct control to follow the configuration */
-
-	serverListenerPtr *net.Listener // current listener on Addr:Port
-	Addr              string        // b0gus ssh server addr
-	LoginBanner       string        // ssh server login banner
-	ClientConnTimeout time.Duration // initiated timeout setting
-	MaxClientNum      uint32        // maximum clients number handling in real time
-	Port              uint16        // b0gus ssh server port number
-	PermitLogin       bool          // whether reject or not
-	EmptyShell        bool          // no any response
-}
-
-var (
-	term_str = map[string]any{
+	termStr = map[string]any{
 		"exit": nil, "quit": nil,
 		"EXIT": nil, "QUIT": nil,
 	}
-	ctrl_seq = map[string]string{
+	ctrlSeq = map[string]string{
 		"\x00": "~", // ctrl+~
 		"\x01": "A", // ctrl+a
 		"\x02": "B", // ctrl+b
@@ -126,10 +75,58 @@ var (
 	}
 )
 
-func (s *SSHserverConf) cmdRepeater(
-	api_id uint64,
-	ssh_chan ssh.Channel,
-) {
+/* SSH-proto_version-software_version SP comments CR LF */
+func getRandomSSHVersion() string {
+	buf := make([]byte, 5)
+	_, err := rand.Read(buf)
+	if err != nil {
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHversionWarn", nil,
+		)
+		b0gus_config.Logger.Warn(payload)
+		return "SSH-2.0-OpenSSH_10.0p2_3.5.4 Debian-7"
+	}
+	for i := range 3 {
+		buf[i] %= 10
+	}
+	buf[3] %= uint8(len(sshSoftwareArr))
+	buf[4] %= uint8(len(sshOSCommentArr))
+	var (
+		header      = "SSH-2.0-%s_%d.%d.%d %s"
+		ssh_version = fmt.Sprintf(
+			header,
+			sshSoftwareArr[buf[3]],
+			buf[0], buf[1], buf[2],
+			sshOSCommentArr[buf[4]],
+		)
+	)
+	return ssh_version
+}
+
+type SSHserverConf struct {
+	clientLimitor                 atomic.Uint32
+	tcpListenerGuard, configGuard sync.RWMutex
+	DB_fd                         *b0gus_config.RuntimeDB // database handler for writing data.
+	/*
+		use for replacing command in repeat mode.
+		if not nil, then this field should be `func(string) string`
+	*/
+	commandHook any
+	/* fields below need concurrenct control to follow the configuration */
+
+	serverListenerPtr *net.Listener // current listener on Addr:Port
+	Addr              string        // b0gus ssh server addr
+	LoginBanner       string        // ssh server login banner
+	ClientConnTimeout time.Duration // initiated timeout setting
+	MaxClientNum      uint32        // maximum clients number handling in real time
+	Port              uint16        // b0gus ssh server port number
+	PermitLogin       bool          // whether reject or not
+	EmptyShell        bool          // no any response
+}
+
+// TODO: use terminal interaction instead
+func (s *SSHserverConf) cmdForwarding(ssh_chan ssh.Channel) { // api_id uint64,
 	buf := make([]byte, 1)
 	defer ssh_chan.Close()
 rewind:
@@ -195,7 +192,7 @@ inner_loop:
 		last_char, payload = "", "exit"
 		goto jump_out
 
-	} else if _, ok := ctrl_seq[inp]; ok {
+	} else if _, ok := ctrlSeq[inp]; ok {
 		// b0gus_config.Logger.Warn("ctrl+" + _)
 		goto inner_loop
 
@@ -221,7 +218,7 @@ inner_loop:
 	goto inner_loop
 
 jump_out:
-	_, ok := term_str[payload]
+	_, ok := termStr[payload]
 	if ok {
 		ssh_chan.Write([]byte("\r\nExit\r\n"))
 		ssh_chan.CloseWrite()
@@ -233,11 +230,11 @@ jump_out:
 			Cmd: payload,
 		}
 		s.DB_fd.CreateOrUpdateItem(&cmd_text_record, &cmd_text_record)
-		cmd_record := b0gus_databases.RemoteCommandRelation{
-			Rid: int64(api_id),
-			Cid: cmd_text_record.CommandId,
-		}
-		s.DB_fd.CreateOrUpdateItem(cmd_record, &cmd_record)
+		// cmd_record := b0gus_databases.RemoteCommandRelation{
+		// 	Rid: int64(api_id),
+		// 	Cid: cmd_text_record.CommandId, // [TODO] ?
+		// }
+		// s.DB_fd.CreateOrUpdateItem(cmd_record, &cmd_record)
 	}()
 
 	prompt_char = "$ "
@@ -271,13 +268,16 @@ jump_out:
 	if err == nil {
 		goto rewind
 	}
-	b0gus_config.Logger.Infof(
-		"Capture an error when writing payload:%v", err,
+	log_info := b0gus_assets.GetLocalizedMsg(
+		b0gus_config.GetLang(),
+		"services.SSHWriteResponseError",
+		map[string]any{"ErrInfo": err},
 	)
+	b0gus_config.Logger.Info(log_info)
 }
 
 func (s *SSHserverConf) requestsHandler(
-	api_id uint64,
+// api_id uint64,
 	banner string,
 	ssh_conn *ssh.ServerConn,
 	ssh_chan ssh.Channel,
@@ -289,13 +289,12 @@ func (s *SSHserverConf) requestsHandler(
 		case "shell":
 			_ = req.Reply(true, nil)
 			welcomeMsg := fmt.Sprintf(
-				strings.ReplaceAll(banner, "\n", "\r\n")+
-					"Last login: %s from %s\r\n$ ",
+				strings.ReplaceAll(banner, "\n", "\r\n")+"Last login: %s from %s\r\n$ ",
 				time.Now().Format(time.ANSIC),
 				ssh_conn.RemoteAddr().String(),
 			)
 			ssh_chan.Write([]byte(welcomeMsg))
-			s.cmdRepeater(api_id, ssh_chan)
+			s.cmdForwarding(ssh_chan) // api_id,
 		default:
 			/*
 				just accept 'pty-req' and 'window-change' without any action
@@ -315,8 +314,8 @@ func (s *SSHserverConf) requestsHandler(
 	}
 }
 
-func (s *SSHserverConf) handle_new_ssh_chan(
-	api_id uint64,
+func (s *SSHserverConf) handleNewSSHchan(
+// api_id uint64,
 	banner string,
 	ssh_conn *ssh.ServerConn,
 	new_chan ssh.NewChannel,
@@ -330,13 +329,19 @@ func (s *SSHserverConf) handle_new_ssh_chan(
 	}
 	ssh_chan, reqs, err := new_chan.Accept()
 	if err != nil {
-		b0gus_config.Logger.WithFields(logrus.Fields{
-			"remote addr": ssh_conn.RemoteAddr().String(),
-			"err":         err,
-		}).Error("Unable to accept channel for ")
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHchannelAcceptanceError",
+			map[string]any{
+				"RemoteAddr": ssh_conn.RemoteAddr().String(),
+				"ErrInfo":    err,
+			},
+		)
+		b0gus_config.Logger.Error(payload)
 		return
 	}
-	s.requestsHandler(api_id, banner, ssh_conn, ssh_chan, reqs)
+	// api_id,
+	s.requestsHandler(banner, ssh_conn, ssh_chan, reqs)
 }
 
 // TODO: Notice that the listener/connection setup phases of various
@@ -367,17 +372,15 @@ func (s *SSHserverConf) clientConnHandler(
 
 	err := conn.SetDeadline(time.Now().Add(client_conn_timeout))
 	if err != nil {
-		b0gus_config.Logger.Errorf(
-			"Failed to set timeout for incomming connection due to err:%s",
-			err.Error(),
+		err_info := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHsetTimeoutError",
+			map[string]any{"ErrInfo": err},
 		)
+		b0gus_config.Logger.Error(err_info)
 		return
 	}
 	ip, port := b0gus_misc_utils.IPaddrSplit(conn.RemoteAddr().String())
-	// binary.BigEndian.Uint32(net.ParseIP(ip).To4())
-
-	/* -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= Database types Need distinguishing -=-=-=-=-=-=--=-=-=-=-=-=--=-=-=-=-= */
-
 	var (
 		// Context created by these data
 		attacker_addr_query_cond = b0gus_databases.AddrInfo{Ip: ip}
@@ -393,19 +396,14 @@ func (s *SSHserverConf) clientConnHandler(
 	// 	})
 	// attacker_port_query_cond.AddrID = attacker_addr_query_cond.ID
 	// s.DB_fd.Where(attacker_port_query_cond).FirstOrCreate(&attacker_port_query_cond)
-	s.DB_fd.CreateOrUpdateItemsInSeq(
-		[]b0gus_databases.DBstruct{
-			&attacker_addr_query_cond,
-			&attacker_port_query_cond,
-		},
-	)
+	s.DB_fd.SetupContext(&attacker_addr_query_cond, &attacker_port_query_cond)
 
 	password_fn := func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 		/*
 			TODO:
 			What if we use a generic metatable as a form and decide them in the backend?
 
-			Though we Only have to push them into the table define in redis/mongodb,
+			Though we only have to push them into the table define in redis/mongodb,
 			still have to consider the side-effect impacting on traditional database
 		*/
 		// Record password in this function
@@ -418,29 +416,11 @@ func (s *SSHserverConf) clientConnHandler(
 		client_ssh_version := b0gus_databases.SshVersionInfo{
 			Version: string(conn.ClientVersion()),
 		}
-
+		// I still don't think relation really matters here
+		// because values are more important
 		s.DB_fd.CreateOrUpdateItemsInSeq(
-			[]b0gus_databases.DBstruct{
-				password_record,
-				username_record,
-				client_ssh_version,
-			},
+			&password_record, &username_record, &client_ssh_version,
 		)
-		s.DB_fd.CreateOrUpdateItemsInSeq(
-			[]b0gus_databases.DBstruct{
-				b0gus_databases.RemoteUsernameRelation{
-					Rid: attacker_addr_query_cond.Id,
-					Uid: username_record.UsernameId,
-				},
-				b0gus_databases.RemoteSshverRelation{
-					Rid: attacker_addr_query_cond.Id,
-					Sid: client_ssh_version.Id,
-				},
-				b0gus_databases.RemotePasswordRelation{
-					Rid: attacker_addr_query_cond.Id,
-					Pid: password_record.PasswordId,
-				},
-			})
 		return &ssh.Permissions{}, nil
 	}
 
@@ -452,17 +432,9 @@ func (s *SSHserverConf) clientConnHandler(
 		client_ssh_version := b0gus_databases.SshVersionInfo{
 			Version: string(conn.ClientVersion()),
 		}
-		s.DB_fd.CreateOrUpdateItemsInSeq(
-			[]b0gus_databases.DBstruct{
-				pubkey_record,
-				client_ssh_version,
-			},
-		)
-		port_ver_related := b0gus_databases.RemoteSshverRelation{
-			Rid: attacker_port_query_cond.Port,
-			Sid: client_ssh_version.Id,
-		}
-		s.DB_fd.CreateOrUpdateItem(port_ver_related, port_ver_related)
+		// look like we can not bypass this relation if relation has to be managed.
+		// b0gus_databases.RemoteInfo{}
+		s.DB_fd.CreateOrUpdateItemsInSeq(&pubkey_record, &client_ssh_version)
 		return nil, fmt.Errorf("public key authentication is not allowed")
 	}
 
@@ -471,18 +443,23 @@ func (s *SSHserverConf) clientConnHandler(
 		PasswordCallback:  password_fn,
 		PublicKeyCallback: pubkey_func,
 		NoClientAuth:      false, // request basic authentication
-		MaxAuthTries:      3,     // TODO: should we configure this and utilize as another strategy?
+		MaxAuthTries:      3,     // [TODO]: should we configure this and utilize as another strategy?
 	}
 
 	ssh_config.AddHostKey(host_key)
 
 	ssh_conn, chans, relay_reqs, err := ssh.NewServerConn(conn, ssh_config)
 	if err != nil {
-		b0gus_config.Logger.WithFields(logrus.Fields{
-			"remote addr:":         conn.RemoteAddr(),
-			"err":                  err,
-			"current-SSH-version:": ssh_config.ServerVersion,
-		}).Error("Failed to establish SSH connection")
+		err_info := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHEstablishConnectionFailure",
+			map[string]any{
+				"RemoteAddr": conn.RemoteAddr().String(),
+				"CurrSSHver": ssh_config.ServerVersion,
+				"ErrInfo":    err,
+			},
+		)
+		b0gus_config.Logger.Error(err_info)
 		return
 	}
 	defer ssh_conn.Close()
@@ -502,20 +479,21 @@ func (s *SSHserverConf) clientConnHandler(
 			new_chan.Reject(ssh.Prohibited, "Access Denied")
 			continue
 		}
-		go s.handle_new_ssh_chan(
-			uint64(attacker_port_query_cond.Port),
-			login_banner,
-			ssh_conn, new_chan,
+		go s.handleNewSSHchan(
+			// uint64(attacker_port_query_cond.Port),
+			login_banner, ssh_conn, new_chan,
 		)
 	}
 }
 
 func (s *SSHserverConf) UpdateConfig(src *b0gus_config.SSHconfig) {
-	// TODO: Maybe user want to cease the execution immediately by explictly modifying the configuration
 	if !b0gus_config.CheckSSHconfig(src) {
-		b0gus_config.Logger.Error(
-			"Invalid SSH configuration, skip updating",
+		warn_info := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHinvalidConfigurationWarn",
+			nil,
 		)
+		b0gus_config.Logger.Warn(warn_info)
 		return
 	}
 	s.configGuard.Lock()
@@ -542,10 +520,14 @@ func (s *SSHserverConf) NewListener(addr string, port uint16) {
 		fmt.Sprintf("%s:%d", addr, port),
 	)
 	if err != nil {
-		b0gus_config.Logger.Infof(
-			"Failed to listen on given addr:%s, won't modify the listener of b0gus ssh server",
-			fmt.Sprintf("%s:%d", addr, port),
+		err_info := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHSwitchListenerError",
+			map[string]any{
+				"ListenAddr": fmt.Sprintf("%s:%d", addr, port),
+			},
 		)
+		b0gus_config.Logger.Info(err_info)
 		return
 	}
 	if s.serverListenerPtr != nil {
@@ -555,20 +537,20 @@ func (s *SSHserverConf) NewListener(addr string, port uint16) {
 	s.Addr, s.Port = addr, port
 }
 
-type resolveUpdConfig interface {
-	any | *b0gus_config.SSHconfig
-}
+// type resolveUpdConfig interface {
+// 	any | *b0gus_config.SSHconfig
+// }
 
 func (s *SSHserverConf) SSHMaliciousClientHandler(
-	link_gadget *serviceReadCtrl,
+	scc *b0gus_config.ServicesConcurrencyCtrl,
 	host_key ssh.Signer,
 ) {
 	var (
-		addr    string
-		port    uint16
-		end_sig atomic.Bool
+		addr     string
+		port     uint16
+		end_sign atomic.Bool
 	)
-	end_sig.Store(false)
+	end_sign.Store(false)
 	s.tcpListenerGuard.RLock()
 	addr, port = s.Addr, s.Port
 	s.tcpListenerGuard.RUnlock()
@@ -577,10 +559,14 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(
 		"tcp", fmt.Sprintf("%s:%d", addr, port),
 	)
 	if err != nil {
-		b0gus_config.Logger.Errorf(
-			"Failed to listen on given addr:%s",
-			fmt.Sprintf("%s:%d", addr, port),
+		err_info := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHSetupListenerError",
+			map[string]any{
+				"ListenAddr": fmt.Sprintf("%s:%d", addr, port),
+			},
 		)
+		b0gus_config.Logger.Error(err_info)
 		return
 	}
 	defer listener.Close()
@@ -600,48 +586,56 @@ func (s *SSHserverConf) SSHMaliciousClientHandler(
 		/* signal to this channels will use as termination determinant */
 	stuck:
 		select {
-		case <-link_gadget.Ctx.Done(): // we are done
-		case suspected_datum := <-link_gadget.Data_ch:
-			switch suspected_datum.(type) {
-			case nil: // signal from updating configuration
-			case resolveUpdConfig:
-				s.UpdateConfig(suspected_datum.(*b0gus_config.SSHconfig))
+		case <-scc.Ctx.Done(): // terminated notification
+		case castedDatum := <-scc.Data_ch:
+			switch tmp := castedDatum.(type) {
+			case nil: // cease services
+			case b0gus_config.SSHconfig:
+				s.UpdateConfig(&tmp)
+				goto stuck
+			case *b0gus_config.SSHconfig:
+				s.UpdateConfig(tmp)
 				goto stuck
 			default:
+				// receive this signal for updating configuration
 				goto stuck
 			}
 		}
-		// otherwise need terminate
-		end_sig.Store(true)
-		listener.Close()
+		// otherwise cease listening
+		end_sign.Store(true)
+		// listener.Close()
 		locker()
 	}()
 
 	var curr_listener net.Listener
 
-	/* Affect before each return */
+	/* effect before each return */
 keep_spinning:
-	if end_sig.Load() {
+	if end_sign.Load() {
 		locker()
 		return
 	}
 
 	s.tcpListenerGuard.RLock()
 	// when we have to hot-plug with new configuration,
-	// we need a block mechanism to stop accepting new connection
+	// we need a blocking mechanism to stop accepting new connection
 	// until the listener is ready to be put in use again
 	curr_listener = *s.serverListenerPtr
 	s.tcpListenerGuard.RUnlock()
 
 	in_conn, err := curr_listener.Accept()
 	if err != nil {
-		b0gus_config.Logger.Warnf(
-			"Failed to accept incoming connection due to error:%s",
-			err.Error(),
+		warn_info := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHAcceptConnWarn",
+			map[string]any{
+				"ErrInfo": err,
+			},
 		)
+		b0gus_config.Logger.Warn(warn_info)
 		goto keep_spinning
 	}
-	if end_sig.Load() {
+	if end_sign.Load() {
 		in_conn.Close()
 		listener.Close()
 		locker()
@@ -651,18 +645,35 @@ keep_spinning:
 	goto keep_spinning
 }
 
-func SSHserver(
-	link_gadget *serviceReadCtrl,
+func (s *SSHserverConf) Run(
 	ssh_conf_obj *b0gus_config.SSHconfig,
-	db *b0gus_databases.RuntimeDB,
+	scc *b0gus_config.ServicesConcurrencyCtrl,
+	db *b0gus_config.RuntimeDB,
 	args ...any,
 ) {
-	// constrain by length of arguments
+	defer func() {
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHQuitInfo",
+			nil,
+		)
+		b0gus_config.Logger.Info(payload)
+	}()
+
 	if len(args) != 1 {
+		// TODO: add an description for this.
 		return
 	}
-	host_key, ok := (args[0]).(ssh.Signer)
+	host_key, ok := args[0].(ssh.Signer)
 	if !ok {
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.SSHCanNotUseSigner",
+			map[string]any{
+				"Signer": host_key,
+			},
+		)
+		b0gus_config.Logger.Warn(payload)
 		return
 	}
 	err := db.CreateTable(
@@ -685,28 +696,13 @@ func SSHserver(
 		b0gus_config.Logger.Error(err)
 		return
 	}
-
-	// TODO: Reduplicated copy introduces non-negligible performance loss and memory stress
-
-	// Fill SSH Server Configuration with definitions in config file
-	ssh_server_conf := SSHserverConf{
-		Addr:              ssh_conf_obj.ListenAddr,
-		Port:              ssh_conf_obj.ListenPort,
-		MaxClientNum:      ssh_conf_obj.MaxClientNum,
-		ClientConnTimeout: time.Duration(ssh_conf_obj.ClientConnTimeout) * time.Second,
-		PermitLogin:       ssh_conf_obj.PermitLogin,
-		EmptyShell:        ssh_conf_obj.EmptyShell,
-		LoginBanner:       ssh_conf_obj.LoginBanner,
-		DB_fd:             db,
-	}
-
-	/// callback function for updating when there is any modification in the monitored configuration file
-
-	// var ssh_callback = func() {
-	// 	b0gus_config.Logger.Info("Renew SSH configuration")
-	// 	ssh_server_conf.UpdateConfig(ssh_conf_obj)
-	// }
-	// go b0gus_config.GlobConfigMaintainer.Regist(ssh_callback)
-
-	ssh_server_conf.SSHMaliciousClientHandler(link_gadget, host_key)
+	s.Addr = ssh_conf_obj.ListenAddr
+	s.Port = uint16(ssh_conf_obj.ListenPort)
+	s.MaxClientNum = ssh_conf_obj.MaxClientNum
+	s.ClientConnTimeout = time.Duration(ssh_conf_obj.ClientConnTimeout) * time.Second
+	s.PermitLogin = ssh_conf_obj.PermitLogin
+	s.EmptyShell = ssh_conf_obj.EmptyShell
+	s.LoginBanner = ssh_conf_obj.LoginBanner
+	s.DB_fd = db
+	s.SSHMaliciousClientHandler(scc, host_key)
 }

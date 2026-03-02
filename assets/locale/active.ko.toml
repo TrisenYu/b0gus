@@ -1,0 +1,84 @@
+# AI-generated
+[main]
+    [main.DatabaseConnectionError]
+    other = "데이터베이스{{.DatabaseStr}}에 연결할 수 없습니다. 오류 정보: `{{.ErrInfo}}`."
+    [main.DatabaseEmptyError]
+    other = "지정된 구성에 따라 빈 데이터베이스 연산자가 가져와졌습니다."
+    [main.DatabaseChangingWarn]
+    other = "내부 오류로 인해 현재 사용 중인 데이터베이스를 교체하지 않습니다."
+    [main.TerminationSignalWarn]
+    other = "B0gus 서버 종료 신호<{{.SignalStr}}>를 포착했습니다."
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "로컬 SSH 공개키를 구성하기 위해 PEM 파일<{{.PemPath}}>을 열 수 없습니다!"
+    [crypto_aux.PemFileReadFailure]
+    other = "지정된 PEM 파일을 읽을 수 없습니다!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "PEM 파일을 올바르게 디코딩할 수 없습니다!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "지원되지 않는 PEM 파일입니다!"
+    [crypto_aux.PemFileFormatError]
+    other = "이 유형의 서명 인증서 형식은 지원되지 않습니다"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "제공된 공개키 길이<{{.PemLen}}>은 알려진 타원곡선 암호화 알고리즘에 적합하지 않습니다."
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "제공된 공개키 길이<{{.PemLen}}>은 RSA 암호화 알고리즘에 적합하지 않습니다."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "유효하지 않거나 지원되지 않는 인증서가 사용되었습니다. 세부 정보: <{{.ErrInfo}}>.B0gus는 구성 설정에 따라 인증서를 생성하려고 시도합니다."
+    [crypto_aux.PemFileCreateFailure]
+    other = "오류<{{.ErrInfo}}>로 인해 경로<{{.pemPath}}>에 인증서를 생성할 수 없으며, B0gus 서비스를 시작하지 않습니다."
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "오류<{{.ErrInfo}}>로 인해 지정된 알고리즘에 따라 SSH 개인 키를 생성할 수 없습니다."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "오류<{{.ErrInfo}}>로 인해 SSH 서비스에 개인 키를 설정할 수 없습니다."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "지정된 경로<{{.PemPath}}>에 인증서를 생성할 수 없습니다."
+    [crypto_aux.Base64EncodeFailure]
+    other = "인증서를 Base64 문자열로 올바르게 인코딩할 수 없습니다."
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "지원되지 않는 데이터베이스<{{.Database}}>가 발견되었습니다!"
+
+[configs]
+    # 데이터베이스
+    [configs.InvalidDatabaseAddrError]
+    other = "구성 파일에 유효하지 않은 데이터베이스 연결 주소<{{.DatabaseAddr}}>가 제공되었습니다!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "알 수 없는 데이터베이스 유형이 발견되었습니다. 현재 B0gus는 PostgreSQL、SQLite、MongoDB를 지원하지만, 선택하신 것은 <{{.DatabaseType}}>입니다."
+    # 전역 구성 정보
+    [configs.ReadingConfigurationFailure]
+    other = "구성을 읽을 수 없습니다. 실패 원인: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "구성 파일을 다시 로드하는 데 실패했습니다! 현재 구성은 교체되지 않습니다. 실패 원인: <{{.ErrInfo}}>."
+    [configs.UnmarshalingConfigurationFailure]
+    other = "구성 파일을 파싱할 수 없습니다. 실패 원인: <{{.ErrInfo}}>."
+
+[services]
+    [services.SSHversionWarn]
+    other = "임의의 3바이트를 생성할 수 없습니다. SSH 버전에 기본값을 반환합니다."
+    [services.SSHWriteResponseError]
+    other = "명령 결과를 다시 쓰는 중 오류<{{.ErrInfo}}>가 발생했습니다."
+    [services.SSHsetTimeoutError]
+    other = "오류<{{.ErrInfo}}>로 인해 다가올 연결에 타임아웃 시간을 설정할 수 없습니다."
+    [services.SSHEstablishConnectionFailure]
+    other = "SSH 연결을 설정할 수 없습니다. (원격 주소, 현재 SSH 버전 번호, 실패 원인): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "오류<{{.ErrInfo}}>로 인해 원격 주소<{{.RemoteAddr}}>에 제공된 SSH 채널을 수락할 수 없습니다."
+    [services.SSHinvalidConfigurationWarn]
+    other = "유효하지 않은 SSH 구성입니다. 업데이트를 건너뜁니다"
+    [services.SSHSwitchListenerError]
+    other = "다시 수신하기 위해 지정된 주소<{{.ListenAddr}}>로 전환할 수 없습니다. 이로 인해 현재 B0gus SSH 서버는 수정되지 않습니다."
+    [services.SSHSetupListenerError]
+    other = "지정된 주소<{{.ListenAddr}}>에서 SSH 서버가 수신하도록 설정할 수 없습니다."
+    [services.SSHAcceptConnWarn]
+    other = "오류<{{.ErrInfo}}>로 인해 외부 SSH 연결 요청을 수락할 수 없습니다."
+    [services.SSHCanNotUseSigner]
+    other = "SSH 프로토콜 통신 중에 지정된 인증서<{{.Signer}}>를 사용하여 서명을 수행할 수 없습니다."
+    [services.SSHQuitInfo]
+    other = "SSH 서버가 종료되었습니다."
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "NTP 서버는 <{{.IP}}>에서 전송된 길이 <{{.Len}}>의 시간 쿼리 요청을 수신했습니다."
+    [services.NTPQuitInfo]
+    other = "NTP 서버가 종료되었습니다."

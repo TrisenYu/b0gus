@@ -79,7 +79,11 @@ func loadSSHhostPem(pem_path string) (ssh.Signer, error) {
 		}
 		return ssh.NewSignerFromKey(any_private)
 	default:
-		return nil, errors.New("unsupported signing pem format")
+		pem_file_format_err := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.PemFileFormatError", nil,
+		)
+		return nil, errors.New(pem_file_format_err)
 	}
 }
 
@@ -154,34 +158,54 @@ func createSSHpem(
 		host_pem, err = handle_elliptic(pem_len)
 	case "rsa":
 		host_pem, err = handle_rsa(pem_len)
-
 	default:
+		b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.PemFileFormatError", nil,
+		)
 		b0gus_config.Logger.Error(
 			"Invalid pem type was provided, won't generate any key!",
 		)
 		return nil, fmt.Errorf("invalid pem type:<%v>", pem_type)
 	}
 	if err != nil {
-		b0gus_config.Logger.Error("Failed to generate host private key!")
-		return nil, err
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.SSHPrivateKeyGenFailure",
+			map[string]any{"ErrInfo": err},
+		)
+		b0gus_config.Logger.Error(payload)
+		return nil, errors.New(payload)
 	}
 	host_key, err := ssh.NewSignerFromKey(host_pem)
 	if err != nil {
-		b0gus_config.Logger.Error("Failed to set private key for ssh!")
-		return nil, err
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.SSHPrivateKeySetFailure",
+			map[string]any{"ErrInfo": err},
+		)
+		b0gus_config.Logger.Error(payload)
+		return nil, errors.New(payload)
 	}
 	pem_file, err := os.Create(pem_path)
 	if err != nil {
-		b0gus_config.Logger.Errorf(
-			"Failed to create pem file into path:%v!", pem_path,
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.CreatePemToGivenPath",
+			map[string]any{"PemPath": pem_path},
 		)
-		return nil, err
+		b0gus_config.Logger.Error(payload)
+		return nil, errors.New(payload)
 	}
 	defer pem_file.Close()
 	host_pem_bytes, err := x509.MarshalPKCS8PrivateKey(host_pem)
 	if err != nil {
-		b0gus_config.Logger.Error("Failed to marshal pem bytes!")
-		return nil, err
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.PemFileDecodeFailure", nil,
+		)
+		b0gus_config.Logger.Error(payload)
+		return nil, errors.New(payload)
 	}
 	host_pem_block := pem.Block{
 		Type:  "PRIVATE KEY",
@@ -189,8 +213,12 @@ func createSSHpem(
 	}
 	err = pem.Encode(pem_file, &host_pem_block)
 	if err != nil {
-		b0gus_config.Logger.Error("Failed to encode pem bytes into pem file!")
-		return nil, err
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"crypto_aux.Base64EncodeFailure", nil,
+		)
+		b0gus_config.Logger.Error(payload)
+		return nil, errors.New(payload)
 	}
 	return host_key, err
 }
@@ -205,17 +233,25 @@ func LoadOrCreateSSHpem(
 		return pem_obj
 	}
 	var res ssh.Signer
-	b0gus_config.Logger.Warnf(
-		"Pem seems to be invalid or unsupported... detail:<%v>, b0gus will new one for you",
-		err,
+	payload := b0gus_assets.GetLocalizedMsg(
+		b0gus_config.GetLang(),
+		"crypto_aux.UnsupportedOrInvalidPemWarn",
+		map[string]any{"ErrInfo": err},
 	)
+	b0gus_config.Logger.Warn(payload)
 	res, err = createSSHpem(pem_path, pem_type, pem_len)
 	if err == nil {
+		// successfully generate one
 		return res
 	}
-	b0gus_config.Logger.Errorf(
-		"Unable to create pem at %s due to %v, won't execute start up server",
-		pem_path, err,
+	payload = b0gus_assets.GetLocalizedMsg(
+		b0gus_config.GetLang(),
+		"crypto_aux.PemFileCreateFailure",
+		map[string]any{
+			"PemPath": pem_path,
+			"ErrInfo": err,
+		},
 	)
+	b0gus_config.Logger.Error(payload)
 	return nil
 }

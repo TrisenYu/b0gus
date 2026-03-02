@@ -1,0 +1,84 @@
+# AI-generated
+[main]
+    [main.DatabaseConnectionError]
+    other = "データベース{{.DatabaseStr}}に接続できません。エラー詳細：`{{.ErrInfo}}`。"
+    [main.DatabaseEmptyError]
+    other = "指定された設定に基づき、空のデータベースオペレーターが取得されました。"
+    [main.DatabaseChangingWarn]
+    other = "内部エラーが発生したため、現在使用中のデータベースは切り替えません。"
+    [main.TerminationSignalWarn]
+    other = "B0gusサーバーの終了シグナル<{{.SignalStr}}>をキャプチャしました。"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "ローカルのSSH公開鍵を設定するため、PEMファイル<{{.PemPath}}>を開けません！"
+    [crypto_aux.PemFileReadFailure]
+    other = "指定されたPEMファイルを読み取れません！"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "PEMファイルを正しくデコードできません！"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "サポートされていないPEMファイルです！"
+    [crypto_aux.PemFileFormatError]
+    other = "この署名証明書の形式はサポートされていません"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "提供された公開鍵の長さ<{{.PemLen}}>は、既知の楕円曲線暗号アルゴリズムに対応していません。"
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "提供された公開鍵の長さ<{{.PemLen}}>は、RSA暗号アルゴリズムに対応していません。"
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "無効またはサポートされていない証明書が使用されました。詳細：<{{.ErrInfo}}>。B0gusは設定に基づき証明書の生成を試みます。"
+    [crypto_aux.PemFileCreateFailure]
+    other = "エラー<{{.ErrInfo}}>が発生したため、パス<{{.pemPath}}>に証明書を作成できず、B0gusサービスは起動しません。"
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "エラー<{{.ErrInfo}}>により、指定されたアルゴリズムに基づいてSSH秘密鍵を生成できません。"
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "エラー<{{.ErrInfo}}>により、SSHサービスに秘密鍵を設定できません。"
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "指定されたパス<{{.PemPath}}>に証明書を作成できません。"
+    [crypto_aux.Base64EncodeFailure]
+    other = "証明書をBase64文字列に正しくエンコードできません。"
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "サポートされていないデータベース<{{.Database}}>が検出されました！"
+
+[configs]
+    # データベース
+    [configs.InvalidDatabaseAddrError]
+    other = "設定ファイルに無効なデータベース接続アドレス<{{.DatabaseAddr}}>が指定されています！"
+    [configs.UnsupportDatabaseTypeError]
+    other = "未知のデータベースタイプが検出されました。現在B0gusがサポートしているのはPostgreSQL、SQLite、MongoDBですが、選択されたのは<{{.DatabaseType}}>です。"
+    # グローバル設定情報
+    [configs.ReadingConfigurationFailure]
+    other = "設定ファイルを読み取れません。失敗理由：<{{.ErrInfo}}>。"
+    [configs.ReloadingConfigurationFailure]
+    other = "設定ファイルのリロードに失敗しました！現在の設定は変更されません。失敗理由：<{{.ErrInfo}}>。"
+    [configs.UnmarshalingConfigurationFailure]
+    other = "設定ファイルを解析できません。失敗理由：<{{.ErrInfo}}>。"
+
+[services]
+    [services.SSHversionWarn]
+    other = "ランダムな3バイトの生成に失敗しました。SSHバージョンにはデフォルト値を返します。"
+    [services.SSHWriteResponseError]
+    other = "コマンド結果の書き戻し時にエラー<{{.ErrInfo}}>が発生しました。"
+    [services.SSHsetTimeoutError]
+    other = "エラー<{{.ErrInfo}}>が発生したため、接続待ちのタイムアウト時間を設定できません。"
+    [services.SSHEstablishConnectionFailure]
+    other = "SSH接続の確立に失敗しました。（リモートアドレス、現在のSSHバージョン番号、失敗理由）：（<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>）。"
+    [services.SSHchannelAcceptanceError]
+    other = "エラー<{{.ErrInfo}}>により、リモートアドレス<{{.RemoteAddr}}>に提供されたSSHチャンネルを受け入れられません。"
+    [services.SSHinvalidConfigurationWarn]
+    other = "無効なSSH設定です。更新をスキップします"
+    [services.SSHSwitchListenerError]
+    other = "再監視のため、指定されたアドレス<{{.ListenAddr}}>に切り替えられません。この影響により、現在のB0gus SSHサーバーは変更されません。"
+    [services.SSHSetupListenerError]
+    other = "指定されたアドレス<{{.ListenAddr}}>でSSHサーバーの監視を設定できません。"
+    [services.SSHAcceptConnWarn]
+    other = "エラー<{{.ErrInfo}}>が発生したため、外部からのSSH接続リクエストを受け入れられません。"
+    [services.SSHCanNotUseSigner]
+    other = "SSHプロトコルの通信中に、指定された証明書<{{.Signer}}>を使用して署名を実行できません。"
+    [services.SSHQuitInfo]
+    other = "SSHサーバーは終了しました。"
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "NTPサーバーは<{{.IP}}>から送信された長さ<{{.Len}}>の時刻クエリリクエストを受信しました。"
+    [services.NTPQuitInfo]
+    other = "NTPサーバーは終了しました。"

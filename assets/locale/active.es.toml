@@ -1,28 +1,82 @@
 # AI-generated
 [main]
     [main.DatabaseConnectionError]
-    other = "No se pudo conectar a {{.DatabaseStr}} debido a {{.ErrStr}}"
+    other = "Error al conectar a {{.DatabaseStr}} debido a {{.ErrStr}}!"
     [main.DatabaseEmptyError]
-    other = "Descriptor de archivo de base de datos vacío"
+    other = "Se obtuvo un descriptor de archivo de base de datos vacío!"
     [main.DatabaseChangingWarn]
-    other = "No se actualizará el controlador de la base de datos"
+    other = "No se actualizará el manejador de base de datos!"
     [main.TerminationSignalWarn]
-    other = "Se detectó una señal del sistema operativo<{{.SignalStr}}> para finalizar el servidor b0gus"
+    other = "Se capturó una señal del sistema<{{.SignalStr}}> para terminar el servidor B0gus!"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "¡No se pudo abrir el archivo PEM<{{.PemPath}}> para la clave de host SSH!"
+    other = "Error al abrir el archivo PEM<{{.PemPath}}> para la clave host SSH!"
     [crypto_aux.PemFileReadFailure]
-    other = "¡No se pudo leer el archivo PEM!"
+    other = "Error al leer el archivo PEM!"
     [crypto_aux.PemFileDecodeFailure]
-    other = "¡No se pudo decodificar el bloque PEM!"
-    [crypto_aux.PemFileUnsupportedType]
-    other = "¡Tipo de archivo PEM no compatible!"
+    other = "Error al decodificar el bloque PEM!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Tipo de archivo PEM no compatible!"
     [crypto_aux.InvalidLengthForEllipticCurve]
-    other = "longitud<{{.PemLen}}> no compatible para el algoritmo de cifrado de curva elíptica"
-    [crypto_aux.InvalidLengthForRSA]
-    other = "longitud<{{.PemLen}}> no compatible para la clave pública RSA"
+    other = "Longitud no compatible<{{.PemLen}}> para el algoritmo de cifrado de curva elíptica!"
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "Longitud no compatible<{{.PemLen}}> para clave pública RSA!"
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Error al generar la clave privada SSH según el algoritmo indicado, debido al error <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Error al establecer la clave privada para el servicio SSH, debido al error <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Error al crear el certificado en la ruta indicada <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Error al codificar correctamente el certificado en una cadena Base64."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Se usó un certificado no válido o no compatible, detalles: <{{.ErrInfo}}>. B0gus intentará generar un certificado según la configuración."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Error al crear el certificado en la ruta <{{.PemPath}}> debido al error <{{.ErrInfo}}>, el servicio B0gus no se iniciará."
 
 [databases]
     [databases.DatabaseTypeError]
-    other = "¡Se encontró una Base de Datos<{{.Database}}> no compatible!"
+    other = "Se encontró una base de datos no compatible<{{.Database}}>!"
+
+[configs]
+    # Database
+    [configs.InvalidDatabaseAddrError]
+    other = "Se obtuvo una dirección de base de datos no válida<{{.DatabaseAddr}}> desde la configuración!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Se encontró un tipo de base de datos desconocido o no compatible. B0gus solo admite PostgreSQL, SQLite y MongoDB actualmente, pero el seleccionado es <{{.DatabaseType}}>."
+    # Global Configuration Information
+    [configs.ReadingConfigurationFailure]
+    other = "Error al leer la configuración. Motivo: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Error al recargar el archivo de configuración! La configuración actual no será reemplazada. Motivo: <{{.ErrInfo}}>."
+    [configs.configs.UnmarshalingConfigurationFailure]
+    other = "Error al deserializar la configuración debido a <{{.ErrInfo}}>."
+
+[services]
+    [services.SSHversionWarn]
+    other = "No se pueden generar 3 bytes aleatorios para la versión SSH. B0gus devolverá un valor por defecto."
+    [services.SSHWriteResponseError]
+    other = "Se produjo un error<{{.ErrInfo}}> al devolver la carga útil."
+    [services.SSHsetTimeoutError]
+    other = "Debido al error<{{.ErrInfo}}>, no se puede establecer el plazo para las conexiones entrantes."
+    [services.SSHEstablishConnectionFailure]
+    other = "No se puede establecer una conexión remota.(RemoteAddr,CurrSSHver,err):(<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "No se puede aceptar el canal SSH proporcionado para la dirección remota <{{.RemoteAddr}}> debido al error <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Configuración SSH no válida. Se omite esta solicitud de actualización."
+    [services.SSHSwitchListenerError]
+    other = "No se puede cambiar a la IP indicada<{{.ListenAddr}}> como escucha. El servidor SSH B0gus actual no se actualizará."
+    [services.SSHSetupListenerError]
+    other = "No se puede escuchar en la IP indicada<{{.ListenAddr}}> como servidor SSH B0gus"
+    [services.SSHAcceptConnWarn]
+    other = "Debido al error<{{.ErrInfo}}>, no se puede gestionar la conexión SSH externa."
+    [services.SSHCanNotUseSigner]
+    other = "No se puede usar el certificado indicado <{{.Signer}}> para realizar la firma durante las interacciones del protocolo SSH."
+    [services.SSHQuitInfo]
+    other = "El servidor SSH ha finalizado."
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "El servidor NTP recibió una solicitud de consulta de tiempo de longitud <{{.Len}}> desde <{{.IP}}>."
+    [services.NTPQuitInfo]
+    other = "El servidor NTP ha finalizado."

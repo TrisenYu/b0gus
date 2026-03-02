@@ -36,3 +36,8 @@ package services
 
 	Compared to low-interaction ssh honeypot, it will be much more laborious to implement ftp shell
 */
+
+// incomfortable to use memory file system
+// also feel tried at the interactive shell provided for human/remote nasty programs
+// TODO: implement a generic shell for different services
+// accept file but strictly strip it privilege and save it in a sandbox.

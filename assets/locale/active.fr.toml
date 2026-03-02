@@ -1,28 +1,82 @@
 # AI-generated
 [main]
     [main.DatabaseConnectionError]
-    other = "Échec de la connexion à {{.DatabaseStr}} en raison de {{.ErrStr}}"
+    other = "Échec de la connexion à {{.DatabaseStr}} à cause de {{.ErrStr}}!"
     [main.DatabaseEmptyError]
-    other = "Descripteur de fichier de base de données vide"
+    other = "Obtention d'un descripteur de fichier de base de données vide!"
     [main.DatabaseChangingWarn]
-    other = "Le gestionnaire de base de données ne sera pas mis à jour"
+    other = "Le gestionnaire de base de données ne sera pas mis à jour!"
     [main.TerminationSignalWarn]
-    other = "Capture d'un signal du système d'exploitation<{{.SignalStr}}> pour terminer le serveur b0gus"
+    other = "Réception d'un signal système<{{.SignalStr}}> pour arrêter le serveur B0gus!"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "Échec de l'ouverture du fichier PEM<{{.PemPath}}> pour la clé d'hôte SSH !"
+    other = "Échec de l'ouverture du fichier PEM<{{.PemPath}}> pour la clé hôte SSH!"
     [crypto_aux.PemFileReadFailure]
-    other = "Échec de la lecture du fichier PEM !"
+    other = "Échec de la lecture du fichier PEM!"
     [crypto_aux.PemFileDecodeFailure]
-    other = "Échec du décodage du bloc PEM !"
-    [crypto_aux.PemFileUnsupportedType]
-    other = "Type de fichier PEM non pris en charge !"
+    other = "Échec du décodage du bloc PEM!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Type de fichier PEM non pris en charge!"
     [crypto_aux.InvalidLengthForEllipticCurve]
-    other = "longueur<{{.PemLen}}> non prise en charge pour l'algorithme de chiffrement par courbe elliptique"
-    [crypto_aux.InvalidLengthForRSA]
-    other = "longueur<{{.PemLen}}> non prise en charge pour la clé publique RSA"
+    other = "Longueur non prise en charge<{{.PemLen}}> pour l'algorithme de chiffrement à courbe elliptique!"
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "Longueur non prise en charge<{{.PemLen}}> pour la clé publique RSA!"
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Échec de la génération de la clé privée SSH selon l'algorithme fourni, erreur <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Échec de la configuration de la clé privée pour le service SSH, erreur <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Échec de la création du certificat au chemin indiqué <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Échec du codage correct du certificat en chaîne Base64."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Un certificat invalide ou non pris en charge a été utilisé, détails: <{{.ErrInfo}}>. B0gus tentera de générer un certificat selon la configuration."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Échec de la création du certificat au chemin <{{.PemPath}}> à cause de l'erreur <{{.ErrInfo}}>, le service B0gus ne démarrera pas."
 
 [databases]
     [databases.DatabaseTypeError]
-    other = "Base de données<{{.Database}}> non prise en charge détectée !"
+    other = "Base de données non prise en charge<{{.Database}}> détectée!"
+
+[configs]
+    # Database
+    [configs.InvalidDatabaseAddrError]
+    other = "Adresse de base de données invalide<{{.DatabaseAddr}}> récupérée depuis la configuration!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Type de base de données inconnu ou non pris en charge détecté. B0gus ne supporte actuellement que PostgreSQL, SQLite et MongoDB, mais vous avez sélectionné <{{.DatabaseType}}>."
+    # Global Configuration Information
+    [configs.ReadingConfigurationFailure]
+    other = "Échec de la lecture de la configuration. Raison: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Échec du rechargement du fichier de configuration! La configuration actuelle ne sera pas remplacée. Raison: <{{.ErrInfo}}>."
+    [configs.configs.UnmarshalingConfigurationFailure]
+    other = "Échec du décodage de la configuration à cause de <{{.ErrInfo}}>."
+
+[services]
+    [services.SSHversionWarn]
+    other = "Impossible de générer 3 octets aléatoires pour la version SSH. B0gus renverra une valeur par défaut."
+    [services.SSHWriteResponseError]
+    other = "Erreur<{{.ErrInfo}}> lors de l'écriture de la réponse."
+    [services.SSHsetTimeoutError]
+    other = "À cause de l'erreur<{{.ErrInfo}}>, impossible de définir un délai pour les connexions entrantes."
+    [services.SSHEstablishConnectionFailure]
+    other = "Impossible d'établir une connexion distante.(RemoteAddr,CurrSSHver,err):(<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "Impossible d'accepter le canal SSH fourni pour l'adresse distante <{{.RemoteAddr}}> à cause de l'erreur <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Configuration SSH invalide. Cette mise à jour est ignorée."
+    [services.SSHSwitchListenerError]
+    other = "Impossible de basculer vers l'IP indiquée<{{.ListenAddr}}> en tant qu'écouteur. Le serveur SSH B0gus actuel ne sera pas mis à jour."
+    [services.SSHSetupListenerError]
+    other = "Impossible d'écouter sur l'IP indiquée<{{.ListenAddr}}> en tant que serveur SSH B0gus"
+    [services.SSHAcceptConnWarn]
+    other = "À cause de l'erreur<{{.ErrInfo}}>, impossible de gérer la connexion SSH externe."
+    [services.SSHCanNotUseSigner]
+    other = "Impossible d'utiliser le certificat fourni <{{.Signer}}> pour signer durant les interactions du protocole SSH."
+    [services.SSHQuitInfo]
+    other = "Le serveur SSH s'est arrêté."
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "Le serveur NTP a reçu une requête de temps de longueur <{{.Len}}> depuis <{{.IP}}>."
+    [services.NTPQuitInfo]
+    other = "Le serveur NTP s'est arrêté."

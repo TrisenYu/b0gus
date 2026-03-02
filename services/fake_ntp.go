@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	b0gus_assets "b0gus/assets"
 	b0gus_config "b0gus/configs"
-	b0gus_databases "b0gus/databases"
 )
 
 /*
@@ -41,7 +41,7 @@ import (
 	For transmit timestamp, server need to specify the local time
 	at which the reply departed for the client host
 
-	the roundtrip delay d and clock offset c is:
+	the round-trip delay d and clock offset c is:
          d = (t4 - t1) - (t3 - t2)  and  c = (t2 - t1 + t3 - t4)/2 .
 */
 
@@ -70,7 +70,7 @@ func validFormat(req []byte) bool {
 		// MODE
 		MODE_CLIENT = 3
 	)
-	b0gus_config.Logger.Info(req[0])
+	// b0gus_config.Logger.Info(req[0])
 	var (
 		/* 00_011_011 */
 		l = (req[0] >> 6) & 0b11
@@ -144,7 +144,7 @@ func NTPServe(req []byte) ([]byte, error) {
 
 type NTPserverConf struct {
 	/* database handler for writing data */
-	DB_fd *b0gus_databases.RuntimeDB
+	DB_fd *b0gus_config.RuntimeDB
 	/* fields below need concurrenct control to follow the configuration */
 	AlterNTPListener sync.Mutex
 	// ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
@@ -153,9 +153,7 @@ type NTPserverConf struct {
 	Port              uint16       // b0gus NTP server port number
 }
 
-func (n *NTPserverConf) NTPclientHandler(
-	link_gadget *serviceReadCtrl,
-) {
+func (n *NTPserverConf) NTPclientHandler(scc *b0gus_config.ServicesConcurrencyCtrl) {
 	var (
 		addr    string
 		port    uint16
@@ -187,27 +185,26 @@ func (n *NTPserverConf) NTPclientHandler(
 	go func() {
 	stuck:
 		select {
-		case <-link_gadget.Ctx.Done(): // we are done
-		case suspected_datum := <-link_gadget.Data_ch:
-			switch suspected_datum.(type) {
+		case <-scc.Ctx.Done(): // we are done
+		case castedDatum, ok := <-scc.Data_ch:
+			if !ok {
+				goto stuck
+			}
+			switch castedDatum.(type) {
 			case nil: // terminated signal checked from updated configuration
 			case *b0gus_config.NTPconfig:
 				b0gus_config.Logger.Infof(
 					"yet to have capacity for updating ntp configuration<%v>",
-					suspected_datum,
+					castedDatum,
 				)
 				n.AlterNTPListener.Lock()
 				// TODO: we need an updater for connection listener
 				n.AlterNTPListener.Unlock()
-
 				goto stuck
 			default:
 				goto stuck
 			}
 		}
-		b0gus_config.Logger.Warn(
-			"Catch a signal requirement for shuting down b0gus NTP server ",
-		)
 		end_ntp.Store(true)
 		udp_conn.Close()
 		n.AlterNTPListener.Lock()
@@ -228,44 +225,50 @@ func (n *NTPserverConf) NTPclientHandler(
 		n.AlterNTPListener.Lock()
 		curr_listener = n.serverListenerPtr
 		n.AlterNTPListener.Unlock()
-		_, remote_ip, err := curr_listener.ReadFromUDP(data_buf)
+		_, remoteIP, err := curr_listener.ReadFromUDP(data_buf)
 		if err != nil {
 			b0gus_config.Logger.Warn(err)
 			continue
 		}
-		b0gus_config.Logger.Infof(
-			"Receiving payload<len is %d> from %v",
-			len(data_buf), remote_ip,
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.NTPReceivePayloadFromRemoteInfo",
+			map[string]any{
+				"IP":  remoteIP,
+				"Len": len(data_buf),
+			},
 		)
-		resp, err := NTPServe(data_buf)
+		b0gus_config.Logger.Info(payload)
+		resp, _ := NTPServe(data_buf)
+		_, err = curr_listener.WriteToUDP(resp[:], remoteIP)
 		if err != nil {
-			b0gus_config.Logger.Warn(err)
-		}
-		_, err = curr_listener.WriteToUDP(resp[:], remote_ip)
-		if err != nil {
-			b0gus_config.Logger.Warn(err)
 			continue
 		}
 	}
 }
 
-// TODO: utilize database pointer
-// db *gorm.DB *redis.Client *mongo.Client
-func NTPserver(
-	link_gadget *serviceReadCtrl,
-	ntp_conf_obj *b0gus_config.NTPconfig,
-	db *b0gus_databases.RuntimeDB,
+// Run executes NTP services
+func (n *NTPserverConf) Run(
+	ntpConfPtr *b0gus_config.NTPconfig,
+	scc *b0gus_config.ServicesConcurrencyCtrl,
+	db *b0gus_config.RuntimeDB, // *gorm.DB *redis.Client *mongo.Client
 	args ...any,
 ) {
-	ntp_server_conf := NTPserverConf{
-		Addr:  ntp_conf_obj.ListenAddr,
-		Port:  ntp_conf_obj.ListenPort,
+	if len(args) != 0 {
+		return
+	}
+	defer func() {
+		payload := b0gus_assets.GetLocalizedMsg(
+			b0gus_config.GetLang(),
+			"services.NTPQuitInfo",
+			nil,
+		)
+		b0gus_config.Logger.Info(payload)
+	}()
+	ntpServConf := NTPserverConf{
+		Addr:  ntpConfPtr.ListenAddr,
+		Port:  ntpConfPtr.ListenPort,
 		DB_fd: db,
 	}
-	// ntp_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
-	// ntp_server_conf.ConfigGenericCtrl.Flag.Store(false)
-
-	ntp_server_conf.NTPclientHandler(link_gadget)
-	// close(ntp_server_conf.ConfigGenericCtrl.Ch)
-
+	ntpServConf.NTPclientHandler(scc)
 }
