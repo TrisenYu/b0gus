@@ -1,7 +1,7 @@
 [project]
-name = "b0gus-assets"
+name = "b0gus-pyenv"
 version = "0.1.0"
-description = "Translation auxiliary developed by Python3"
+description = ""
 requires-python = ">=3.13"
 dependencies = [
     "python-dotenv==1.2.1",

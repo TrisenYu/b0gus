@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Le répertoire des ressources statiques."
+    [meta_conf.ConfPath]
+    other = "Le chemin du fichier de configuration locale."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Autorisation de modifier la configuration à l'exécution."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Autorisation d'automodification de la configuration à l'exécution."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Autorisation de configurer la configuration via des commandes shell à l'exécution."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Autorisation de configurer la configuration via un pull distant à l'exécution."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Échec de la connexion à {{.DatabaseStr}} à cause de {{.ErrStr}}!"
@@ -50,10 +64,11 @@
     other = "Échec de la lecture de la configuration. Raison: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Échec du rechargement du fichier de configuration! La configuration actuelle ne sera pas remplacée. Raison: <{{.ErrInfo}}>."
-    [configs.configs.UnmarshalingConfigurationFailure]
+    [configs.configs.UnmarshallingConfigurationFailure]
     other = "Échec du décodage de la configuration à cause de <{{.ErrInfo}}>."
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "Impossible de générer 3 octets aléatoires pour la version SSH. B0gus renverra une valeur par défaut."
     [services.SSHWriteResponseError]
@@ -76,6 +91,7 @@
     other = "Impossible d'utiliser le certificat fourni <{{.Signer}}> pour signer durant les interactions du protocole SSH."
     [services.SSHQuitInfo]
     other = "Le serveur SSH s'est arrêté."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "Le serveur NTP a reçu une requête de temps de longueur <{{.Len}}> depuis <{{.IP}}>."
     [services.NTPQuitInfo]

@@ -1,5 +1,7 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// Package configs
 package configs
+
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
 import (
 	"context"
@@ -7,41 +9,63 @@ import (
 	"sync/atomic"
 )
 
+// services structures' definitions
+
 type SSHconfig struct {
-	ListenAddr        string `toml:"listen_addr" mapstructure:"listen_addr"`
-	ResponseType      string `toml:"response_type" mapstructure:"response_type"`
 	LoginBanner       string `toml:"login_banner" mapstructure:"login_banner"`
+	ResponseType      string `toml:"response_type" mapstructure:"response_type"`
 	MaxClientNum      uint32 `toml:"max_client_num" mapstructure:"max_client_num"`
+	MaxAuthTries      uint32 `toml:"max_auth_tries" mapstructure:"max_auth_tries"`
 	ClientConnTimeout uint32 `toml:"client_conn_timeout" mapstructure:"client_conn_timeout"`
 	ListenPort        uint16 `toml:"listen_port" mapstructure:"listen_port"`
 	PermitLogin       bool   `toml:"permit_login" mapstructure:"permit_login"`
-	EmptyShell        bool   `toml:"empty_shell" mapstructure:"empty_shell"`
 
-	fn func(conf *SSHconfig, scc *ServicesConcurrencyCtrl, db *RuntimeDB, args ...any)
+	fn func(conf *SSHconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
 
-type TelnetConfig struct {
-	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
-	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
-
-	fn func(conf *TelnetConfig, scc *ServicesConcurrencyCtrl, db *RuntimeDB, args ...any)
-}
+//type TelnetConfig struct {
+//	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
+//	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
+//
+//	fn func(conf *TelnetConfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
+//}
 
 type NTPconfig struct {
 	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
+	// CurrZone change the real zone to the fake one for specific effects
+	CurrZone   string `toml:"curr_zone" mapstructure:"curr_zone"`
 	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
 
-	fn func(conf *NTPconfig, scc *ServicesConcurrencyCtrl, db *RuntimeDB, args ...any)
+	fn func(conf *NTPconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
 
 type DNSconfig struct {
 	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
 	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
 
-	fn func(conf *DNSconfig, scc *ServicesConcurrencyCtrl, db *RuntimeDB, args ...any)
+	fn func(conf *DNSconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
 
-// RecDB here means the recording database for attacker features
+type SMTPconfig struct {
+	ListenAddr       string `toml:"listen_addr" mapstructure:"listen_addr"`
+	LocalTLSCertPath string `toml:"local_tls_cert_path" mapstructure:"local_tls_cert_path"`
+	LocalTLSKeyPath  string `toml:"local_tls_key_path" mapstructure:"local_tls_key_path"`
+	LocalSaveDir     string `toml:"local_save_dir" mapstructure:"local_save_dir"`
+	MaxClientNum     uint32 `toml:"max_client_num" mapstructure:"max_client_num"`
+	ListenPort       uint16 `toml:"listen_port" mapstructure:"listen_port"`
+	AuthRequired     bool   `toml:"auth_required" mapstructure:"auth_required"`
+
+	fn func(conf *SMTPconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
+}
+
+type FakeDBconf struct {
+	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
+	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
+
+	fn func(conf *FakeDBconf, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
+}
+
+// RecDBConfig here means the recording database for attacker features
 // not as a bogus service.
 type RecDBConfig struct {
 	Type          string `toml:"type" mapstructure:"type"`
@@ -53,51 +77,50 @@ type RecDBConfig struct {
 	Port          uint16 `toml:"port" mapstructure:"port"`
 }
 
+// TODO: push configuration from networking binary streams
+
 type LocalConfig struct {
-	// This field should refer the toml config defined in configs/config.toml
+	// ServerConfig should refer to the toml config defined in configs/config.toml
 	ServerConfig struct {
 		PemName  string `toml:"pem_name" mapstructure:"pem_name"`
 		PemType  string `toml:"pem_type" mapstructure:"pem_type"`
 		PemLen   uint64 `toml:"pem_len" mapstructure:"pem_len"`
 		Language string `toml:"language" mapstructure:"language"`
-		// services
+
+		// fields defined for services
 		// The reason why to use struct name as ServerConfig's member name is
 		// the iteration in `services_man.go` upon struct for data/control path needs refect
-		SSHconfig    SSHconfig    `toml:"ssh" mapstructure:"ssh"`
-		TelnetConfig TelnetConfig `toml:"telnet" mapstructure:"telnet"`
-		NTPconfig    NTPconfig    `toml:"ntp"  mapstructure:"ntp"`
-		DNSconfig    DNSconfig    `toml:"dns" mapstructure:"dns"`
-		RecDBConfig  RecDBConfig  `toml:"rec_db_config" mapstructure:"rec_db_config"`
-		// currently used for local recording
+
+		SSHconfig SSHconfig `toml:"ssh" mapstructure:"ssh"`
+		// TelnetConfig TelnetConfig `toml:"telnet" mapstructure:"telnet"`
+
+		NTPconfig  NTPconfig  `toml:"ntp"  mapstructure:"ntp"`
+		DNSconfig  DNSconfig  `toml:"dns" mapstructure:"dns"`
+		SMTPconfig SMTPconfig `toml:"smtp" mapstructure:"smtp"`
+		// currently used for locally recording
+		RecDBConfig RecDBConfig `toml:"rec_db_config" mapstructure:"rec_db_config"`
 	} `toml:"server_config" mapstructure:"server_config"`
 }
 
 type AbsServType interface {
-	SSHconfig | TelnetConfig | NTPconfig | DNSconfig | any | struct{}
-
-	// Invoke runner which be registed by specific AbsServType before
-	InvokeRunner(*ServicesConcurrencyCtrl, *RuntimeDB, ...any)
+	// InvokeRunner is registered by specific AbsServType defined before
+	InvokeRunner(*ServConcurrentCtrl, *RuntimeDB, ...any)
 }
 
-type ServicesConcurrencyCtrl struct {
-	Ctx     context.Context
-	Data_ch <-chan any
+type ServConcurrentCtrl struct {
+	Ctx    context.Context
+	DataCh <-chan any
 }
 
 type AbsServFunc[T AbsServType] func(
 	conf *T,
-	scc *ServicesConcurrencyCtrl,
+	scc *ServConcurrentCtrl,
 	db *RuntimeDB,
 	args ...any,
 )
 
-type ServicesEntry[T AbsServType] interface {
-	// Regist Runner via outer function
-	RegistRunner(outer_serv_fn AbsServFunc[T])
-}
-
 func (s SSHconfig) InvokeRunner(
-	scc *ServicesConcurrencyCtrl,
+	scc *ServConcurrentCtrl,
 	db *RuntimeDB,
 	args ...any,
 ) {
@@ -107,19 +130,21 @@ func (s SSHconfig) InvokeRunner(
 	// [warn]: ... must pass to args otherwise type casting will fail
 	s.fn(&s, scc, db, args...)
 }
-func (t TelnetConfig) InvokeRunner(
-	scc *ServicesConcurrencyCtrl,
-	db *RuntimeDB,
-	args ...any,
-) {
-	if t.fn == nil {
-		return
-	}
-	// [warn]: ... must pass to args otherwise type casting will fail
-	t.fn(&t, scc, db, args...)
-}
+
+//func (t TelnetConfig) InvokeRunner(
+//	scc *ServConcurrentCtrl,
+//	db *RuntimeDB,
+//	args ...any,
+//) {
+//	if t.fn == nil {
+//		return
+//	}
+//	// [warn]: ... must pass to args otherwise type casting will fail
+//	t.fn(&t, scc, db, args...)
+//}
+
 func (n NTPconfig) InvokeRunner(
-	scc *ServicesConcurrencyCtrl,
+	scc *ServConcurrentCtrl,
 	db *RuntimeDB,
 	args ...any,
 ) {
@@ -130,7 +155,7 @@ func (n NTPconfig) InvokeRunner(
 	n.fn(&n, scc, db, args...)
 }
 func (d DNSconfig) InvokeRunner(
-	scc *ServicesConcurrencyCtrl,
+	scc *ServConcurrentCtrl,
 	db *RuntimeDB,
 	args ...any,
 ) {
@@ -141,56 +166,74 @@ func (d DNSconfig) InvokeRunner(
 	d.fn(&d, scc, db, args...)
 }
 
-func (s *SSHconfig) RegistRunner(fn AbsServFunc[SSHconfig])       { s.fn = fn }
-func (t *TelnetConfig) RegistRunner(fn AbsServFunc[TelnetConfig]) { t.fn = fn }
-func (n *NTPconfig) RegistRunner(fn AbsServFunc[NTPconfig])       { n.fn = fn }
-func (d *DNSconfig) RegistRunner(fn AbsServFunc[DNSconfig])       { d.fn = fn }
+func (s SMTPconfig) InvokeRunner(
+	scc *ServConcurrentCtrl,
+	db *RuntimeDB,
+	args ...any) {
+	if s.fn == nil {
+		return
+	}
+	s.fn(&s, scc, db, args...)
+}
+
+func (s *SSHconfig) RegisterRunner(fn AbsServFunc[SSHconfig]) { s.fn = fn }
+
+// func (t *TelnetConfig) RegisterRunner(fn AbsServFunc[TelnetConfig]) { t.fn = fn }
+
+func (n *NTPconfig) RegisterRunner(fn AbsServFunc[NTPconfig])   { n.fn = fn }
+func (d *DNSconfig) RegisterRunner(fn AbsServFunc[DNSconfig])   { d.fn = fn }
+func (s *SMTPconfig) RegisterRunner(fn AbsServFunc[SMTPconfig]) { s.fn = fn }
 
 // Naive check
-func CheckSSHconfig(ssh_conf *SSHconfig) bool {
-	// ssh_conf.ListenAddr might be localhost, which can not be accepted by net.ParseIP
-	if ssh_conf == nil || ssh_conf.ListenAddr == "" || ssh_conf.ListenPort <= 1024 {
+
+func CheckSSHconfig(sshConf *SSHconfig) bool {
+	// sshConf.ListenAddr might be localhost, which can not be accepted by net.ParseIP
+	if sshConf == nil || sshConf.ListenPort <= 1024 {
 		return false
 	}
 	/* At this moment and at most, we can only check whether those fields are null */
-	if ssh_conf.MaxClientNum == 0 {
-		ssh_conf.MaxClientNum = 1
-	} else if ssh_conf.ClientConnTimeout == 0 {
-		ssh_conf.ClientConnTimeout = 30
-	} else if ssh_conf.ResponseType == "" {
-		ssh_conf.ResponseType = "Always-Reject"
+	if sshConf.MaxClientNum == 0 {
+		sshConf.MaxClientNum = 1
+	} else if sshConf.ClientConnTimeout == 0 {
+		sshConf.ClientConnTimeout = 30
+	} else if sshConf.ResponseType == "" {
+		sshConf.ResponseType = "Always-Reject"
 	}
 	return true
 }
 
-func CheckTelnetConfig(telnet_conf *TelnetConfig) bool {
-	return telnet_conf != nil &&
-		telnet_conf.ListenAddr != "" &&
-		telnet_conf.ListenPort > 1024
+//func CheckTelnetConfig(telnetConf *TelnetConfig) bool {
+//	return telnetConf != nil &&
+//		telnetConf.ListenAddr != "" &&
+//		telnetConf.ListenPort > 1024
+//}
+
+func CheckNTPconfig(ntpConf *NTPconfig) bool {
+	return ntpConf != nil && ntpConf.ListenAddr != "" &&
+		ntpConf.ListenPort > 1024
 }
 
-func CheckNTPconfig(ntp_conf *NTPconfig) bool {
-	return ntp_conf != nil && ntp_conf.ListenAddr != "" &&
-		ntp_conf.ListenPort > 1024
+func CheckDNSconfig(dnsConf *DNSconfig) bool {
+	return dnsConf != nil && dnsConf.ListenAddr != "" &&
+		dnsConf.ListenPort > 1024
 }
 
-func CheckDNSconfig(dns_conf *DNSconfig) bool {
-	return dns_conf != nil && dns_conf.ListenAddr != "" &&
-		dns_conf.ListenPort > 1024
+func CheckSMTPconfig(smtpConf *SMTPconfig) bool {
+	return smtpConf != nil && smtpConf.ListenAddr != "" && smtpConf.ListenPort > 1024
 }
 
-// generic configuration checker
+// GenericConfChecker
 //
 //	in_func uses `CheckXXXconfig` defined in current source file.
 func GenericConfChecker[T AbsServType](
-	in_conf any,
-	in_func func(*T) bool,
+	inConf any,
+	inFunc func(*T) bool,
 ) bool {
-	curr, ok := in_conf.(T)
+	curr, ok := inConf.(T)
 	if !ok {
 		return false
 	}
-	return in_func(&curr)
+	return inFunc(&curr)
 }
 
 type ConfigMaintainer struct {
@@ -207,8 +250,10 @@ func (cm *ConfigMaintainer) Init() {
 	cm.updateCallback = make([]func(*LocalConfig), 0)
 }
 
-// TO-Evaluate: Currently we don't have callback function for unregistering
-func (cm *ConfigMaintainer) Regist(f func(*LocalConfig)) {
+// Register records any subscriber wants to monitor the change of configuration
+//
+//	[TO-Evaluate]: Currently we don't have callback function for unregistering
+func (cm *ConfigMaintainer) Register(f func(*LocalConfig)) {
 	if !cm.initiated.Load() {
 		return
 	}
@@ -217,7 +262,8 @@ func (cm *ConfigMaintainer) Regist(f func(*LocalConfig)) {
 	cm.blockedSign.Unlock()
 }
 
-func (cm *ConfigMaintainer) UpdateConfig(updated_conf *LocalConfig) {
+// UpdateConfig will execute functions provided by subscribers when detecting any change of configuration
+func (cm *ConfigMaintainer) UpdateConfig(updConf *LocalConfig) {
 	if !cm.initiated.Load() {
 		return
 	}
@@ -226,7 +272,7 @@ func (cm *ConfigMaintainer) UpdateConfig(updated_conf *LocalConfig) {
 		if fn == nil {
 			continue
 		}
-		go fn(updated_conf)
+		go fn(updConf)
 	}
 }
 

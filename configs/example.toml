@@ -1,6 +1,6 @@
 ############################### NOTICE ###############################
 # DO NOT DELETE THIS FILE. THIS FILE IS ALSO USE AS ONE OF THE CONTENT 
-# SOURCE READING BY TESTCASES, The configuration file copied by docker
+# SOURCE READING BY TESTCASES, The configuration file copied by container.
 # This is an example configuration. You should create your own `config.toml` in the
 # same directory so that b0gus can run as what you expect it to obey.
 ############################### NOTICE ###############################
@@ -25,40 +25,43 @@ language = "en"
     # Only store `ip, username, password, access time and public key` information
     # TODO: set them as strategy
     permit_login = true
-    # if you try typing, then the expected behaviour is just entering 
-    # another new line for every command.
-    empty_shell = false 
-    
+
     # Just repeat what user inputs back to the terminal
-    # TODO: add more response types which represent certain strategy 
+    # Optional-Mode: llm, repeater or empty
+    #   `repeater` means repeating the command typed by remote client
+    #   `empty` means if you try typing, then the expected behavior is just entering
+    #   `llm` means the command will handled by llm.
+    # another new line for every command.
     response_type = "repeater"
+    # when selecting `llm` for [response_type], then these fields are required.
+    llm_type = ""
+
 
     # banner for displaying after successfully logining into system
-    login_banner = '''
-_______________#########_______________________
-______________############_____________________
-______________#############____________________
-_____________##__###########___________________
-____________###__######_#####__________________
-____________###_#######___####_________________
-___________###__##########_####________________
-__________####__###########_####_______________
-________#####___###########__#####_____________
-_______######___###_########___#####___________
-_______#####___###___########___######_________
-______######___###__###########___######_______
-_____######___####_##############__######______
-____#######__#####################_#######_____
-____#######__##############################____
-___#######__######_#################_#######___
-___#######__######_######_#########___######___
-___#######____##__######___######_____######___
-___#######________######____#####_____#####____
-____######________#####_____#####_____####_____
-_____#####________####______#####_____###______
-______#####______;###________###______#________
-________##_______####________####______________
-'''
+    login_banner = ''''''
+# _______________#########_______________________
+#______________############_____________________
+#______________#############____________________
+#_____________##__###########___________________
+#____________###__######_#####__________________
+#____________###_#######___####_________________
+#___________###__##########_####________________
+#__________####__###########_####_______________
+#________#####___###########__#####_____________
+#_______######___###_########___#####___________
+#_______#####___###___########___######_________
+#______######___###__###########___######_______
+#_____######___####_##############__######______
+#____#######__#####################_#######_____
+#____#######__##############################____
+#___#######__######_#################_#######___
+#___#######__######_######_#########___######___
+#___#######____##__######___######_____######___
+#___#######________######____#####_____#####____
+#____######________#####_____#####_____####_____
+#_____#####________####______#####_____###______
+#______#####______;###________###______#________
+#________##_______####________####______________
 # Or display a buddha but not a miku by uncommenting 
 # and set it as login_banner.
 #                   _oo0oo_
@@ -78,11 +81,12 @@ ________##_______####________####______________
 #     | | :  `- \`.;`\ _ /`;.`/ - ` : | |
 #     \  \ `_.   \_ __\ /__ _/   .-` /  /
 # =====`-.____`.___ \_____/___.-`___.-'=====
+# Or default one to make it more real...
 
 
-[server_config.telnet]
-    listen_addr = "localhost"
-    listen_port = 23333
+#[server_config.telnet]
+#    listen_addr = "localhost"
+#    listen_port = 23333
 
 [server_config.dns]
     listen_addr = "localhost"
@@ -93,6 +97,16 @@ ________##_______####________####______________
     ctrl_port = 21
     data_port = 20
 
+[server_config.smtp]
+    listen_addr = "127.0.0.1"
+    listen_port = 2555
+    # (cert, key) should be signed by real CA
+    local_tls_cert_path = ""
+    local_tls_key_path = ""
+    local_save_dir = ""
+    max_client_num = 32
+
+
 [server_config.fake_db]
     # database as honeypot
     # TODO
@@ -102,9 +116,11 @@ ________##_______####________####______________
 [server_config.rec_db_config]
     # Yet to have a checking/filtering mechanism to determine 
     # whether database_addr:database_port is requried
+
+    # PostgreSQL, SQLite, MongoDB
     type = "PostgreSQL"
     name = "postgres"
-    # Some database can be deemed as a distributed cluster
+    # Some database can be deemed as a distributed cluster,
     # so an IP address is require.
     addr = "localhost"
     port = 5432

@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "La directory delle risorse statiche."
+    [meta_conf.ConfPath]
+    other = "Il percorso del file di configurazione locale."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Autorizzazione per la modifica della configurazione in runtime."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Autorizzazione per l'automodifica della configurazione in runtime."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Autorizzazione per impostare la configurazione tramite comandi shell in runtime."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Autorizzazione per impostare la configurazione tramite pull remoto in runtime."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Impossibile connettersi al database {{.DatabaseStr}}. Errore: `{{.ErrInfo}}`."
@@ -52,11 +66,12 @@
     other = "Impossibile leggere la configurazione. Motivo: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Ricaricamento del file di configurazione fallito! La configurazione corrente non viene modificata. Motivo: <{{.ErrInfo}}>."
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "Impossibile analizzare il file di configurazione. Motivo: <{{.ErrInfo}}>."
 
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "Impossibile generare 3 byte casuali. Viene restituito un valore predefinito per la versione SSH."
     [services.SSHWriteResponseError]
@@ -79,6 +94,7 @@
     other = "Impossibile utilizzare il certificato specificato <{{.Signer}}> per eseguire la firma durante le interazioni del protocollo SSH."
     [services.SSHQuitInfo]
     other = "Il server SSH è uscito."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "Il server NTP ha ricevuto una richiesta di query temporale di lunghezza <{{.Len}}> da <{{.IP}}>."
     [services.NTPQuitInfo]

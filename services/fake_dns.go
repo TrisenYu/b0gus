@@ -1,10 +1,11 @@
 package services
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
-	b0gus_config "b0gus/configs"
+	"b0gus/configs"
 	"io"
 
 	"codeberg.org/miekg/dns"
@@ -19,14 +20,14 @@ import (
 	------------------------------------------------
 	answer section 		variable, list of records
 	authority section	variable, list of records
-	addtional section 	variable, list of records
+	additional section 	variable, list of records
 
 	header looks as follows:
 		packet ID				16 bits
 		Query Response			1  bit
 		opcode					4  bits
 		Authoritative Answer	1  bit
-		Trancated Message		1  bit
+		Truncated Message		1  bit
 		Recursion Desired		1  bit
 		Recursion Available		1  bit
 		Z(Reserved)				3  bits
@@ -36,7 +37,7 @@ import (
 		Authority Count			16 bits
 		Additional Count 		16 bits
 	question:
-		name  lable sequence
+		name  label sequence
 		type  2 byte
 		class 2 byte
 */
@@ -44,15 +45,14 @@ import (
 // TODO: What if we send a wrong response to other computer?
 
 // Answers dns queries with a random ip address.
-// Responds to versionbind queries with an old and unpatched version.
+// Responds to version bind queries with an old and unpatched version.
 
 type DNSserverConf struct {
 	/* database handler for writing data */
-	DB_fd *b0gus_config.RuntimeDB
-	/* fields below need concurrenct control to follow the configuration */
+	DBFd *configs.RuntimeDB
+	/* fields below need concurrent control to follow the configuration */
 	AlterDNSListener  sync.Mutex
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
-	Addr              string       // b0gus DNS server addr
 	Port              uint16       // b0gus DNS server port number
 }
 
@@ -61,29 +61,33 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	msg.Authoritative = true
 
 	for _, question := range r.Question {
-
 		switch question.Header().Class {
 		case dns.TypeA:
 			// handleARecord(question, msg)
 		case dns.TypeAAAA:
 			// handleAAAARecord(question, msg)
+		case dns.TypeTXT:
+			// handleTextRecord()
+		case dns.TypeCNAME:
+		case dns.TypeNS:
+		default:
+
 		}
 	}
-	io.Copy(w, msg)
+	_, _ = io.Copy(w, msg)
 }
 
-// db *gorm.DB *redis.Client *mongo.Client
-func DNSserver(
-	ntp_conf_obj *b0gus_config.DNSconfig,
-	scc *b0gus_config.ServicesConcurrencyCtrl,
-	db *b0gus_config.RuntimeDB,
+func Run(
+	ntpConfObj *configs.DNSconfig,
+	scc *configs.ServConcurrentCtrl,
+	db *configs.RuntimeDB, // db *gorm.DB *redis.Client *mongo.Client
 	args ...any,
 ) {
-	ntp_server_conf := DNSserverConf{
-		Addr:  ntp_conf_obj.ListenAddr,
-		Port:  ntp_conf_obj.ListenPort,
-		DB_fd: db,
+	ntpServerConf := DNSserverConf{
+		Port: ntpConfObj.ListenPort,
+		DBFd: db,
 	}
-	b0gus_config.Logger.Infof("%v", ntp_server_conf.Addr)
-	// ntp_server_conf.NTPclientHandler(terminator)
+	payload := fmt.Sprintf("%v", ntpServerConf.Port)
+	configs.Logger.Info(payload)
+	// DNSclientHandler(terminator)
 }

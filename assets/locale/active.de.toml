@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Verzeichnis der statischen Ressourcen."
+    [meta_conf.ConfPath]
+    other = "Dateipfad der lokalen Konfiguration."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Berechtigung zum Ändern der Konfiguration zur Laufzeit."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Berechtigung zur selbständigen Änderung der Konfiguration zur Laufzeit."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Berechtigung zum Setzen der Konfiguration über Shell-Befehle zur Laufzeit."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Berechtigung zum Setzen der Konfiguration über Remote-Pull zur Laufzeit."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Keine Verbindung zur Datenbank {{.DatabaseStr}} möglich. Fehler: `{{.ErrInfo}}`."
@@ -52,10 +66,11 @@
     other = "Konfiguration konnte nicht gelesen werden. Grund: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Neuladen der Konfigurationsdatei fehlgeschlagen! Aktuelle Konfiguration bleibt unverändert. Grund: <{{.ErrInfo}}>."
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "Konfigurationsdatei konnte nicht geparst werden. Grund: <{{.ErrInfo}}>."
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "Konnte keine 3 zufälligen Bytes erzeugen. Es wird ein Standardwert für die SSH-Version zurückgegeben."
     [services.SSHWriteResponseError]
@@ -78,6 +93,7 @@
     other = "Das angegebene Zertifikat <{{.Signer}}> kann nicht zum Signieren während der SSH-Protokollinteraktionen verwendet werden."
     [services.SSHQuitInfo]
     other = "Der SSH-server wurde beendet."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "Der NTP-Server hat eine Zeitabfrage-Anfrage der Länge <{{.Len}}> von <{{.IP}}> empfangen."
     [services.NTPQuitInfo]

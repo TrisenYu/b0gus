@@ -1,20 +1,8 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+/// Last modified at 2026/03/20 星期五 17:25:44
 package services
-
-import (
-	b0gus_config "b0gus/configs"
-)
 
 // reference online documentation: https://www.rfc-editor.org/rfc/rfc854
 // default port of telnet is 23
-type Telnet struct {
-}
 
-// db *gorm.DB *redis.Client *mongo.Client
-func TelnetServer(
-	bogus_conf *b0gus_config.TelnetConfig,
-	scc *b0gus_config.ServicesConcurrencyCtrl,
-	db *b0gus_config.RuntimeDB,
-	args ...any,
-) {
-}
+// TelnetServer seems to be boring because once a hacker
+// can interact with a telnet shell, `!` is usually the first command helping get shell.

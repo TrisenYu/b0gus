@@ -1,3 +1,17 @@
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "设置静态资源的目录。"
+    [meta_conf.ConfPath]
+    other = "本地配置文件的路径。"
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "运行期间允许变更配置的设置。"
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "运行期间允许配置自我变更的设置。"
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "运行期间配置通过向Shell内输入命令变更配置的权限设置。"
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "运行期间允许通过从远程拉取配置而完成变更的权限设置。"
+
 [main]
     [main.DatabaseConnectionError]
     other = "无法连接到数据库{{.DatabaseStr}}。检出错误：`{{.ErrInfo}}`。"
@@ -51,10 +65,11 @@
     other = "无法读取配置。失败原因：<{{.ErrInfo}}>。"
     [configs.ReloadingConfigurationFailure]
     other = "重载配置文件失败！不会更换当前配置。失败原因：<{{.ErrInfo}}>。"
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "无法解析配置文件。失败原因：<{{.ErrInfo}}>。"
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "无法生成3个随机字节。将为SSH版本返回一个默认值。"
     [services.SSHWriteResponseError]
@@ -77,6 +92,7 @@
     other = "无法使用给定的证书<{{.Signer}}>用于SSH协议交互期间实施签名。"
     [services.SSHQuitInfo]
     other = "SSH服务器已退出。"
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTP服务器接收到来自<{{.IP}}>发来的长度为<{{.Len}}>的时间查询请求。"
     [services.NTPQuitInfo]

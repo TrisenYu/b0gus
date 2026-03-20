@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "정적 자산의 디렉터리입니다."
+    [meta_conf.ConfPath]
+    other = "로컬 구성 파일의 경로입니다."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "런타임 중 구성 변경 권한입니다."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "런타임 중 구성 자체 변경 권한입니다."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "런타임 중 셸 명령어로 구성을 설정하는 권한입니다."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "런타임 중 원격 풀을 통해 구성을 설정하는 권한입니다."
+
 [main]
     [main.DatabaseConnectionError]
     other = "데이터베이스{{.DatabaseStr}}에 연결할 수 없습니다. 오류 정보: `{{.ErrInfo}}`."
@@ -52,10 +66,11 @@
     other = "구성을 읽을 수 없습니다. 실패 원인: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "구성 파일을 다시 로드하는 데 실패했습니다! 현재 구성은 교체되지 않습니다. 실패 원인: <{{.ErrInfo}}>."
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "구성 파일을 파싱할 수 없습니다. 실패 원인: <{{.ErrInfo}}>."
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "임의의 3바이트를 생성할 수 없습니다. SSH 버전에 기본값을 반환합니다."
     [services.SSHWriteResponseError]
@@ -78,6 +93,7 @@
     other = "SSH 프로토콜 통신 중에 지정된 인증서<{{.Signer}}>를 사용하여 서명을 수행할 수 없습니다."
     [services.SSHQuitInfo]
     other = "SSH 서버가 종료되었습니다."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTP 서버는 <{{.IP}}>에서 전송된 길이 <{{.Len}}>의 시간 쿼리 요청을 수신했습니다."
     [services.NTPQuitInfo]

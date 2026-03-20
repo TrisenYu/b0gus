@@ -1,8 +1,9 @@
-#### Low-interative, Configuration-Directed golang Honeypots server 
+#### Low-interactive, Configuration-Directed golang Honeypots server 
 
-Currently, **B0gus** is still under development. B0gus supports to deploy _SSH_, _NTP_ as a functional honeypot. 'Functional' here means that you can assign non-privilege port number, fetch records (etc. `attackers' IP,`, `user name`, `passwords`, `public keys`, `ssh versions`, `accessing time`) from interactions and reload the configuration of ssh service in real time.
+Currently, **Bogus** is still under active development stage. Some business functions are not yet fully developed.
+B0gus supports to deploy _SSH_ and _NTP_ as a functional honeypot. 'Functional' here means that you can assign non-privilege port number, fetch records (etc. `attackers' IP,`, `user name`, `passwords`, `public keys`, `ssh versions`, `accessing time`) from interactions and reload the configuration of ssh service in real time.
 
-In future, B0gus will:
+In the future, B0gus will:
 - use docker to further isolate itself from other benign processes;
 - deploy itself as an automatic service;
 - support utilize root privilege on certain ports;

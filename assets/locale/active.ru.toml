@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Директория статических ресурсов."
+    [meta_conf.ConfPath]
+    other = "Путь к локальному конфигурационному файлу."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Разрешение на изменение конфигурации во время выполнения."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Разрешение на самостоятельное изменение конфигурации во время выполнения."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Разрешение на установку конфигурации через командные строки оболочки во время выполнения."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Разрешение на установку конфигурации через удаленный pull во время выполнения."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Не удалось подключиться к базе данных {{.DatabaseStr}}. Информация об ошибке: `{{.ErrInfo}}`."
@@ -52,10 +66,11 @@
     other = "Не удалось прочитать конфигурацию. Причина сбоя: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Не удалось перезагрузить конфигурационный файл! Текущая конфигурация не будет заменена. Причина сбоя: <{{.ErrInfo}}>."
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "Не удалось разобрать конфигурационный файл. Причина сбоя: <{{.ErrInfo}}>."
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "Не удалось сгенерировать 3 случайных байта. Будет возвращено значение по умолчанию для версии SSH."
     [services.SSHWriteResponseError]
@@ -78,6 +93,7 @@
     other = "Невозможно использовать указанный сертификат <{{.Signer}}> для выполнения подписи во время взаимодействия по протоколу SSH."
     [services.SSHQuitInfo]
     other = "SSH-сервер завершил работу."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTP-сервер получил запрос на время длиной <{{.Len}}> от <{{.IP}}>."
     [services.NTPQuitInfo]

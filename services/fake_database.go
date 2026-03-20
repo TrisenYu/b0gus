@@ -1,4 +1,5 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
-// Any online database can use as honeypot
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+
+// Any online database can be used as honeypot

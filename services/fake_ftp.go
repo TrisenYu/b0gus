@@ -1,9 +1,12 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package services
 
-// References:
-// 	https://www.cs.colostate.edu/helpdocs/ftp.html
-// 	https://github.com/DearRude/easyGoFTP/blob/master/ftpserver/ftpserver.go
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+
+/*
+References:
+	https://www.cs.colostate.edu/helpdocs/ftp.html
+	https://github.com/DearRude/easyGoFTP/blob/master/ftpserver/ftpserver.go
+*/
 
 /*
 	One way to emulate a ftp server is to create a very easy virtual memory file system
@@ -37,7 +40,7 @@ package services
 	Compared to low-interaction ssh honeypot, it will be much more laborious to implement ftp shell
 */
 
-// incomfortable to use memory file system
+// uncomfortable to use memory file system
 // also feel tried at the interactive shell provided for human/remote nasty programs
-// TODO: implement a generic shell for different services
+// TODO: use sandbox/container to handle files-related operations
 // accept file but strictly strip it privilege and save it in a sandbox.

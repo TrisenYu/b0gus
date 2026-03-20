@@ -9,37 +9,22 @@ import (
 )
 
 //go:embed locale/*.toml
-var local_description embed.FS
+var localDescription embed.FS
 
-var bundle *i18n.Bundle
+var Bundle *i18n.Bundle
 
 func init() {
-	bundle = i18n.NewBundle(language.English)
-	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
-	entries, _ := local_description.ReadDir("locale")
+	Bundle = i18n.NewBundle(language.English)
+	Bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+	entries, _ := localDescription.ReadDir("locale")
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		content, err := local_description.ReadFile("locale/" + e.Name())
+		content, err := localDescription.ReadFile("locale/" + e.Name())
 		if err != nil {
 			continue
 		}
-		bundle.ParseMessageFileBytes(content, e.Name())
+		Bundle.ParseMessageFileBytes(content, e.Name())
 	}
-}
-
-func GetLocalizedMsg(
-	lang, msgID string,
-	data map[string]any,
-) string {
-	localizer := i18n.NewLocalizer(bundle, lang)
-	msg, err := localizer.Localize(&i18n.LocalizeConfig{
-		MessageID:    msgID,
-		TemplateData: data,
-	})
-	if err != nil {
-		return msgID
-	}
-	return msg
 }

@@ -1,23 +1,27 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// Package configs
 package configs
 
-import (
-	"time"
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
-	logrus "github.com/sirupsen/logrus"
+import (
+	"os"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-var Logger = logrus.New()
+var Logger *zap.Logger
 
 func init() {
-	logrus.SetLevel(logrus.TraceLevel)
-	// TODO: gain from global configuration and decide what log file to also
-	// utilize as the output destination when necessary
-	// logrus.SetOutput(io.MultiWriter(writer1, writer2))
-	logrus.SetFormatter(
-		&logrus.TextFormatter{
-			TimestampFormat: time.StampMilli,
-			FullTimestamp:   true,
-		},
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	loggerEncoder := zapcore.NewConsoleEncoder(encoderConfig)
+	writeSyncer := zapcore.NewMultiWriteSyncer(
+		zapcore.AddSync(os.Stdout),
 	)
+	LoggerCore := zapcore.NewCore(loggerEncoder, writeSyncer, zapcore.InfoLevel)
+	Logger = zap.New(LoggerCore, zap.AddCaller(), zap.AddCallerSkip(1))
+	zap.ReplaceGlobals(Logger)
+	// TODO: gain from global configuration and decide writing to which log file.
 }

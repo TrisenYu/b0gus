@@ -1,6 +1,12 @@
 Camouflaged http and https in 80/443
 
+HTTP(s) bogus server is much more complicated to implement
+
 which services?
 Nginx? Apache?
 or Render page by PHP etc?
+which domains do we maintain?
+    HTTP methods/path
+    cookie
+
 

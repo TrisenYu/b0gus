@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "El directorio de los recursos estáticos."
+    [meta_conf.ConfPath]
+    other = "La ruta del archivo de configuración local."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Permiso para modificar la configuración en tiempo de ejecución."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Permiso para la automodificación de la configuración en tiempo de ejecución."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Permiso para configurar la configuración a través de comandos shell en tiempo de ejecución."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Permiso para configurar la configuración a través de pull remoto en tiempo de ejecución."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Error al conectar a {{.DatabaseStr}} debido a {{.ErrStr}}!"
@@ -50,10 +64,11 @@
     other = "Error al leer la configuración. Motivo: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Error al recargar el archivo de configuración! La configuración actual no será reemplazada. Motivo: <{{.ErrInfo}}>."
-    [configs.configs.UnmarshalingConfigurationFailure]
+    [configs.configs.UnmarshallingConfigurationFailure]
     other = "Error al deserializar la configuración debido a <{{.ErrInfo}}>."
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "No se pueden generar 3 bytes aleatorios para la versión SSH. B0gus devolverá un valor por defecto."
     [services.SSHWriteResponseError]
@@ -76,6 +91,7 @@
     other = "No se puede usar el certificado indicado <{{.Signer}}> para realizar la firma durante las interacciones del protocolo SSH."
     [services.SSHQuitInfo]
     other = "El servidor SSH ha finalizado."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "El servidor NTP recibió una solicitud de consulta de tiempo de longitud <{{.Len}}> desde <{{.IP}}>."
     [services.NTPQuitInfo]

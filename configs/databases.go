@@ -3,13 +3,18 @@ package configs
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
-	mongo "go.mongodb.org/mongo-driver/mongo"
-	gorm "gorm.io/gorm"
-
-	b0gus_assets "b0gus/assets"
+	"go.mongodb.org/mongo-driver/mongo"
+	mongoopts "go.mongodb.org/mongo-driver/mongo/options"
+	gormpg "gorm.io/driver/postgres"
+	gormsqlite "gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 const (
@@ -29,84 +34,152 @@ func GuessAndDetermine(db any) int {
 	}
 }
 
+func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
+	switch strings.ToLower(dbConfig.Type) {
+	case "postgresql": // deploy on certain port
+		dbAddr := dbConfig.Addr
+		if net.ParseIP(dbAddr) == nil && dbAddr != "localhost" {
+			payload := GetLocalizedMsg(
+				"configs.InvalidDatabaseAddrError",
+				map[string]any{"DatabaseAddr": dbAddr},
+			)
+			Logger.Fatal(payload)
+			return nil, "", errors.New(payload)
+		}
+		/*
+			TODO: sslmode=verify-full&sslrootcert=/var/lib/postgresql/ssl/root.crt
+			which means configuration can assign a certificate for postgreSQL
+		*/
+		pgDbConfig := fmt.Sprintf(
+			"host=%s port=%d user=%s password=%s dbname=%s search_path=public",
+			dbAddr, dbConfig.Port, dbConfig.AdminName,
+			dbConfig.AdminPassword, dbConfig.Name,
+		)
+		db, err := gorm.Open(gormpg.Open(pgDbConfig), &gorm.Config{})
+		return db, "postgresql", err
+	case "sqlite": // localdatabase as a file
+		absAssetsDirPath, _ := filepath.Abs(AssetsDirAsStr)
+		sqlitePath := dbConfig.Path
+		sqlitePath = filepath.Join(absAssetsDirPath, sqlitePath)
+		db, err := gorm.Open(gormsqlite.Open(sqlitePath), &gorm.Config{})
+		return db, "sqlite", err
+	case "mongodb":
+		dbAddr := dbConfig.Addr
+		if net.ParseIP(dbAddr) == nil && strings.ToLower(dbAddr) != "localhost" {
+			payload := GetLocalizedMsg(
+
+				"configs.InvalidDatabaseAddrError",
+				map[string]any{"DatabaseAddr": dbAddr},
+			)
+			Logger.Fatal(payload)
+			return nil, "", errors.New(payload)
+		}
+		mongoClient, err := mongo.Connect(
+			context.Background(),
+			// TODO: There are multiple ways to connect to standalone database
+			mongoopts.Client().ApplyURI(fmt.Sprintf(
+				"mongodb://%s:%s@%s:%d",
+				// could not include `: / ? # [ ] @` in admin_name or password,
+				// otherwise they need convert in the way that url encoding criterion
+				// that enforces
+				dbConfig.AdminName, dbConfig.AdminPassword,
+				dbAddr, dbConfig.Port,
+			)),
+		)
+		return mongoClient, "mongodb", err
+	default:
+		payload := GetLocalizedMsg(
+			"configs.UnsupportDatabaseTypeError",
+			map[string]any{
+				"DatabaseType": dbConfig.Type,
+			},
+		)
+		Logger.Error(payload)
+		return nil, "", errors.New(payload)
+	}
+
+}
+
 // callback functions and context might be required
+
 type RuntimeDB struct {
-	db    any
+	db any // db holds the current database instance address
+	// Mutex protects the operation upon db specifically targeting at altering database instance
 	Mutex sync.Mutex
 }
 
-// create table if the table does not exist
+// CreateTable will create table if the target table does not exist
 // or try to mitigate table if possible
 func (r *RuntimeDB) CreateTable(structures ...DBstruct) error {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	switch GuessAndDetermine(r.db) {
 	case GormSQL: // after debugging
-		var cast_interface_arr []any
-		for _, tab_struct := range structures {
-			cast_interface_arr = append(cast_interface_arr, tab_struct)
+		var castInterfaceArr []any
+		for _, tabStruct := range structures {
+			castInterfaceArr = append(castInterfaceArr, tabStruct)
 		}
-		return r.db.(*gorm.DB).AutoMigrate(cast_interface_arr...)
+		return r.db.(*gorm.DB).AutoMigrate(castInterfaceArr...)
 	/* won't provide an interface for Redis due to the infeasibility to maintain primary key */
 	case MongodbSQL:
-
-		for _, tab_struct := range structures {
-			r.db.(*mongo.Database).Collection(tab_struct.TableName())
+		for _, tabStruct := range structures {
+			r.db.(*mongo.Database).Collection(tabStruct.TableName())
 		}
 		return nil
 	default:
-		unsupported_msg := b0gus_assets.GetLocalizedMsg(
-			GetLang(),
+		unsupportedMsg := GetLocalizedMsg(
+
 			"databases.DatabaseTypeError",
 			map[string]any{
 				"Database": r.db,
 			},
 		)
-		return errors.New(unsupported_msg)
+		return errors.New(unsupportedMsg)
 	}
 }
 
 type DBstruct interface {
-	// inspect if current struct has counter. If true, then autoincrement when
+	// HasCounter inspect if current struct has counter. If true, then autoincrement when
 	// creating or updating an item
 	HasCounter() bool
 
-	// restrict and get table name
+	// TableName gets the name of table
 	TableName() string
 
-	// Change Counter member if having defined in structure
+	// UpdateCounter Changes the Counter member if having defined in structure
 	UpdateCounter()
 
-	// Used for Foreign key. As the input value of setPrimKey
+	// GetPrimKey is designed for Foreign key. As the input value of setPrimKey
 	GetPrimKey() int64
 
-	// This function maintains relation tables.
+	// SetOuterPrimKey maintains relation tables.
 	// As it shown, it will set 2-Dimension (i, j) coordinate in sequence.
 	// But there might be some relation table having multiple foreign keys from diverse outer tables
 	// So the in-parameter is kept as arbitrary number of int64, which is `...int64`.
 	SetOuterPrimKey(...int64)
 }
 
-// won't provide querying interface, priviledges should be kept for O&M
+// won't provide querying interface, privileges should be kept for O&M
+
 type DBhandler interface {
-	// close database when there is indeed an operating interface
+	// Close closes database when there is indeed an operating interface
 	Close()
 
-	// create table for relation database
+	// CreateTable creates table for relation database
 	CreateTable(structures ...DBstruct) error
 
-	// single inserting/updating task
+	// CreateOrUpdateItem single inserts/updates task
 	CreateOrUpdateItem(cond *DBstruct, goal DBstruct) error
 
-	// multiple inserting /updating tasks
-	CreateOrUpdateItemsInSeq(target_items ...DBstruct) error
+	// CreateOrUpdateItemsInSeq executes multiple inserting /updating tasks
+	CreateOrUpdateItemsInSeq(...DBstruct) error
 
-	// set context and return function for executing in current context
-	// roughly for foreign fields
-	SetupContext() func(structures ...DBstruct)
+	// SetupContext form the context and returns function
+	// for executing in current context roughly for foreign fields
+	SetupContext() func(...DBstruct)
 }
 
-func (r *RuntimeDB) QueryItem(cond_item DBstruct) DBstruct {
+func (r *RuntimeDB) QueryItem(condItem DBstruct) DBstruct {
 	// TODO
 	return nil
 }
@@ -127,7 +200,7 @@ func (r *RuntimeDB) CreateOrUpdateItem(
 			gormDB.Where(goal).Updates(goal)
 		}
 	case MongodbSQL:
-		// MongoDB is like a json manager
+		// MongoDB is like a JSON manager
 		// collection for specific name and the interface is for struct
 		update := bson.M{ // changed position
 			"$set": goal,
@@ -141,85 +214,82 @@ func (r *RuntimeDB) CreateOrUpdateItem(
 				FindOneAndUpdate(context.Background(), cond, update)
 		}
 	default:
-		unsupported_msg := b0gus_assets.GetLocalizedMsg(
-			GetLang(),
+		unsupportedMsg := GetLocalizedMsg(
 			"databases.DatabaseTypeError",
 			map[string]any{
 				"Database": r.db,
 			},
 		)
-		return errors.New(unsupported_msg)
+		return errors.New(unsupportedMsg)
 	}
 	return nil
 }
 
-func (r *RuntimeDB) AlterDatabaseHandler(dst_db any) {
+func (r *RuntimeDB) AlterDatabaseHandler(dstDB any) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
-	switch GuessAndDetermine(dst_db) {
+	switch GuessAndDetermine(dstDB) {
 	case GormSQL:
-		r.db = dst_db
+		r.db = dstDB
 	case MongodbSQL:
 		// TODO and to evaluate.
-		r.db.(*mongo.Client).Disconnect(context.Background())
-		r.db = dst_db
+		_ = r.db.(*mongo.Client).Disconnect(context.Background())
+		r.db = dstDB
 	default:
 		// Won't change but show an error if such condition is satisfied
-		unsupported_msg := b0gus_assets.GetLocalizedMsg(
-			GetLang(),
+		unsupportedMsg := GetLocalizedMsg(
 			"databases.SQLtypeError",
 			map[string]any{
 				"Database": r.db,
 			},
 		)
-		Logger.Error(unsupported_msg)
+		Logger.Error(unsupportedMsg)
 	}
 
 }
 
-// Create/Update items sequentially
+// CreateOrUpdateItemsInSeq Creates/Updates items sequentially
 func (r *RuntimeDB) CreateOrUpdateItemsInSeq(
-	target_items ...DBstruct,
+	targetItems ...DBstruct,
 ) error {
 	var err error = nil
 	// we can do one thing in this function: evaluate whether we can
-	for _, item := range target_items {
+	for _, item := range targetItems {
 		err = r.CreateOrUpdateItem(item, item)
 		if err != nil {
 			// TODO: rollback or skip?
 			// Log might be better because we can not avoid side-effects.
 			continue
 		}
-
 	}
 	return err
 }
 
-// return relation structure if needed.
-func (r *RuntimeDB) SetupContext(target_items ...DBstruct) {
+// SetupContext will return relation structure if needed.
+func (r *RuntimeDB) SetupContext(targetItems ...DBstruct) {
 	// Consider how to maintain context for databases...
-	r.CreateOrUpdateItemsInSeq(target_items...)
+	_ = r.CreateOrUpdateItemsInSeq(targetItems...)
 	// we need a map structure to check this case
 	// some table have primary key but not use as foreign key
 	// O(n^2) brutal iteration.
-	for i := range len(target_items) {
-		for j := i + 1; j < len(target_items); j++ {
+	for i := range len(targetItems) {
+		for j := i + 1; j < len(targetItems); j++ {
 			// Firstly, access corresponding relation.
-			item, jtem := target_items[i], target_items[j]
+			item, jtem := targetItems[i], targetItems[j]
 			if item.TableName() > jtem.TableName() {
 				item, jtem = jtem, item
 			} // In dictionary Order
-			relation_tab, ok := RecRelationMap[item.TableName()][jtem.TableName()]
+			relationTab, ok := RecRelationMap[item.TableName()][jtem.TableName()]
 			if !ok {
 				continue
 			}
-			cast_tab, ok := relation_tab.(DBstruct)
+			castTab, ok := relationTab.(DBstruct)
 			if !ok {
 				continue
 			}
 			// Maintain item.PrimaryKey and jtem.PrimaryKey
-			cast_tab.SetOuterPrimKey([]int64{item.GetPrimKey(), jtem.GetPrimKey()}...)
-			r.CreateOrUpdateItem(cast_tab, cast_tab)
+			castTab.SetOuterPrimKey([]int64{item.GetPrimKey(), jtem.GetPrimKey()}...)
+			_ = r.CreateOrUpdateItem(castTab, castTab)
 		}
 	}
 }

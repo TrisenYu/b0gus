@@ -1,20 +1,15 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package misc_utils
+
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
 import (
 	"fmt"
 	"reflect"
 )
 
-func GetStructNameByType(x any) string {
-	t := reflect.TypeOf(x)
-	if t.Kind() != reflect.Struct {
-		return "unk_kind"
-	}
-	return t.Name()
-}
-
-// ...reflect seems to lack ability to save us
+// TurnStruct2Map will use recursion to convert a struct into (nested) map.
+//
+//	That is <map: string -> {map | string}>.
 func TurnStruct2Map(s any) map[string]any {
 	sval := reflect.ValueOf(s)
 	styp := reflect.TypeOf(s)
@@ -30,20 +25,19 @@ func TurnStruct2Map(s any) map[string]any {
 		return nil
 	}
 
-	var res map[string]any = make(map[string]any)
+	var res = make(map[string]any)
 
 	// TODO: use a queue instead of recursion
 	for i := range styp.NumField() {
 		child := styp.Field(i).Type
 		if len(child.Name()) == 0 {
+			// for concealing type, just skip.
 			continue
 		}
 		if child.Kind() == reflect.Struct {
 			res[styp.Field(i).Name] = TurnStruct2Map(sval.Field(i).Interface())
 			continue
 		}
-		// for concealing type, just skip.
-
 		res[styp.Field(i).Name] = sval.Field(i).Interface()
 	}
 	return res

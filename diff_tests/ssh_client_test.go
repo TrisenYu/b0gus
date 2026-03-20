@@ -6,6 +6,12 @@ import (
 	// assert "github.com/stretchr/testify/assert"
 )
 
+type MockSSHConn struct {
+	Username, Password string
+	PublicKey          string
+	Commands           []string
+}
+
 func TestGenDefForSSH(t *testing.T) {
 	// ?
 }

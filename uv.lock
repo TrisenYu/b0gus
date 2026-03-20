@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [[package]]
-name = "b0gus-assets"
+name = "b0gus-pyenv"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

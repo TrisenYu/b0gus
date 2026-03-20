@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "静的アセットのディレクトリ。"
+    [meta_conf.ConfPath]
+    other = "ローカル設定ファイルのパス。"
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "ランタイム中の設定変更権限。"
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "ランタイム中の設定の自動変更権限。"
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "ランタイム中にシェルコマンドで設定を変更する権限。"
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "ランタイム中にリモートプルで設定を変更する権限。"
+
 [main]
     [main.DatabaseConnectionError]
     other = "データベース{{.DatabaseStr}}に接続できません。エラー詳細：`{{.ErrInfo}}`。"
@@ -52,10 +66,11 @@
     other = "設定ファイルを読み取れません。失敗理由：<{{.ErrInfo}}>。"
     [configs.ReloadingConfigurationFailure]
     other = "設定ファイルのリロードに失敗しました！現在の設定は変更されません。失敗理由：<{{.ErrInfo}}>。"
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "設定ファイルを解析できません。失敗理由：<{{.ErrInfo}}>。"
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "ランダムな3バイトの生成に失敗しました。SSHバージョンにはデフォルト値を返します。"
     [services.SSHWriteResponseError]
@@ -78,6 +93,7 @@
     other = "SSHプロトコルの通信中に、指定された証明書<{{.Signer}}>を使用して署名を実行できません。"
     [services.SSHQuitInfo]
     other = "SSHサーバーは終了しました。"
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTPサーバーは<{{.IP}}>から送信された長さ<{{.Len}}>の時刻クエリリクエストを受信しました。"
     [services.NTPQuitInfo]

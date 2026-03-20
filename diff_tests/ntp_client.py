@@ -1,9 +1,10 @@
-# Last modified at 2026/03/02 星期一 15:55:26
 #!/usr/bin/env python3
 # SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
-# Don't need virtual environment because imported packages are standard
-from socket import AF_INET, SOCK_DGRAM, socket
+# Last modified at 2026/03/02 星期一 15:55:26
+# Currently don't need virtual environment because imported packages are standard
+from socket import AF_INET, AF_INET6, SOCK_DGRAM, socket
 import struct, time
+from random import randint
 """
 	li			  2 bits, leap indicator for leap second
 	vn			  3 bits, version number
@@ -46,10 +47,11 @@ FROM_1900_TO_1970 = 2208988800
 	get_VN = lambda x: (x >> 3) & 0b111
 	get_MODE = lambda x: (x & 0b111)
 """
-li_vn_mode = 0b00_011_011
+LI_VN_MODE = 0b00_011_011
+NET_TYPE_ARR = [AF_INET, AF_INET6]
+data = bytes.fromhex(hex(LI_VN_MODE)[2:])+47*b"\x00"
 
-data = bytes.fromhex(hex(li_vn_mode)[2:])+47*b"\x00"
-client = socket(AF_INET, SOCK_DGRAM)
+client = socket(NET_TYPE_ARR[randint(0, 1)], SOCK_DGRAM)
 client.sendto(data, addr)
 try:
 	data, addr = client.recvfrom(512)

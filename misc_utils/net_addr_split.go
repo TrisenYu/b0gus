@@ -6,65 +6,63 @@ import (
 	"strings"
 )
 
-/*
-addr:port => (addr, port)
-
-	return "", 0 if any error emerges
-*/
-func IPaddrSplit(ip_port string) (string, uint16) {
-	var res_ip string = ""
-	res_ip, str_port, err := net.SplitHostPort(ip_port)
+// IPAddrSplit convert string whose form is similar to `addr:port` into (addr, port)
+//
+//	return "", 0 if there is any error
+func IPAddrSplit(ipPort string) (string, uint16) {
+	var resIp = ""
+	resIp, strPort, err := net.SplitHostPort(ipPort)
 	if err == nil {
-		res_port, err := strconv.ParseUint(str_port, 10, 16)
+		resPort, err := strconv.ParseUint(strPort, 10, 16)
 		if err != nil {
 			return "", 0
 		}
-		flag := net.ParseIP(res_ip)
+		flag := net.ParseIP(resIp)
 		if flag == nil {
 			return "", 0
 		}
-		return res_ip, uint16(res_port & 0xFFFF)
+		return resIp, uint16(resPort & 0xFFFF)
 	}
 	var (
-		i          int
-		tmp_port   uint64
-		port_digit = map[string]struct{}{
+		i         int
+		tmpPort   uint64
+		portDigit = map[string]struct{}{
 			"0": {}, "1": {}, "2": {}, "3": {},
 			"4": {}, "5": {}, "6": {}, "7": {},
 			"8": {}, "9": {},
 		}
-		tmp_ip string
+		tmpIp string
 	)
-	for i = len(ip_port) - 1; i >= 0; i-- {
-		_, ok := port_digit[string(ip_port[i])]
+	for i = len(ipPort) - 1; i >= 0; i-- {
+		_, ok := portDigit[string(ipPort[i])]
 		if !ok {
 			break
 		}
 	}
 	if i >= 0 {
-		tmp_ip = ip_port[:i]
+		tmpIp = ipPort[:i]
 	}
-	tmp_port, err = strconv.ParseUint(
-		ip_port[min(i+1, max(len(ip_port)-1, 0)):],
+	tmpPort, err = strconv.ParseUint(
+		ipPort[min(i+1, max(len(ipPort)-1, 0)):],
 		10, 16,
 	)
 	if err != nil {
 		return "", 0
 	}
-	if len(tmp_ip) > 0 && tmp_ip[0] == '[' && tmp_ip[len(tmp_ip)-1] == ']' {
-		tmp_ip = tmp_ip[1 : len(tmp_ip)-1]
+	if len(tmpIp) > 0 && tmpIp[0] == '[' && tmpIp[len(tmpIp)-1] == ']' {
+		tmpIp = tmpIp[1 : len(tmpIp)-1]
 	}
 	// check whether having zone
-	if strings.Contains(tmp_ip, "%") {
-		slicer := strings.Split(tmp_ip, "%")
+	if strings.Contains(tmpIp, "%") {
+		slicer := strings.Split(tmpIp, "%")
 		if len(slicer) != 2 {
 			return "", 0
 		}
-		tmp_ip, _ = slicer[0], slicer[1]
+		tmpIp, _ = slicer[0], slicer[1]
 	}
-	flag := net.ParseIP(tmp_ip)
+	flag := net.ParseIP(tmpIp)
 	if flag == nil {
 		return "", 0
 	}
-	return tmp_ip, uint16(tmp_port & 0xFFFF)
+	return tmpIp, uint16(tmpPort & 0xFFFF)
 }

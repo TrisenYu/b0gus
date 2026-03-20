@@ -1,3 +1,17 @@
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "The directory of static assets."
+    [meta_conf.ConfPath]
+    other = "The file path of local configuration."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Permission for altering configuration in runtime."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Permission for configuration self-altering in runtime."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Permission for setting configuration through shell commands in runtime."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Permission for setting configuration through remote pulling in runtime."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Failed to connect to {{.DatabaseStr}} due to {{.ErrStr}}!"
@@ -49,11 +63,12 @@
     other = "Failed to read configuration. Failure reason: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Failed to reload configuration file! The current configuration will not be replaced. Failure reason: <{{.ErrInfo}}>."
-    [configs.configs.UnmarshalingConfigurationFailure]
+    [configs.configs.UnmarshallingConfigurationFailure]
     other = "Unmarshal config failed due to <{{.ErrInfo}}>."
     
     
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "Unable to generate 3 random bytes for SSH version. B0gus will return a default value."
     [services.SSHWriteResponseError]
@@ -76,6 +91,7 @@
     other = "Cannot use the given certificate <{{.Signer}}> to perform signing during SSH protocol interactions."
     [services.SSHQuitInfo]
     other = "SSH server has exited."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "The NTP server received a time query request of length <{{.Len}}> from <{{.IP}}>."
     [services.NTPQuitInfo]

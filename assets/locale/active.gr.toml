@@ -1,4 +1,18 @@
 # AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Ο κατάλογος στατικών πόρων."
+    [meta_conf.ConfPath]
+    other = "Η διαδρομή του τοπικού αρχείου διαμόρφωσης."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Απόφαση για αλλαγή διαμόρφωσης κατά τη διάρκεια εκτέλεσης."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Απόφαση για αυτο-αλλαγή διαμόρφωσης κατά τη διάρκεια εκτέλεσης."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Απόφαση για ρύθμιση διαμόρφωσης μέσω εντολών shell κατά τη διάρκεια εκτέλεσης."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Απόφαση για ρύθμιση διαμόρφωσης μέσω απομακρυσμένου pull κατά τη διάρκεια εκτέλεσης."
+
 [main]
     [main.DatabaseConnectionError]
     other = "Αδυναμία σύνδεσης στη βάση δεδομένων {{.DatabaseStr}}. Σφάλμα: `{{.ErrInfo}}`."
@@ -52,10 +66,11 @@
     other = "Αδυναμία ανάγνωσης διαμόρφωσης. Λόγος: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
     other = "Αποτυχία επαναφόρτωσης αρχείου διαμόρφωσης! Η τρέχουσα διαμόρφωση δεν αλλάζει. Λόγος: <{{.ErrInfo}}>."
-    [configs.UnmarshalingConfigurationFailure]
+    [configs.UnmarshallingConfigurationFailure]
     other = "Αδυναμία ανάλυσης αρχείου διαμόρφωσης. Λόγος: <{{.ErrInfo}}>."
 
 [services]
+    # SSH
     [services.SSHversionWarn]
     other = "Αδυναμία δημιουργίας 3 τυχαίων byte. Επιστρέφεται προεπιλεγμένη τιμή για την έκδοση SSH."
     [services.SSHWriteResponseError]
@@ -78,6 +93,7 @@
     other = "Δεν είναι δυνατή η χρήση του καθορισμένου πιστοποιητικού <{{.Signer}}> για την εκτέλεση υπογραφής κατά τις αλληλεπιδράσεις του πρωτοκόλλου SSH."
     [services.SSHQuitInfo]
     other = "Ο διακομιστής SSH τερμάτισε τη λειτουργία του."
+    # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "Ο διακομιστής NTP έλαβε ένα αίτημα ερωτήματος χρόνου μήκους <{{.Len}}> από <{{.IP}}>."
     [services.NTPQuitInfo]
