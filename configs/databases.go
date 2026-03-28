@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,6 +24,8 @@ const (
 	UnkSQL
 )
 
+// GuessAndDetermine casts the type of db(interface{}) to the knowns
+// and return the iota-type representation of SQL.
 func GuessAndDetermine(db any) int {
 	switch db.(type) {
 	case *gorm.DB:
@@ -67,16 +70,17 @@ func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
 		dbAddr := dbConfig.Addr
 		if net.ParseIP(dbAddr) == nil && strings.ToLower(dbAddr) != "localhost" {
 			payload := GetLocalizedMsg(
-
 				"configs.InvalidDatabaseAddrError",
 				map[string]any{"DatabaseAddr": dbAddr},
 			)
-			Logger.Fatal(payload)
+			Logger.Error(payload)
 			return nil, "", errors.New(payload)
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		mongoClient, err := mongo.Connect(
-			context.Background(),
-			// TODO: There are multiple ways to connect to standalone database
+			ctx,
+			// TODO: check configuration and add TLS.
 			mongoopts.Client().ApplyURI(fmt.Sprintf(
 				"mongodb://%s:%s@%s:%d",
 				// could not include `: / ? # [ ] @` in admin_name or password,
@@ -86,7 +90,18 @@ func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
 				dbAddr, dbConfig.Port,
 			)),
 		)
-		return mongoClient, "mongodb", err
+		if err != nil {
+			Logger.Error(err.Error())
+			return nil, "", err
+		}
+		err = mongoClient.Ping(ctx, nil)
+		if err != nil {
+			_ = mongoClient.Disconnect(ctx)
+			Logger.Error(err.Error())
+			return nil, "", err
+		}
+		db := mongoClient.Database("b0gus")
+		return db, "mongodb", err
 	default:
 		payload := GetLocalizedMsg(
 			"configs.UnsupportDatabaseTypeError",
@@ -122,17 +137,24 @@ func (r *RuntimeDB) CreateTable(structures ...DBstruct) error {
 		return r.db.(*gorm.DB).AutoMigrate(castInterfaceArr...)
 	/* won't provide an interface for Redis due to the infeasibility to maintain primary key */
 	case MongodbSQL:
+		db, ok := r.db.(*mongo.Database)
+		if !ok {
+			Logger.Error("invalid mongodb client!")
+			return errors.New("invalid mongodb client")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		for _, tabStruct := range structures {
-			r.db.(*mongo.Database).Collection(tabStruct.TableName())
+			err := db.CreateCollection(ctx, tabStruct.TableName())
+			if err != nil && !mongo.IsDuplicateKeyError(err) {
+				Logger.Error(err.Error())
+			}
 		}
 		return nil
 	default:
 		unsupportedMsg := GetLocalizedMsg(
-
 			"databases.DatabaseTypeError",
-			map[string]any{
-				"Database": r.db,
-			},
+			map[string]any{"Database": r.db},
 		)
 		return errors.New(unsupportedMsg)
 	}
@@ -143,6 +165,12 @@ type DBstruct interface {
 	// creating or updating an item
 	HasCounter() bool
 
+	// CreatedTSname will return the name of createdTimestamp if possible.
+	CreatedTSname() string
+
+	// UpdatedTSname will return the name of updatedTimestamp if possible.
+	UpdatedTSname() string
+
 	// TableName gets the name of table
 	TableName() string
 
@@ -152,11 +180,8 @@ type DBstruct interface {
 	// GetPrimKey is designed for Foreign key. As the input value of setPrimKey
 	GetPrimKey() int64
 
-	// SetOuterPrimKey maintains relation tables.
-	// As it shown, it will set 2-Dimension (i, j) coordinate in sequence.
-	// But there might be some relation table having multiple foreign keys from diverse outer tables
-	// So the in-parameter is kept as arbitrary number of int64, which is `...int64`.
-	SetOuterPrimKey(...int64)
+	// PrimKeyName will return the name of primary key
+	PrimKeyName() string
 }
 
 // won't provide querying interface, privileges should be kept for O&M
@@ -173,52 +198,70 @@ type DBhandler interface {
 
 	// CreateOrUpdateItemsInSeq executes multiple inserting /updating tasks
 	CreateOrUpdateItemsInSeq(...DBstruct) error
-
-	// SetupContext form the context and returns function
-	// for executing in current context roughly for foreign fields
-	SetupContext() func(...DBstruct)
 }
 
-func (r *RuntimeDB) QueryItem(condItem DBstruct) DBstruct {
-	// TODO
-	return nil
-}
-
-func (r *RuntimeDB) CreateOrUpdateItem(
-	cond, goal DBstruct,
-) error {
+func (r *RuntimeDB) CreateOrUpdateItem(cond, goal DBstruct) error {
 	// counter or foreign key should be maintained by assignments
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
-
 	switch GuessAndDetermine(r.db) {
 	case GormSQL:
 		var gormDB = r.db.(*gorm.DB)
-		gormDB.Where(cond).FirstOrCreate(goal)
 		if goal.HasCounter() {
-			goal.UpdateCounter()
-			gormDB.Where(goal).Updates(goal)
+			err := gormDB.Where(cond).Find(goal).Error
+			if err == nil {
+				goal.UpdateCounter()
+				gormDB.Save(goal)
+				return nil
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				Logger.Warn(err.Error())
+				return err
+			}
 		}
+		t := goal.UpdatedTSname()
+		if len(t) > 0 {
+			gormDB.Where(cond).
+				Assign(map[string]interface{}{t: time.Now()}).
+				FirstOrCreate(goal, cond)
+		} else {
+			gormDB.Where(cond).FirstOrCreate(goal, cond)
+		}
+
 	case MongodbSQL:
+		// [TODO] yet to be tested
 		// MongoDB is like a JSON manager
 		// collection for specific name and the interface is for struct
-		update := bson.M{ // changed position
-			"$set": goal,
-		}
+		update := bson.M{"$set": goal}
 		var mongoDB = r.db.(*mongo.Database)
-		mongoDB.Collection(cond.TableName()).
-			FindOneAndUpdate(context.Background(), cond, update)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		currRes := mongoDB.Collection(cond.TableName()).FindOne(ctx, cond)
+		if currRes.Err() != nil && !errors.Is(currRes.Err(), mongo.ErrNoDocuments) {
+			Logger.Error(currRes.Err().Error())
+			return currRes.Err()
+		} else if currRes.Err() == nil {
+			// update here
+			_, err := mongoDB.Collection(goal.TableName()).UpdateOne(ctx, cond, update)
+			return err
+		}
+		_, err := currRes.Raw()
+		if err == nil {
+			err := currRes.Decode(&goal)
+			if err != nil {
+				Logger.Error(err.Error())
+				return currRes.Err() // return here because we do not get the value of counter
+			}
+			// keep doing if nil.
+		}
 		if goal.HasCounter() {
 			goal.UpdateCounter()
-			mongoDB.Collection(cond.TableName()).
-				FindOneAndUpdate(context.Background(), cond, update)
 		}
+		_, err = mongoDB.Collection(goal.TableName()).InsertOne(ctx, goal)
+		return err
 	default:
 		unsupportedMsg := GetLocalizedMsg(
 			"databases.DatabaseTypeError",
-			map[string]any{
-				"Database": r.db,
-			},
+			map[string]any{"Database": r.db},
 		)
 		return errors.New(unsupportedMsg)
 	}
@@ -232,16 +275,16 @@ func (r *RuntimeDB) AlterDatabaseHandler(dstDB any) {
 	case GormSQL:
 		r.db = dstDB
 	case MongodbSQL:
-		// TODO and to evaluate.
-		_ = r.db.(*mongo.Client).Disconnect(context.Background())
+		casted, ok := r.db.(*mongo.Client)
+		if ok {
+			_ = casted.Disconnect(context.Background())
+		}
 		r.db = dstDB
 	default:
 		// Won't change but show an error if such condition is satisfied
 		unsupportedMsg := GetLocalizedMsg(
 			"databases.SQLtypeError",
-			map[string]any{
-				"Database": r.db,
-			},
+			map[string]any{"Database": r.db},
 		)
 		Logger.Error(unsupportedMsg)
 	}
@@ -263,33 +306,4 @@ func (r *RuntimeDB) CreateOrUpdateItemsInSeq(
 		}
 	}
 	return err
-}
-
-// SetupContext will return relation structure if needed.
-func (r *RuntimeDB) SetupContext(targetItems ...DBstruct) {
-	// Consider how to maintain context for databases...
-	_ = r.CreateOrUpdateItemsInSeq(targetItems...)
-	// we need a map structure to check this case
-	// some table have primary key but not use as foreign key
-	// O(n^2) brutal iteration.
-	for i := range len(targetItems) {
-		for j := i + 1; j < len(targetItems); j++ {
-			// Firstly, access corresponding relation.
-			item, jtem := targetItems[i], targetItems[j]
-			if item.TableName() > jtem.TableName() {
-				item, jtem = jtem, item
-			} // In dictionary Order
-			relationTab, ok := RecRelationMap[item.TableName()][jtem.TableName()]
-			if !ok {
-				continue
-			}
-			castTab, ok := relationTab.(DBstruct)
-			if !ok {
-				continue
-			}
-			// Maintain item.PrimaryKey and jtem.PrimaryKey
-			castTab.SetOuterPrimKey([]int64{item.GetPrimKey(), jtem.GetPrimKey()}...)
-			_ = r.CreateOrUpdateItem(castTab, castTab)
-		}
-	}
 }

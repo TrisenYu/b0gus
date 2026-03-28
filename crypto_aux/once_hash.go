@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"strings"
 
 	"github.com/emmansun/gmsm/sm3"
 	"golang.org/x/crypto/blake2b"
@@ -65,4 +66,36 @@ func SHA384OnceDigest(payload, key []byte) []byte {
 func SHA512OnceDigest(payload, key []byte) []byte {
 	d := sha512.Sum512(append(key, payload...))
 	return d[:]
+}
+
+type OnceHashWithPadding func([]byte, []byte) []byte
+
+func OnceHashByChoice(hashName string) OnceHashWithPadding {
+	hashName = strings.ToLower(hashName)
+	switch hashName {
+	case "blake256":
+		return Blake256OnceDigest
+	case "blake2s":
+		return Blake2sOnceDigest
+	case "blake384":
+		return Blake384OnceDigest
+	case "blake512":
+		return Blake512OnceDigest
+	case "md5": // not recommended.
+		return MD5OnceDigest
+	case "sha1":
+		return SHA1OnceDigest
+	case "sha224":
+		return SHA224OnceDigest
+	case "sha256":
+		return SHA256OnceDigest
+	case "sha384":
+		return SHA384OnceDigest
+	case "sha512":
+		return SHA512OnceDigest
+	case "sm3":
+		return SM3OnceDigest
+	default: // at least not nil.
+		return SHA256OnceDigest
+	}
 }

@@ -10,15 +10,21 @@ import (
 )
 
 // services structures' definitions
-
-type SSHconfig struct {
-	LoginBanner       string `toml:"login_banner" mapstructure:"login_banner"`
-	ResponseType      string `toml:"response_type" mapstructure:"response_type"`
+type genericConf struct {
 	MaxClientNum      uint32 `toml:"max_client_num" mapstructure:"max_client_num"`
-	MaxAuthTries      uint32 `toml:"max_auth_tries" mapstructure:"max_auth_tries"`
 	ClientConnTimeout uint32 `toml:"client_conn_timeout" mapstructure:"client_conn_timeout"`
 	ListenPort        uint16 `toml:"listen_port" mapstructure:"listen_port"`
-	PermitLogin       bool   `toml:"permit_login" mapstructure:"permit_login"`
+}
+type SSHconfig struct {
+	genericConf   `toml:",inline" mapstructure:",squash"`
+	LoginBanner   string `toml:"login_banner" mapstructure:"login_banner"`
+	ResponseType  string `toml:"response_type" mapstructure:"response_type"`
+	HashAlgorithm string `toml:"hash_algorithm" mapstructure:"hash_algorithm"`
+	PemName       string `toml:"pem_name" mapstructure:"pem_name"`
+	PemType       string `toml:"pem_type" mapstructure:"pem_type"`
+	PemLen        uint64 `toml:"pem_len" mapstructure:"pem_len"`
+	MaxAuthTries  uint32 `toml:"max_auth_tries" mapstructure:"max_auth_tries"`
+	PermitLogin   bool   `toml:"permit_login" mapstructure:"permit_login"`
 
 	fn func(conf *SSHconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
@@ -31,36 +37,36 @@ type SSHconfig struct {
 //}
 
 type NTPconfig struct {
-	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
+	genericConf `toml:",inline" mapstructure:",squash"`
+	ListenAddr  string `toml:"listen_addr" mapstructure:"listen_addr"`
 	// CurrZone change the real zone to the fake one for specific effects
-	CurrZone   string `toml:"curr_zone" mapstructure:"curr_zone"`
-	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
+	CurrZone string `toml:"curr_zone" mapstructure:"curr_zone"`
 
 	fn func(conf *NTPconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
 
 type DNSconfig struct {
-	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
-	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
+	genericConf `toml:",inline" mapstructure:",squash"`
+	ListenAddr  string `toml:"listen_addr" mapstructure:"listen_addr"`
+	DefaultTTL  uint32 `toml:"default_ttl" mapstructure:"default_ttl"`
 
 	fn func(conf *DNSconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
 
 type SMTPconfig struct {
+	genericConf      `toml:",inline" mapstructure:",squash"`
 	ListenAddr       string `toml:"listen_addr" mapstructure:"listen_addr"`
 	LocalTLSCertPath string `toml:"local_tls_cert_path" mapstructure:"local_tls_cert_path"`
 	LocalTLSKeyPath  string `toml:"local_tls_key_path" mapstructure:"local_tls_key_path"`
 	LocalSaveDir     string `toml:"local_save_dir" mapstructure:"local_save_dir"`
-	MaxClientNum     uint32 `toml:"max_client_num" mapstructure:"max_client_num"`
-	ListenPort       uint16 `toml:"listen_port" mapstructure:"listen_port"`
 	AuthRequired     bool   `toml:"auth_required" mapstructure:"auth_required"`
 
 	fn func(conf *SMTPconfig, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
 
 type FakeDBconf struct {
-	ListenAddr string `toml:"listen_addr" mapstructure:"listen_addr"`
-	ListenPort uint16 `toml:"listen_port" mapstructure:"listen_port"`
+	genericConf `toml:",inline" mapstructure:",squash"`
+	ListenAddr  string `toml:"listen_addr" mapstructure:"listen_addr"`
 
 	fn func(conf *FakeDBconf, scc *ServConcurrentCtrl, db *RuntimeDB, args ...any)
 }
@@ -82,18 +88,18 @@ type RecDBConfig struct {
 type LocalConfig struct {
 	// ServerConfig should refer to the toml config defined in configs/config.toml
 	ServerConfig struct {
-		PemName  string `toml:"pem_name" mapstructure:"pem_name"`
-		PemType  string `toml:"pem_type" mapstructure:"pem_type"`
-		PemLen   uint64 `toml:"pem_len" mapstructure:"pem_len"`
+		//PemName  string `toml:"pem_name" mapstructure:"pem_name"`
+		//PemType  string `toml:"pem_type" mapstructure:"pem_type"`
+		//PemLen   uint64 `toml:"pem_len" mapstructure:"pem_len"`
 		Language string `toml:"language" mapstructure:"language"`
 
 		// fields defined for services
 		// The reason why to use struct name as ServerConfig's member name is
 		// the iteration in `services_man.go` upon struct for data/control path needs refect
 
-		SSHconfig SSHconfig `toml:"ssh" mapstructure:"ssh"`
 		// TelnetConfig TelnetConfig `toml:"telnet" mapstructure:"telnet"`
 
+		SSHconfig  SSHconfig  `toml:"ssh" mapstructure:"ssh"`
 		NTPconfig  NTPconfig  `toml:"ntp"  mapstructure:"ntp"`
 		DNSconfig  DNSconfig  `toml:"dns" mapstructure:"dns"`
 		SMTPconfig SMTPconfig `toml:"smtp" mapstructure:"smtp"`
@@ -176,10 +182,9 @@ func (s SMTPconfig) InvokeRunner(
 	s.fn(&s, scc, db, args...)
 }
 
-func (s *SSHconfig) RegisterRunner(fn AbsServFunc[SSHconfig]) { s.fn = fn }
-
 // func (t *TelnetConfig) RegisterRunner(fn AbsServFunc[TelnetConfig]) { t.fn = fn }
 
+func (s *SSHconfig) RegisterRunner(fn AbsServFunc[SSHconfig])   { s.fn = fn }
 func (n *NTPconfig) RegisterRunner(fn AbsServFunc[NTPconfig])   { n.fn = fn }
 func (d *DNSconfig) RegisterRunner(fn AbsServFunc[DNSconfig])   { d.fn = fn }
 func (s *SMTPconfig) RegisterRunner(fn AbsServFunc[SMTPconfig]) { s.fn = fn }
@@ -209,17 +214,18 @@ func CheckSSHconfig(sshConf *SSHconfig) bool {
 //}
 
 func CheckNTPconfig(ntpConf *NTPconfig) bool {
-	return ntpConf != nil && ntpConf.ListenAddr != "" &&
+	return ntpConf != nil && len(ntpConf.ListenAddr) != 0 &&
 		ntpConf.ListenPort > 1024
 }
 
 func CheckDNSconfig(dnsConf *DNSconfig) bool {
-	return dnsConf != nil && dnsConf.ListenAddr != "" &&
+	return dnsConf != nil && len(dnsConf.ListenAddr) != 0 &&
 		dnsConf.ListenPort > 1024
 }
 
 func CheckSMTPconfig(smtpConf *SMTPconfig) bool {
-	return smtpConf != nil && smtpConf.ListenAddr != "" && smtpConf.ListenPort > 1024
+	return smtpConf != nil && len(smtpConf.ListenAddr) != 0 &&
+		smtpConf.ListenPort > 1024
 }
 
 // GenericConfChecker

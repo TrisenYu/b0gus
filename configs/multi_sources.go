@@ -4,12 +4,16 @@ package configs
 
 import (
 	"context"
-	"crypto/tls"
-	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+)
+
+var (
+	currConfig LocalConfig
+	tmpHotConf = &LocalConfig{}
 )
 
 // LoadDefaultConfig will load configuration from LocalConfigPathAsStr,
@@ -81,6 +85,7 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 	for {
 		select {
 		case <-ctx.Done():
+			// we don't have to listen at current time due to cancel function is called.
 			return
 		case event, ok := <-watcher.Events:
 			if !ok || filepath.Base(event.Name) != fileName {
@@ -101,37 +106,18 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
-				payload := fmt.Sprintf(
-					"errors happened on file watcher! ErrInfo: %v", err,
-				)
-				Logger.Error(payload)
+				var sb strings.Builder
+				sb.WriteString("errors happened on file watcher! ErrInfo: ")
+				sb.WriteString(err.Error())
+				Logger.Error(sb.String())
 			}
 			continue
-		// TODO: updates from networking-end
+			// TODO: updates from networking-end and cli-shell end.
 		}
 	}
 }
 
 // network updates should enable augmented authentication
-
-func PullUpdatesFromRemote() {
-	// listen at local port and obey some formal syntax/private protocol
-	// during the runtime, the monitored port might be altered to another port
-	// so the session
-
-	// notice that this interface will provide distributed communication ability
-	// so encryption is required
-
-	// As an TLS client or server?
-	tlsConn, err := tls.Dial("tcp", RemotePullSource, &tls.Config{})
-	if err != nil || tlsConn == nil {
-		// can not connect to remote pulling source.
-		return
-	}
-	// TODO what if the connection sends a broken configuration?
-	// tlsConn.Read()
-	_ = tlsConn.Close()
-}
 
 func DetectConfigUpdates(ctx context.Context, filepath string) {
 	// crying stack

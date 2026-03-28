@@ -1,5 +1,7 @@
 package services
 
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+
 import (
 	"context"
 	"path/filepath"
@@ -36,7 +38,8 @@ func SetSpecConfViaTag(tag string, conf any) configs.AbsServType {
 		if !ok || !configs.GenericConfChecker(conf, configs.CheckDNSconfig) {
 			return nil
 		}
-		res.RegisterRunner(nil)
+		var d DNSserverConf
+		res.RegisterRunner(d.Run)
 		return res
 	case "SMTPconfig":
 		res, ok := conf.(configs.SMTPconfig)
@@ -57,11 +60,12 @@ func GenericArgs(tag string, servConf *configs.LocalConfig) any {
 	case "SSHconfig":
 		pemPath, _ := filepath.Abs(filepath.Join(
 			filepath.Dir(configs.LocalConfigPathAsStr),
-			servConf.ServerConfig.PemName,
+			// TODO: change the literal name and corresponding invocation path
+			servConf.ServerConfig.SSHconfig.PemName,
 		))
 		return crypto_aux.LoadOrCreateSSHpem(
-			pemPath, servConf.ServerConfig.PemType,
-			servConf.ServerConfig.PemLen,
+			pemPath, servConf.ServerConfig.SSHconfig.PemType,
+			servConf.ServerConfig.SSHconfig.PemLen,
 		)
 	default:
 		return nil
@@ -87,13 +91,9 @@ func Brancher(
 		}
 	}()
 
-	// TODO: iterate struct and create channel but not explicitly define it
 	resMap := misc_utils.TurnStruct2Map(serverConf.ServerConfig)
 	for k := range resMap {
 		switch k {
-		case "PemName":
-		case "PemType":
-		case "PemLen":
 		case "Language":
 		case "RecDBConfig":
 		default:
@@ -106,7 +106,7 @@ func Brancher(
 	stuck:
 		select {
 		case <-needShutdown:
-			cancel() /* ctx.cancel() used as a global shutdown convention */
+			cancel() // ctx.cancel() used as a global shutdown convention
 			for ex := range servAliveMap {
 				servAliveMap[ex] = false
 			}
@@ -123,7 +123,6 @@ func Brancher(
 				currConf, _ := misc_utils.GetFieldValueByName(
 					currConfig.ServerConfig, servTag,
 				) // interface{}/any needs explicitly unwrapping by enforced type convertion,
-
 				// we only have tag-strings
 				decision := SetSpecConfViaTag(servTag, currConf)
 				aboutToRun := func() {
@@ -155,6 +154,9 @@ func Brancher(
 	}()
 
 	for k := range chSlots {
+		if len(k) == 0 {
+			continue
+		}
 		currConf, err := misc_utils.GetFieldValueByName(serverConf.ServerConfig, k)
 		if err != nil {
 			continue
@@ -164,6 +166,8 @@ func Brancher(
 			continue
 		}
 		servAliveMap[k] = true
+		// TODO: Remote Procedure Call, design for mitigating the pressure on current computer
+		// 	when its computing capacity is not robust.
 		wg.Go(func() {
 			decision.InvokeRunner(
 				&configs.ServConcurrentCtrl{

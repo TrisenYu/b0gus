@@ -17,6 +17,7 @@ NS: 'ns';
 
 /* columns/values type */
 TEXT:       'text';
+BYTES: 'bytes';
 INTEGER: 'integer';
 
 /* strict mode */

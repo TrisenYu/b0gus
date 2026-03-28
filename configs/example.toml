@@ -7,9 +7,6 @@
 
 [server_config]
 # Will store pem in the same `configs` directory
-pem_name = "b0gus-host.pem"
-pem_type = "ecdh"
-pem_len = 512
 language = "en"
 
 # It might be identical to run this program in port 22 as a b0gus ssh server
@@ -18,7 +15,9 @@ language = "en"
 [server_config.ssh]
     listen_addr = "localhost"
     listen_port = 2333
-
+    pem_name = "b0gus-host.pem"
+    pem_type = "ecdh"
+    pem_len = 512
     ## Strategy on ssh server configuration
     max_client_num = 32
     client_conn_timeout = 180 # time-unit is second
@@ -35,7 +34,6 @@ language = "en"
     response_type = "repeater"
     # when selecting `llm` for [response_type], then these fields are required.
     llm_type = ""
-
 
     # banner for displaying after successfully logining into system
     login_banner = ''''''
@@ -88,15 +86,6 @@ language = "en"
 #    listen_addr = "localhost"
 #    listen_port = 23333
 
-[server_config.dns]
-    listen_addr = "localhost"
-    listen_port = 5321
-
-[server_config.ftp]
-    listen_addr = "localhost"
-    ctrl_port = 21
-    data_port = 20
-
 [server_config.smtp]
     listen_addr = "127.0.0.1"
     listen_port = 2555
@@ -106,6 +95,10 @@ language = "en"
     local_save_dir = ""
     max_client_num = 32
 
+[server_config.dns]
+    listen_addr = "127.0.0.1"
+    listen_port = 2053
+    max_client_num = 32
 
 [server_config.fake_db]
     # database as honeypot

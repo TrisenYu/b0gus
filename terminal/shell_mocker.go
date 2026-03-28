@@ -175,7 +175,7 @@ func (e *LineEditor) Readline(prompt string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		// TODO: complete all keystrokes
+		// TODO: complete all keystrokes and provide hook for them if possible
 		switch b {
 		case '\r', '\n':
 			_, _ = fmt.Fprint(e.writer, "\r\n")
@@ -190,7 +190,7 @@ func (e *LineEditor) Readline(prompt string) (string, error) {
 			_, _ = fmt.Fprint(e.writer, "^C\r\n")
 			return "", nil
 		case 0x04: // ctrl + d
-			fallthrough
+			continue
 		case 0x11: // ctrl + q
 			return "exit", io.EOF
 
@@ -338,18 +338,19 @@ func checkQuoteState(hold rune, s string) (bool, string) {
 }
 
 type Shell struct {
-	editor         *LineEditor
-	writer         io.Writer
-	cannotSend     atomic.Bool
-	wg             sync.WaitGroup
-	opts           ShellOptions
-	ctxTimeout     context.Context
-	currResp       chan string // NOTE: must use revoke() to close the channel.
-	currCmd        chan *ShellSyncObj
-	tmpDanglingBuf string
-	quoted         string
-	prompt         string
-	isContinued    bool
+	writer     io.Writer
+	cannotSend atomic.Bool
+	wg         sync.WaitGroup
+	ctxTimeout context.Context
+	editor     *LineEditor
+	// opts            ShellOptions
+	enableCmdChan   bool
+	currResp        chan string // NOTE: must use revoke() to close the channel.
+	currCmd         chan *ShellSyncObj
+	tmpDanglingBuf  string
+	quoted          string
+	prompt          string
+	shouldContinued bool
 }
 
 // ShellSyncObj not only attaches the generated content but also the Ctx for timeout control.
@@ -378,17 +379,15 @@ func backslashSeqChecker(x string) int {
 	return cnt & 1
 }
 
+// Run todo description
 func (s *Shell) Run() error {
 	s.cannotSend.Store(false)
 	defer func() {
 		s.editor.RestoreTermState()
 		s.revoke()
 	}()
-	// we handle backslash in the loop...
-	// suppose the line editor can handle one line at every time.
-	// In order to properly
 	for {
-		if !s.isContinued && len(s.quoted) == 0 {
+		if !s.shouldContinued && len(s.quoted) == 0 {
 			s.prompt = defaultPrompt
 		}
 		currLine, err := s.editor.Readline(s.prompt)
@@ -402,7 +401,6 @@ func (s *Shell) Run() error {
 			return fmt.Errorf("read input failed: %v", err)
 		}
 
-		// TODO: determine whether to maintain multiple line for business protocol.
 		currLine = strings.TrimSpace(currLine)
 		var (
 			isUnclosed bool
@@ -410,6 +408,10 @@ func (s *Shell) Run() error {
 			choice     rune = 0
 			lenBuf          = len(currLine)
 		)
+
+		// TODO: determine whether to maintain multiple line for detailed, business protocol.
+		// because the line editor can handle one line at every time,
+		// we have to handle backslash in the loop...
 		if len(s.quoted) > 0 {
 			choice = rune(s.quoted[0])
 		}
@@ -417,7 +419,7 @@ func (s *Shell) Run() error {
 		if isUnclosed {
 			s.quoted = quoteType
 			s.prompt = ColorWarn + "quote " + quoteType + "> " + ColorReset
-			s.isContinued = true
+			s.shouldContinued = true
 		} else if len(s.quoted) > 0 && !isUnclosed {
 			s.quoted = ""
 		}
@@ -433,20 +435,20 @@ func (s *Shell) Run() error {
 						s.tmpDanglingBuf+currLine[:lenBuf-1]+
 						ColorReset+"\r\n",
 				)
-				s.isContinued = false
-				s.quoted = ""
-				s.tmpDanglingBuf = "" // remember to flush all
+				s.shouldContinued = false
+				s.quoted, s.tmpDanglingBuf = "", ""
+				// flush all
 				continue
 			}
-			s.isContinued = test == 1
+			s.shouldContinued = test == 1
 			currLine = currLine[:lenBuf-1]
 		} else {
 			if len(s.quoted) == 0 {
-				s.isContinued = false
+				s.shouldContinued = false
 			}
 		}
 
-		if s.isContinued { // only odd backslash
+		if s.shouldContinued { // only odd backslash
 			s.tmpDanglingBuf += currLine
 			if len(s.quoted) == 0 {
 				s.prompt = ColorWarn + "> " + ColorReset
@@ -464,6 +466,16 @@ func (s *Shell) Run() error {
 		if len(s.tmpDanglingBuf) <= len("logout") && quitSet.Contains(strings.ToLower(s.tmpDanglingBuf)) {
 			_, _ = fmt.Fprint(s.writer, ColorInfo+"bye"+ColorReset+"\r\n")
 			return nil
+		}
+		if !s.enableCmdChan {
+			// Enhance-This: no better idea...
+			_, _ = fmt.Fprintf(
+				s.writer,
+				ColorInfo+"sh: command not found: %s"+ColorReset+"\r\n",
+				s.tmpDanglingBuf,
+			)
+			s.tmpDanglingBuf = ""
+			continue
 		}
 		ctxTimeout, cancel := context.WithCancel(context.Background())
 		s.currCmd <- &ShellSyncObj{Ctx: ctxTimeout, Payload: s.tmpDanglingBuf}
@@ -487,16 +499,37 @@ func (s *Shell) Run() error {
 // SetCurrResp will check whether the shell is terminated,
 // and then use WaitGroup to wait remaining response
 func (s *Shell) SetCurrResp(resp *ShellSyncObj) {
-	if resp == nil || s.cannotSend.Load() {
+	if resp == nil || !s.enableCmdChan || s.cannotSend.Load() {
 		return
 	}
 	s.wg.Go(func() {
 		select {
 		case s.currResp <- resp.Payload:
 		case <-resp.Ctx.Done():
+			// When canceling the context, then the resp.Payload can't be pushed into the channel s.currResp.
+			// Therefore, next round still keeps synchronous.
 		}
 	})
 }
+
+// a reading try from a closed channel in go1.26 will finally get empty string.
+//	package main
+//	import "fmt"
+//	func main() {
+//		ch := make(chan string)
+//		go func() { ch <- "hello" } ()
+//		val, ok := <- ch
+//		fmt.Println(val, len(val), ok)
+//		close(ch)
+//		val, ok = <- ch
+//		fmt.Println(val, len(val), ok)
+//		val, ok = <- ch
+//		fmt.Println(val, len(val), ok)
+//	}
+//	> hello 5 true
+//	>  0 false
+//	>  0 false
+//
 
 // revoke is used to close the channel.
 func (s *Shell) revoke() {
@@ -507,19 +540,22 @@ func (s *Shell) revoke() {
 }
 
 func (s *Shell) GetCurrCmd() *ShellSyncObj {
-	res := <-s.currCmd
-	return res
+	if !s.enableCmdChan {
+		return nil
+	}
+	return <-s.currCmd
 }
 
 // NewShell creates a shell for abstract RW entities.
-func NewShell(r io.Reader, w io.Writer) *Shell {
+func NewShell(r io.Reader, w io.Writer, commandHook bool) *Shell {
 	return &Shell{
-		editor:         NewLineEditor(r, w),
-		writer:         w,
-		prompt:         defaultPrompt,
-		tmpDanglingBuf: "",
-		isContinued:    false,
-		currResp:       make(chan string),
-		currCmd:        make(chan *ShellSyncObj),
+		editor:          NewLineEditor(r, w),
+		writer:          w,
+		prompt:          defaultPrompt,
+		tmpDanglingBuf:  "",
+		shouldContinued: false,
+		currResp:        make(chan string),
+		currCmd:         make(chan *ShellSyncObj),
+		enableCmdChan:   commandHook,
 	}
 }

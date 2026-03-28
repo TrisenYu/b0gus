@@ -1,5 +1,6 @@
 package main
 
+// Last modified at 2026/03/22 星期日 15:06:46
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
 import (
@@ -18,6 +19,8 @@ var (
 	bogusConf    *configs.LocalConfig
 	versionStr   string
 	buildTimeStr string
+	hashValStr   string
+	builtByStr   string
 )
 
 func initConfFlags() {
@@ -55,37 +58,49 @@ func initConfFlags() {
 		&configs.PermitRemotePullInRuntime, "permit-remote-push", true,
 		configs.GetLocalizedMsg("meta_conf.PermitRemotePullInRuntime", nil),
 	)
-	// TODO: What can be put as its IP Address?
 	flag.StringVar(&configs.RemotePullSource, "remote-pull-source", ":65431", "")
 	// TODO: require compatibility on different operating systems
-	flag.StringVar(&configs.LocalRootCaCertAbsPath, "local-root-ca-cert-abs-path", "", "")
-	flag.StringVar(&configs.LocalRootCaKeyAbsPath, "local-root-ca-key-abs-path", "", "")
-	flag.StringVar(&configs.TrustedCertAbsPath, "trusted-ca-cert-abs-path", "", "")
+	flag.StringVar(
+		&configs.LocalRootCaCertAbsPath, "local-root-ca-cert-abs-path",
+		"./configs/root-ca.cert", "",
+	)
+	flag.StringVar(
+		&configs.LocalRootCaKeyAbsPath, "local-root-ca-key-abs-path",
+		"./configs/root-ca.key", "",
+	)
+	flag.StringVar(
+		&configs.TrustedCertAbsPath, "trusted-ca-cert-abs-path",
+		"", "",
+	)
 
 	flag.Parse()
 	if *showVersion {
-		fmt.Printf("B0gus Ver: %s\n", versionStr)
-		fmt.Printf("Build time: %s\n", buildTimeStr)
-		fmt.Printf("Curr ISA: %s\n", runtime.GOARCH)
-		fmt.Printf("Curr OS: %s\n", runtime.GOOS)
+		fmt.Printf("b0gus Version: %s-%s\n", versionStr, configs.BuildTypeStr)
+		fmt.Printf("Build Time:    %s\n", buildTimeStr)
+		fmt.Printf("Build Hash:    %s\n", hashValStr)
+		fmt.Printf("Builder Name:  %s\n", builtByStr)
+		fmt.Printf("Current ISA:   %s\n", runtime.GOARCH)
+		fmt.Printf("Current OS:    %s\n", runtime.GOOS)
 		os.Exit(0)
 	} else if bogusConf == nil {
-		configs.Logger.Fatal("unable to find setting up configuration!")
+		configs.Logger.Fatal("unable to set up configuration!")
 	}
 }
 
 /*-----------------------------------------------------------------------------------------------------
    Overview:
-  [shell cmd] + +-> record_database
-  	          | |
+                +-> recording database
+                |
   	local conf+-+                     +--> SSH                   (almost there)
-              | |       b0gus         |--> SMTP                  (basic shape)
+              | |        b0gus        |--> SMTP                  (basic shape)
    remote push+ +-> services manager -+--> FTP                   (draft)
-  	                                  |--> NTP                   (almost there)
-  	                                  |--> DNS                   (draft)
+  	          |                       |--> NTP                   (almost there)
+  [shell cmd] +                       |--> DNS                   (draft)
   	                                  |--> fake database         (not even a draft)
   	                                  +--> HTTP(s)               (not even a draft)
   	      							   ...
+                                       ^
+                                       TODO: decouple this layer from current computer by Secure RPC?
  *-----------------------------------------------------------------------------------------------------
  TO-Evaluate: configuration should not be located inside the environment where the program stays.
 	configuration can fetch from network or filled by an interactive shell.
@@ -98,8 +113,8 @@ func initConfFlags() {
 // The entry of b0gus.
 // configuration in `./configs/` should be properly set up before executing
 func main() {
-	defer func() { _ = configs.Logger.Sync() }()
 	initConfFlags()
+	defer func() { _ = configs.Logger.Sync() }()
 	db, dbStr, err := configs.SelectDatabaseBackend(
 		&bogusConf.ServerConfig.RecDBConfig,
 	)

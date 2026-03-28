@@ -5,6 +5,7 @@ package services
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -80,38 +81,20 @@ type SSHServConf struct {
 	serverListenerPtr *net.Listener // current listener on Addr:Port
 }
 
-// a reading try from a close channel in go1.26 will finally get empty string.
-//	package main
-//	import "fmt"
-//	func main() {
-//		ch := make(chan string)
-//		go func() { ch <- "hello" } ()
-//		val, ok := <- ch
-//		fmt.Println(val, len(val), ok)
-//		close(ch)
-//		val, ok = <- ch
-//		fmt.Println(val, len(val), ok)
-//		val, ok = <- ch
-//		fmt.Println(val, len(val), ok)
-//	}
-//	// hello 5 true
-//	//  0 false
-//	//  0 false
-//
-
 // cmdForwarding will create a mock shell for interaction
-func (s *SSHServConf) cmdForwarding(sshChan ssh.Channel) { // api_id uint64,
-	term := terminal.NewShell(sshChan, sshChan)
+func (s *SSHServConf) cmdForwarding(
+	sessionId uint64, sshChan ssh.Channel,
+) {
+	term := terminal.NewShell(sshChan, sshChan, true)
 	var shouldCease atomic.Bool
 	shouldCease.Store(false)
 
-	defer func() {
-		_ = sshChan.Close()
-	}()
+	defer func() { _ = sshChan.Close() }()
 	go func() {
 		err := term.Run()
 		defer shouldCease.Store(true)
 		if err == nil {
+			_ = sshChan.CloseWrite()
 			return
 		}
 		logInfo := configs.GetLocalizedMsg(
@@ -141,24 +124,24 @@ func (s *SSHServConf) cmdForwarding(sshChan ssh.Channel) { // api_id uint64,
 
 		case "empty":
 			go term.SetCurrResp(&terminal.ShellSyncObj{Ctx: currPayload.Ctx, Payload: ""})
+		case "sandbox":
+			// container as sandbox
+			// TODO
+			fallthrough
 		case "repeat":
 			fallthrough
 		default:
-			// ? what the hack
 			go term.SetCurrResp(currPayload)
 		}
 		cmdText := databases.CommandInfo{Cmd: currPayload.Payload}
 		_ = s.DbFd.CreateOrUpdateItem(&cmdText, &cmdText)
-		// cmd_record := databases.RemoteCommandRelation{
-		// 	Rid: int64(apiId),
-		// 	Cid: cmd_text_record.CommandId, // [TODO] ?
-		// }
-		// s.DbFd.CreateOrUpdateItem(cmd_record, &cmd_record)
+		tmp := &databases.RemoteCommandRelation{SessionId: int64(sessionId), Cid: cmdText.CommandId}
+		_ = s.DbFd.CreateOrUpdateItem(tmp, tmp)
 	}
 }
 
-func (s *SSHServConf) mockShellForRemote( // api_id uint64,
-	banner string,
+func (s *SSHServConf) mockShellForRemote(
+	sessionId uint64,
 	sshConn *ssh.ServerConn,
 	sshChan ssh.Channel,
 	reqs <-chan *ssh.Request,
@@ -169,12 +152,12 @@ func (s *SSHServConf) mockShellForRemote( // api_id uint64,
 		case "shell":
 			_ = req.Reply(true, nil)
 			welcomeMsg := fmt.Sprintf(
-				strings.ReplaceAll(banner, "\n", "\r\n")+"Last login: %s from %s\r\n",
+				strings.ReplaceAll(s.ConfOptions.LoginBanner, "\n", "\r\n")+"Last login: %s from %s\r\n",
 				time.Now().Format(time.ANSIC),
 				sshConn.RemoteAddr().String(),
 			)
 			_, _ = sshChan.Write([]byte(welcomeMsg))
-			go s.cmdForwarding(sshChan) // api_id,
+			go s.cmdForwarding(sessionId, sshChan)
 		default:
 			/*
 				just accept 'pty-req' and 'window-change' without any action
@@ -198,8 +181,7 @@ func (s *SSHServConf) mockShellForRemote( // api_id uint64,
 }
 
 func (s *SSHServConf) handleNewSSHchan(
-	// api_id uint64,
-	banner string,
+	sessionId uint64,
 	sshConn *ssh.ServerConn,
 	newChan ssh.NewChannel,
 ) {
@@ -224,16 +206,14 @@ func (s *SSHServConf) handleNewSSHchan(
 	}
 	// TODO: use configuration to determine which mode do we need.
 	//		1. talk with an LLM with tailored prompt
-	s.mockShellForRemote(banner, sshConn, sshChan, reqs)
+	s.mockShellForRemote(sessionId, sshConn, sshChan, reqs)
 }
 
 // TODO: Notice that the listener/connection setup phases of various
 // 	protocol are pretty similar, it will be much better to extract the commonness
 // 	from these functions and organize them as a generic function/interface
 
-func (s *SSHServConf) clientConnHandler(
-	conn net.Conn,
-) {
+func (s *SSHServConf) clientConnHandler(conn net.Conn) {
 	var (
 		maxNum            uint32
 		clientConnTimeout time.Duration
@@ -242,6 +222,7 @@ func (s *SSHServConf) clientConnHandler(
 	maxNum = s.ConfOptions.MaxClientNum
 	clientConnTimeout = time.Duration(s.ConfOptions.ClientConnTimeout) * time.Second
 	maxTryTimes := int(s.ConfOptions.MaxAuthTries)
+	hashAlg := crypto_aux.OnceHashByChoice(s.ConfOptions.HashAlgorithm)
 	s.configGuard.RUnlock()
 
 	if s.clientLimitor.Load() >= maxNum {
@@ -264,7 +245,10 @@ func (s *SSHServConf) clientConnHandler(
 		return
 	}
 	ip, port := misc_utils.IPAddrSplit(conn.RemoteAddr().String())
-	s.DbFd.SetupContext(
+	sessionID := binary.LittleEndian.Uint64(hashAlg(
+		[]byte(time.Now().String()), []byte(conn.RemoteAddr().String()),
+	)[:8])
+	_ = s.DbFd.CreateOrUpdateItemsInSeq(
 		&databases.AddrInfo{Ip: ip},
 		&databases.PortInfo{Port: int64(port)},
 	)
@@ -276,25 +260,30 @@ func (s *SSHServConf) clientConnHandler(
 		clientSshVersion := databases.SshVersionInfo{
 			Version: string(conn.ClientVersion()),
 		}
-		// I still don't think relation really matters here
-		// because the values are more important
 		_ = s.DbFd.CreateOrUpdateItemsInSeq(
-			&passwordRecord, &usernameRecord,
-			&clientSshVersion,
+			&passwordRecord, &usernameRecord, &clientSshVersion,
+		)
+		_ = s.DbFd.CreateOrUpdateItemsInSeq(
+			&databases.RemotePasswordRelation{SessionId: int64(sessionID), Pid: passwordRecord.PasswordId},
+			&databases.RemoteUsernameRelation{SessionId: int64(sessionID), Uid: usernameRecord.UsernameId},
+			&databases.RemoteSshverRelation{SessionId: int64(sessionID), Sid: clientSshVersion.Id},
 		)
 		return &ssh.Permissions{}, nil
 	}
 	pubkeyFunc := func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 		// Record public key in this function
+		keyBytes := key.Marshal()
 		pubkeyRecord := databases.PublickeyInfo{
-			PubFp: crypto_aux.Base64Deserialize(key.Marshal()),
+			PubFp: hashAlg(nil, keyBytes),
 		}
 		clientSshVersion := databases.SshVersionInfo{
 			Version: string(conn.ClientVersion()),
 		}
-		// TODO: look like we can not bypass this relation if relation has to be well managed.
-		// databases.RemoteInfo{}
 		_ = s.DbFd.CreateOrUpdateItemsInSeq(&pubkeyRecord, &clientSshVersion)
+		_ = s.DbFd.CreateOrUpdateItemsInSeq(
+			&databases.RemotePublickeyRelation{SessionId: int64(sessionID), Pid: pubkeyRecord.PubId},
+			&databases.RemoteSshverRelation{SessionId: int64(sessionID), Sid: clientSshVersion.Id},
+		)
 		return nil, fmt.Errorf("public key authentication is not allowed")
 	}
 
@@ -302,7 +291,7 @@ func (s *SSHServConf) clientConnHandler(
 		ServerVersion:     getRandomSSHVersion(),
 		PasswordCallback:  passwordFn,
 		PublicKeyCallback: pubkeyFunc,
-		NoClientAuth:      false, // request basic authentication
+		NoClientAuth:      false, // request for basic authentication
 		MaxAuthTries:      maxTryTimes,
 	}
 
@@ -325,21 +314,13 @@ func (s *SSHServConf) clientConnHandler(
 	/* reject all relay requests since all clients are untrusted */
 	go ssh.DiscardRequests(relayReqs)
 	for newChan := range chans {
-		s.configGuard.RLock()
-		permitLogin := s.ConfOptions.PermitLogin
-		loginBanner := s.ConfOptions.LoginBanner
-		s.configGuard.RUnlock()
-		if !permitLogin {
+		if !s.ConfOptions.PermitLogin {
 			_ = newChan.Reject(ssh.Prohibited, "Access Denied")
 			continue
 		}
-		go s.handleNewSSHchan(
-			// uint64(attacker_port_query_cond.Port),
-			loginBanner, sshConn, newChan,
-		)
+		go s.handleNewSSHchan(sessionID, sshConn, newChan)
 	}
 }
-
 
 func (s *SSHServConf) UpdateConfig(src *configs.SSHconfig) {
 	if !configs.CheckSSHconfig(src) {
@@ -513,7 +494,11 @@ func (s *SSHServConf) Run(
 	if len(args) != 1 {
 		// TODO: add an description for this.
 		return
+	} else if sshConfObj == nil {
+		configs.Logger.Error("empty configuration is provided")
+		return
 	}
+
 	hostKey, ok := args[0].(ssh.Signer)
 	if !ok {
 		payload := configs.GetLocalizedMsg(
@@ -533,7 +518,6 @@ func (s *SSHServConf) Run(
 		&databases.SshVersionInfo{},
 		&databases.CommandInfo{},
 		// extended relations
-		&databases.RemoteInfo{},
 		&databases.RemoteUsernameRelation{},
 		&databases.RemotePasswordRelation{},
 		&databases.RemotePublickeyRelation{},

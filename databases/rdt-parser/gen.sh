@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -e
 antlr4 | grep -in "antlr" &> /dev/null
-
 # shellcheck disable=SC2181
 if [ "$?" != 0 ]; then
     echo "require ANTLR Parser Generator in your system"
+    exit 1
+fi
+
+go version | grep -in "go" &> /dev/null
+# shellcheck disable=SC2181
+if [ "$?" != 0 ]; then
+    echo "require go in your system"
     exit 1
 fi
 
@@ -15,5 +21,5 @@ if [[ "$Lang" = "Go" ]]; then
     sed -i "s/package parser/package main/g" `grep "package parser" -rl . | grep -v "gen.*"`
 fi
 
-$(which go) generate
+go generate
 rm ./*.interp ./*.tokens

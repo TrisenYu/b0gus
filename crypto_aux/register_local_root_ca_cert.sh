@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 # SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
+# I don't think this certificates would help
+
 #### check for dependencies programs
 # shellcheck disable=SC3040
 set -o pipefail
@@ -35,7 +37,15 @@ fi
 if [ -z "$ENV_ORGANIZATION_UNIT_NAME" ]; then
     ENV_ORGANIZATION_UNIT_NAME="TGW Group"
 fi
-
+if [ -z "$ENV_COUNTRY_OR_ZONE_NAME" ]; then
+    ENV_COUNTRY_OR_ZONE_NAME="cn"
+fi
+if [ -z "$ENV_STATE_OR_PROVINCE_NAME" ]; then
+    ENV_STATE_OR_PROVINCE_NAME="Hubei"
+fi
+if [ -z "$ENV_LOCALITY_NAME" ]; then
+    ENV_LOCALITY_NAME="Wuhan"
+fi
 
 #### set up error-filters
 set -eu
@@ -87,9 +97,9 @@ commonName              = supplied
 emailAddress            = optional
 
 [ req_distinguished_name ]
-countryName                = cn
-stateOrProvinceName        = Hubei
-localityName               = Wuhan
+countryName                = $ENV_COUNTRY_OR_ZONE_NAME
+stateOrProvinceName        = $ENV_STATE_OR_PROVINCE_NAME
+localityName               = $ENV_LOCALITY_NAME
 organizationName           = $ENV_ORGANIZATION_NAME
 organizationalUnitName     = $ENV_ORGANIZATION_UNIT_NAME
 commonName                 = $ENV_COMMON_NAME
@@ -140,7 +150,7 @@ sudo -H --preserve-env sh -c "
     ln -s /usr/local/share/ca-certificates/$CERT_REL_PATH /etc/ssl/certs/$CERT_REL_PATH
     update-ca-certificates
 "
-echo ">>>> $CERT_REL_PATH is set into /usr/local/share/ca-certificates/"
+echo ">>>> $CERT_REL_PATH is also added to /usr/local/share/ca-certificates/"
 
 #### function may be useful
 clean_cert_suits() {

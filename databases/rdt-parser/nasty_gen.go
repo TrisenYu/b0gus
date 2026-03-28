@@ -1,4 +1,4 @@
-// / Last modified at 2026/02/11 星期三 22:25:54
+// Last modified at 2026/02/11 星期三 22:25:54
 package main
 
 import (
@@ -43,6 +43,8 @@ func resolveRDTtype(x string) string {
 		return "string"
 	case "integer":
 		return "int64"
+	case "bytes":
+		return "[]byte"
 	default:
 		return ""
 	}
@@ -235,10 +237,10 @@ func (f fieldArr) Swap(i, j int) {
 }
 
 var (
-	// Like a quine, will print itself to another source file.
-	foreignKeyMap = map[string][]string{}
-	outerFormMap  = map[string][]string{}
-	primKeyMap    = map[string]string{}
+	outerFormMap = map[string][]string{}
+	primKeyMap   = map[string]string{}
+	tsUpdater    = map[string]string{}
+	tsCreator    = map[string]string{}
 )
 
 // For host struct and guest struct, this function handles how to form
@@ -281,7 +283,6 @@ func fieldAttrForeignHandler(
 	}
 
 	(*res)[tabName] = append((*res)[tabName], extFieldInfo)
-	foreignKeyMap[tabName] = append(foreignKeyMap[tabName], fieldName)
 	outerFormMap[tabName] = append(outerFormMap[tabName], refTabName)
 	// TODO: relation set for package configs?
 	// it seems that we can iterate `foreignKeyMap` to complete such goal.
@@ -292,9 +293,10 @@ func fieldAttrForeignHandler(
 		(*res)[refTabName],
 		fieldRec{
 			// which points back to where the pointer starts
-			fmt.Sprintf("%s", extFieldName): &fieldInfo{
-				fmt.Sprintf("[]%s", tabName),
-				fmt.Sprintf("foreignKey:%s;", fieldName), "-", "-",
+			extFieldName: &fieldInfo{
+				strings.Join([]string{"[]", tabName}, ""),
+				strings.Join([]string{"foreignKey:", fieldName}, ""),
+				"-", "-",
 			},
 		},
 	)
@@ -339,27 +341,31 @@ func fieldAttrsHandler(
 				primKeyMap[tabName] = fieldName
 			}
 		} else if fieldAttr == "createtime" {
-			currField[fieldName].Gtag += "autoCreateTime:" +
-				timeUnitConvertor(maybeStore.(string)) + ";"
+			// currField[fieldName].Gtag += "autoCreateTime:" +
+			// 	timeUnitConvertor(maybeStore.(string)) + ";"
 			extFieldInfo := fieldRec{
 				fieldName + "CreateAt": &fieldInfo{
-					"time.Time", "",
-					snakeFieldName + "_create_at",
+					"time.Time",
+					"autoCreateTime:" + timeUnitConvertor(maybeStore.(string)) + ";",
+					snakeFieldName + "_create_at,omitempty",
 					snakeFieldName + "_create_at,omitempty",
 				},
 			}
+			tsCreator[tabName] = fieldName + "CreateAt"
 			(*res)[tabName] = append((*res)[tabName], extFieldInfo)
 		} else if fieldAttr == "updatetime" {
-			currField[fieldName].Gtag += "autoUpdateTime:" +
-				timeUnitConvertor(maybeStore.(string)) + ";"
+			// currField[fieldName].Gtag += "autoUpdateTime:" +
+			// 	timeUnitConvertor(maybeStore.(string)) + ";"
 
 			extFieldInfo := fieldRec{
 				fieldName + "UpdateAt": &fieldInfo{
-					"time.Time", "",
-					snakeFieldName + "_update_at",
+					"time.Time",
+					"autoUpdateTime:" + timeUnitConvertor(maybeStore.(string)) + ";",
+					snakeFieldName + "_update_at,omitempty",
 					snakeFieldName + "_update_at,omitempty",
 				},
 			}
+			tsUpdater[tabName] = fieldName + "UpdateAt"
 			(*res)[tabName] = append((*res)[tabName], extFieldInfo)
 		} else if fieldAttr == "counter" && !needCounter {
 			// only permit one counter in a field
@@ -377,7 +383,7 @@ func fieldAttrsHandler(
 			var extFieldInfo = fieldRec{
 				"CounterFor" + fieldName: &fieldInfo{
 					"uint64", fmt.Sprintf("default:%d", cntVal),
-					counterStr, counterStr + ",omitempty",
+					counterStr + ",omitempty", counterStr + ",omitempty",
 				},
 			}
 			(*res)[tabName] = append((*res)[tabName], extFieldInfo)
@@ -428,20 +434,27 @@ func FuncAux(
 	inCntSet mapset.Set,
 ) string {
 	tabName := fmt.Sprintf(
-		`func (*%s) TableName() string { return "%s"; }`+"\n",
+		`func (*%s) TableName() string { return "%s" }`+"\n",
 		structureName, structureName,
 	)
 	hasCnt := fmt.Sprintf(
-		`func (*%s) HasCounter() bool { return %s; }`+"\n",
+		`func (*%s) HasCounter() bool { return %s }`+"\n",
 		structureName,
 		strconv.FormatBool(inCntSet.Contains(structureName)),
 	)
 	// a relation usually requires outer primary key as its managed objects.
 	_, ok := primKeyMap[structureName]
-	var getPrimKey, setPrimKey string
+	var (
+		getPrimKey, PrimKeyName      string
+		UpdatedTsName, CreatedTsName string
+	)
 	if !ok {
 		getPrimKey = fmt.Sprintf(
 			"func (*%s) GetPrimKey() int64 { return -1 }\n",
+			structureName,
+		)
+		PrimKeyName = fmt.Sprintf(
+			"func (*%s) PrimKeyName() string { return \"\" }\n",
 			structureName,
 		)
 	} else {
@@ -449,29 +462,27 @@ func FuncAux(
 			"func (x *%s) GetPrimKey() int64 { return int64(x.%s) }\n",
 			structureName, primKeyMap[structureName],
 		)
-	}
-
-	if len(foreignKeyMap[structureName]) == 0 {
-		setPrimKey = fmt.Sprintf(
-			"func (x *%s) SetOuterPrimKey(...int64) { return }\n",
-			structureName,
+		PrimKeyName = fmt.Sprintf(
+			"func (*%s) PrimKeyName() string { return \"%s\" }\n",
+			structureName, primKeyMap[structureName],
 		)
+	}
+	_, ok = tsCreator[structureName]
+	if !ok {
+		CreatedTsName = fmt.Sprintf("func (*%s) CreatedTSname() string { return \"\"}\n", structureName)
 	} else {
-		setPrimKey = fmt.Sprintf(
-			"func (x *%s) SetOuterPrimKey(arr ...int64) {\n",
-			structureName,
+		CreatedTsName = fmt.Sprintf("func (*%s) CreatedTSname() string { return \"%s\"}\n",
+			structureName, tsCreator[structureName],
 		)
-		setPrimKey += fmt.Sprintf(
-			`	if len(arr) != %d { panic("unmatch numbers of foreign key!") }`+"\n",
-			len(foreignKeyMap[structureName]),
-		)
-		sort.Strings(foreignKeyMap[structureName]) // In dictionary order.
-		for i, v := range foreignKeyMap[structureName] {
-			setPrimKey += fmt.Sprintf("\tx.%s = arr[%d]\n", v, i)
-		}
-		setPrimKey += "}\n"
 	}
-
+	_, ok = tsUpdater[structureName]
+	if !ok {
+		UpdatedTsName = fmt.Sprintf("func (*%s) UpdatedTSname() string { return \"\"}\n", structureName)
+	} else {
+		UpdatedTsName = fmt.Sprintf("func (*%s) UpdatedTSname() string { return \"%s\"}\n",
+			structureName, tsUpdater[structureName],
+		)
+	}
 	updCnt := fmt.Sprintf(`func (x *%s) UpdateCounter() {`, structureName)
 	endlTag := false
 	for _, attrInfo := range recTab[structureName] {
@@ -486,7 +497,10 @@ func FuncAux(
 		updCnt += "\n"
 	}
 	updCnt += "}\n"
-	return tabName + hasCnt + getPrimKey + setPrimKey + updCnt
+	return tabName +
+		hasCnt + updCnt +
+		getPrimKey + PrimKeyName +
+		CreatedTsName + UpdatedTsName
 }
 
 func formRecordsHandler(
@@ -494,9 +508,9 @@ func formRecordsHandler(
 	res formRec,
 	auxFunc mapset.Set,
 ) {
-	fmt.Printf(`// Code generated by ./B0gus/rdt-parser/nasty_gen.go; DO NOT EDIT.
+	fmt.Printf(`// Code generated by ./b0gus/rdt-parser/nasty_gen.go; DO NOT EDIT.
 // Generated-time: %s
-package databases;
+package databases
 `,
 		time.Now().Format("2006-01-02 15:04:05.000 -0700 MST"),
 	)
@@ -630,51 +644,4 @@ func main() {
 		}
 		RDTGenAux(listener, "../"+srcFile[:splitPos]+"_gen.go")
 	}
-
-	fd, err := os.Create("../../configs/foreign_keymap_gen.go")
-	if err != nil {
-		_, _ = fmt.Fprintf(
-			os.Stderr,
-			"the stage of generating code encounters an error: %v", err,
-		)
-		panic(err)
-	}
-	// For package config;
-	os.Stdout = fd
-	fmt.Printf(`// Code Generated by ./b0gus/rdt-parser/nasty_gen.go. DO NOT EDIT.
-// Package configs
-// Generated-time: %s
-
-package configs
-
-import "b0gus/databases"
-
-var RecRelationMap = map[string]map[string]any{
-
-`, time.Now().Format("2006-01-02 15:04:05.000 -0700 MST"))
-	var defFilterMap = map[string][]string{}
-	for tabName, obj := range outerFormMap {
-		// Notice that the one structure might be required in further process.
-		for _, item := range obj {
-			for _, jtem := range obj {
-				if item == jtem {
-					continue
-				}
-				Item, Jtem := TopUpperCamelConvertor(item), TopUpperCamelConvertor(jtem)
-				defFilterMap[Item] = append(defFilterMap[Item], Jtem+":"+tabName)
-			}
-		}
-	}
-	for item, obj := range defFilterMap {
-
-		fmt.Printf("\t\"%s\": {\n", item)
-		for _, jtemTab := range obj {
-			res := strings.Split(jtemTab, ":")
-			jtem, tabName := res[0], res[1]
-			fmt.Printf("\t\t\"%s\": &databases.%s{},\n", jtem, tabName)
-		}
-		fmt.Printf("\t},\n")
-	}
-
-	fmt.Printf("}")
 }

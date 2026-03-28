@@ -1,6 +1,78 @@
-
 services as plugins.
 
+```python3
+# A possible way to provide shell is to use docker...
+#  but frequent create and free might stress the whole system
+
+def run_cmdline(sock, config, command):
+	name = 'sbx_%s' % secrets.token_hex(4)
+	# fmt:off
+	"""
+	docker run --rm -i --network none --name image-Name           \
+               --mount type=tmpfs,destination=/tmp,tmpfs-size=32M \
+               --cpus 0.05                                        \
+               --memory 16M                                       \
+               --pids-limit 20                                    \
+           alpine:latest
+	"""
+	run_command = [
+		'docker', 'run', '--rm', '-i',
+		'--network', 'none',
+		'--name', name,
+		'--mount', 'type=tmpfs,destination=/tmp,tmpfs-size=32M',
+		'--cpus', str(config.get('shell.cpu', 0.05)),
+		'--memory', '%sm' % config.get('shell.memory', 16),
+		'--pids-limit', str(config.get('shell.max_processes', 20)),
+		config.get('shell.image', 'alpine:latest')
+	]
+	# fmt:on
+
+	run_command.extend(command)  # Do it this way to satisfy black
+
+	try:
+		r_stdin, w_stdin = os.pipe()
+		r_stdout, w_stdout = os.pipe()
+		r_stderr, w_stderr = os.pipe()
+
+		process = subprocess.Popen(
+			run_command,
+			bufsize=0,
+			stdin=r_stdin,
+			stdout=w_stdout,
+			stderr=w_stderr,
+		)
+		while process.poll() is None:
+			read_fds, _, _ = select.select([r_stdout, r_stderr, sock], [], [], 1)
+			if not read_fds:
+				continue
+
+			if r_stderr in read_fds:
+			    # function pointer
+				send_handler(sock, r_stderr)
+
+			if r_stdout in read_fds:
+				send_handler(sock, r_stdout)
+
+			if sock in read_fds:
+				_, write_fds, _ = select.select([], [w_stdin], [], 0)
+				if write_fds:
+					recv_handler(sock, w_stdin)
+
+	except ExitCmdlineLoop:
+		pass
+	finally:
+		if process.poll() is None:
+			subprocess.run(
+				['docker', 'rm', '-f', name],
+				stdout=subprocess.DEVNULL,
+				stderr=subprocess.DEVNULL,
+			)
+		for fd in [r_stdin, w_stdin, r_stdout, w_stdout, r_stderr, w_stderr]:
+			os.close(fd)
+
+		sock.close()
+```
 
 references: 
 1. https://github.com/thetrueartist/HoneyNet/blob/main/honeynet.py
+2. https://github.com/supriyo-biswas/honeypot/blob/master/src/utils.py

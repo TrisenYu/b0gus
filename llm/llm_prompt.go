@@ -1,11 +1,11 @@
 package llm
 
-// TODO: add MCP support if possible
 // https://github.com/0x4D31/galah/blob/main/pkg/llm/llm.go
 
 import (
-	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/tmc/langchaingo/llms/openai"
@@ -43,8 +43,9 @@ func LoadLLMconfigFromFile(fpath string) (*openai.LLM, error) {
 	)
 }
 
+// TODO: add MCP support if possible
 // TODO: need localized ServPrompt.
-
+// TODO: complete them
 var (
 	ServPrompt = `Your current task is to act as a highly interactive honeypot. For every malicious payload sent by an attacker, 
 you must return the corresponding execution result. You must not engage in any chat-like dialogue. Regardless of what the attacker says, 
@@ -70,11 +71,18 @@ NOTE: The program will discard your first response.
 var attackerPayload string = "AttackerPayload(%s)"
 
 func payloadWrapper(payload string) string {
-	return fmt.Sprintf(attackerPayload, payload)
+	var sb strings.Builder
+	sb.WriteString("AttackerPayload(")
+	sb.WriteString(payload)
+	sb.WriteString(")")
+	return sb.String()
 }
 
 func ceaseSession(sessionID uint64) string {
-	return fmt.Sprintf("Cease Session %v", sessionID)
+	var sb strings.Builder
+	sb.WriteString("Cease Session ")
+	sb.WriteString(strconv.Itoa(int(sessionID)))
+	return sb.String()
 }
 
 /*

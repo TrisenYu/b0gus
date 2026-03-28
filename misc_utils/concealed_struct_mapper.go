@@ -34,11 +34,13 @@ func TurnStruct2Map(s any) map[string]any {
 			// for concealing type, just skip.
 			continue
 		}
-		if child.Kind() == reflect.Struct {
-			res[styp.Field(i).Name] = TurnStruct2Map(sval.Field(i).Interface())
-			continue
+		if sval.Field(i).CanInterface() {
+			if child.Kind() == reflect.Struct {
+				res[styp.Field(i).Name] = TurnStruct2Map(sval.Field(i).Interface())
+				continue
+			}
+			res[styp.Field(i).Name] = sval.Field(i).Interface()
 		}
-		res[styp.Field(i).Name] = sval.Field(i).Interface()
 	}
 	return res
 }

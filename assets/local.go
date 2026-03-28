@@ -25,6 +25,6 @@ func init() {
 		if err != nil {
 			continue
 		}
-		Bundle.ParseMessageFileBytes(content, e.Name())
+		_, _ = Bundle.ParseMessageFileBytes(content, e.Name())
 	}
 }

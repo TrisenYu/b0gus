@@ -19,12 +19,10 @@ import (
 //		should we record the configuration change as a log?
 
 var (
-	currConfig    LocalConfig
-	tmpHotConf    = &LocalConfig{}
 	GlobConfigMan ConfigMaintainer
 
 	confLock = sync.Mutex{}
-	// UpdateFlag requires manually close after the whole lifetime of b0gus
+	// UpdateFlag requires for closing the whole services of b0gus
 	UpdateFlag     = make(chan *LocalConfig, 1)
 	AssetsDirAsStr string
 	// LocalConfigPathAsStr is relative path in the perspective of `b0gus.go`.

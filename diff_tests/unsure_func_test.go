@@ -2,7 +2,9 @@
 package diff_tests
 
 import (
+	"crypto/x509/pkix"
 	"fmt"
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -45,17 +47,16 @@ func TestReflection(t *testing.T) {
 
 	curr, err = misc_utils.GetFieldValueByName(
 		localConf.ServerConfig,
-		misc_utils.GetTypeNameViaType(localConf.ServerConfig.TelnetConfig),
+		misc_utils.GetTypeNameViaType(localConf.ServerConfig.SMTPconfig),
 	)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, localConf.ServerConfig.TelnetConfig, curr)
-	_, ok = curr.(configs.TelnetConfig)
+	assert.Equal(t, localConf.ServerConfig.SMTPconfig, curr)
+	_, ok = curr.(configs.SMTPconfig)
 	assert.Equal(t, true, ok)
 
 	curr, err = misc_utils.GetFieldValueByName(
 		map[string]map[string]any{
-			"ok": nil,
-			"nok": {
+			"ok": nil, "nok": {
 				"hello": "world",
 				"123":   123,
 			},
@@ -85,6 +86,11 @@ func TestAnyType(t *testing.T) {
 		}
 		d = &c
 		e innerStruct
+		f struct {
+			io.Writer
+			pkix.Name
+			tmp string
+		}
 	)
 	curr, err := misc_utils.GetFieldValueByName(a, "")
 	assert.Equal(t, nil, err)
@@ -127,6 +133,10 @@ func TestAnyType(t *testing.T) {
 	eName := misc_utils.GetTypeNameViaType(e)
 	assert.NotEqual(t, "", eName)
 	fmt.Println(eName)
+
+	fName := misc_utils.GetTypeNameViaType(f)
+	assert.NotEqual(t, "", fName)
+	fmt.Println(fName)
 }
 
 type ipPort struct {

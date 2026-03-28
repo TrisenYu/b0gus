@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"b0gus/terminal"
-
+	"b0gus/.vscode"
 	"github.com/stretchr/testify/assert"
 	bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 )
@@ -15,7 +14,7 @@ func TestCmdParser(t *testing.T) {
 	// therefore ensure the robustness and shield of stackoverflow
 	buf := make([]byte, 1024)
 	readerFD := bytes.NewReader(buf)
-	termInHand := terminal.AbsTerminal{
+	termInHand := _vscode.AbsTerminal{
 		ReadSrc:   readerFD,
 		WriteSrc:  nil,
 		ShellType: "bash",
@@ -106,7 +105,7 @@ func TestCmdParser(t *testing.T) {
 func FuzzTerminal(f *testing.F) {
 	buf := make([]byte, 1024)
 	readerFD := bytes.NewReader(buf)
-	termInHand := terminal.AbsTerminal{
+	termInHand := _vscode.AbsTerminal{
 		ReadSrc:   readerFD,
 		WriteSrc:  nil,
 		ShellType: "bash",

@@ -5,4 +5,7 @@ dns_query:
         default 0,
         createtime ns, updatetime ns
     );
+    opcode:text ();
+    query_type:text ();
+
 

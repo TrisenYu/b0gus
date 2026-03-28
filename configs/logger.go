@@ -5,12 +5,16 @@ package configs
 
 import (
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var Logger *zap.Logger
+var (
+	Logger       *zap.Logger
+	BuildTypeStr string
+)
 
 func init() {
 	encoderConfig := zap.NewProductionEncoderConfig()
@@ -20,8 +24,15 @@ func init() {
 	writeSyncer := zapcore.NewMultiWriteSyncer(
 		zapcore.AddSync(os.Stdout),
 	)
-	LoggerCore := zapcore.NewCore(loggerEncoder, writeSyncer, zapcore.InfoLevel)
-	Logger = zap.New(LoggerCore, zap.AddCaller(), zap.AddCallerSkip(1))
+	var choice = zap.InfoLevel
+	if strings.Contains(BuildTypeStr, "debug") {
+		choice = zap.DebugLevel
+	}
+	LoggerCore := zapcore.NewCore(loggerEncoder, writeSyncer, choice)
+	Logger = zap.New(
+		LoggerCore,
+		zap.AddCaller(), zap.AddCallerSkip(1),
+	)
 	zap.ReplaceGlobals(Logger)
 	// TODO: gain from global configuration and decide writing to which log file.
 }

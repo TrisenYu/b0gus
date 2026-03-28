@@ -6,6 +6,7 @@ which services?
 Nginx? Apache?
 or Render page by PHP etc?
 which domains do we maintain?
+    phone, nickname, email, password?
     HTTP methods/path
     cookie
 

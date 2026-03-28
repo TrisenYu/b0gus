@@ -1,46 +1,22 @@
 package services
 
 import (
-	"fmt"
+	"b0gus/configs"
+	"b0gus/databases"
+	"context"
+	"math/rand/v2"
 	"net"
+	"net/netip"
+	"strconv"
+	"strings"
 	"sync"
 
-	"b0gus/configs"
-	"io"
-
 	"codeberg.org/miekg/dns"
+	"codeberg.org/miekg/dns/dnsutil"
+	"codeberg.org/miekg/dns/rdata"
 )
 
 // Reference: https://github.com/EmilHernvall/dnsguide/
-// origin DNS packet arranges its structure in such a way:
-/*
-	header 				12 bytes
-	------------------------------------------------
-	question section	variable, list of questions
-	------------------------------------------------
-	answer section 		variable, list of records
-	authority section	variable, list of records
-	additional section 	variable, list of records
-
-	header looks as follows:
-		packet ID				16 bits
-		Query Response			1  bit
-		opcode					4  bits
-		Authoritative Answer	1  bit
-		Truncated Message		1  bit
-		Recursion Desired		1  bit
-		Recursion Available		1  bit
-		Z(Reserved)				3  bits
-		Response Code			4  bits
-		Question Count			16 bits
-		Answer Count			16 bits
-		Authority Count			16 bits
-		Additional Count 		16 bits
-	question:
-		name  label sequence
-		type  2 byte
-		class 2 byte
-*/
 
 // TODO: What if we send a wrong response to other computer?
 
@@ -53,41 +29,189 @@ type DNSserverConf struct {
 	/* fields below need concurrent control to follow the configuration */
 	AlterDNSListener  sync.Mutex
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
-	Port              uint16       // b0gus DNS server port number
+	ConfOptions       *configs.DNSconfig
 }
 
-func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
-	msg := r.Copy()
-	msg.Authoritative = true
+func getDNSrr(queryType uint16, headerName string) dns.RR {
+	// TODO: we could set multiple answers for every query
+	switch queryType {
+	case dns.TypeA:
+		var payload []byte
+		for range 4 {
+			payload = append(payload, byte(rand.IntN(256)))
+		}
+		return &dns.A{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			A: rdata.A{Addr: netip.AddrFrom4([4]byte(payload))},
+		}
+	case dns.TypeAAAA:
+		var payload []byte
+		for range 16 {
+			payload = append(payload, byte(rand.IntN(256)))
+		}
+		return &dns.AAAA{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			AAAA: rdata.AAAA{Addr: netip.AddrFrom16([16]byte(payload))},
+		}
+	case dns.TypeCNAME:
+		return &dns.CNAME{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			CNAME: rdata.CNAME{
+				Target: "cname.123.com",
+			},
+		}
+	case dns.TypeTXT:
+		return &dns.TXT{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			TXT: rdata.TXT{Txt: []string{"_acme-challenge." + headerName}},
+		}
+	case dns.TypeMX:
+		return &dns.MX{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			MX: rdata.MX{Mx: "mail."+headerName},
+		}
+	case dns.TypeNS:
+		return &dns.NS{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			NS: rdata.NS{Ns: "ns1."+headerName},
+		}
+	case dns.TypePTR:
+		return &dns.PTR{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			PTR: rdata.PTR{Ptr: "ptr1."+headerName},
+		}
+	case dns.TypeSRV:
+		return &dns.SRV{
+			Hdr: dns.Header{
+				Name:  headerName,
+				Class: dns.ClassINET,
+				TTL:   600,
+			},
+			SRV: rdata.SRV{
+				Priority: uint16(rand.IntN(65536)),
+				Weight:   uint16(rand.IntN(65536)),
+				Port:     uint16(rand.IntN(65536)),
+				Target:   "cname."+headerName,
+			},
+		}
+	default:
+	}
+	return nil
+}
 
-	for _, question := range r.Question {
-		switch question.Header().Class {
-		case dns.TypeA:
-			// handleARecord(question, msg)
-		case dns.TypeAAAA:
-			// handleAAAARecord(question, msg)
-		case dns.TypeTXT:
-			// handleTextRecord()
-		case dns.TypeCNAME:
-		case dns.TypeNS:
-		default:
+// analyze Query will record
+func (d *DNSserverConf) analyzeQuery(req dns.RR, m *dns.Msg) {
+	headerName := req.Header().Name
+	payload := databases.DnsQuery{
+		DomainName:         headerName,
+		Opcode:             dnsutil.OpcodeToString(m.Opcode),
+		QueryType:          dnsutil.TypeToString(dns.RRToType(req)),
+	}
+	_ = d.DBFd.CreateOrUpdateItem(&payload, &payload)
+	answer := getDNSrr(dns.RRToType(req), headerName)
+	if answer != nil {
+		m.Answer = append(m.Answer, answer)
+	} else {
+		m.Rcode = dns.RcodeRefused
+	}
+}
 
+// ServeDNS is implemented for the interface defined in miekg/dns
+func (d *DNSserverConf) ServeDNS(
+	ctx context.Context,
+	respWriter dns.ResponseWriter, r *dns.Msg,
+) {
+	m := new(dns.Msg)
+	dnsutil.SetReply(m, r)
+
+	addr, port, err := net.SplitHostPort(respWriter.RemoteAddr().String())
+	if err == nil {
+		p, err := strconv.Atoi(port)
+		if err == nil {
+			_ = d.DBFd.CreateOrUpdateItemsInSeq([]configs.DBstruct{
+				&databases.AddrInfo{Ip: addr},
+				&databases.PortInfo{Port: int64(p)},
+			}...)
+		} else {
+			_ = d.DBFd.CreateOrUpdateItemsInSeq(&databases.AddrInfo{Ip: addr})
 		}
 	}
-	_, _ = io.Copy(w, msg)
+	for _, q := range m.Question {
+		// TODO: ? multiple question should not affect the global section.
+		d.analyzeQuery(q, m)
+	}
+	m.Extra = append(m.Extra)
+	m.AuthenticatedData = true
+	m.Authoritative = true
+	m.Response = true
+	//m.Extra
+	_, err = m.WriteTo(respWriter)
+	if err != nil {
+		configs.Logger.Debug(err.Error())
+	}
 }
 
-func Run(
-	ntpConfObj *configs.DNSconfig,
+// Run will start up fake DNS server with recording
+// every query requests
+func (d *DNSserverConf) Run(
+	dnsConfObj *configs.DNSconfig,
 	scc *configs.ServConcurrentCtrl,
 	db *configs.RuntimeDB, // db *gorm.DB *redis.Client *mongo.Client
 	args ...any,
 ) {
-	ntpServerConf := DNSserverConf{
-		Port: ntpConfObj.ListenPort,
-		DBFd: db,
+	defer func() { configs.Logger.Info("DNS server quit...") }()
+	if len(args) == 0 {
+		configs.Logger.Error("incorrect number of arguments")
+		return
+	} else if dnsConfObj == nil {
+		configs.Logger.Error("empty configuration is provided")
+		return
 	}
-	payload := fmt.Sprintf("%v", ntpServerConf.Port)
-	configs.Logger.Info(payload)
-	// DNSclientHandler(terminator)
+	var sb strings.Builder
+	sb.WriteString(":")
+	sb.WriteString(strconv.Itoa(int(dnsConfObj.ListenPort)))
+	s := &dns.Server{Addr: sb.String(), Net: "udp"}
+	d.DBFd = db
+	_ = d.DBFd.CreateTable(
+		&databases.AddrInfo{},
+		&databases.PortInfo{}, // have to re-create because services is separated
+		&databases.DnsQuery{},
+	)
+	go func() {
+		<-scc.Ctx.Done()
+		s.Shutdown(nil)
+	}()
+	s.Handler = d
+	err := s.ListenAndServe()
+	if err != nil {
+		configs.Logger.Error(err.Error())
+	}
 }

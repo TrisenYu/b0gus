@@ -11,22 +11,17 @@ addr_info:
     ip:text (unique, counter 0, index ip_name_idx);
 
 port_info:
-    # Decouple this:
     port:integer (primary, notnull)
 
-remote_info:
-    remote_id:integer (primary)
-    port_num:integer (foreign -> port_info:port)
-    addr_id:integer (foreign -> addr_info:id)
-
+# use session-ID for unique identification
 ssh_version_info:
     id:integer (primary, createtime ns, updatetime ns, counter 0)
     version:text (unique, notnull)
 
 # *** must define foreign key after its dependencies ***
 remote_sshver_relation:
-    rsrid:integer (primary, autoincrement);
-    rsid:integer (foreign -> remote_info:remote_id);
+    rsid:integer (primary);
+    session_id:integer (notnull);
     sid:integer (foreign -> ssh_version_info:id)
 
 username_info:
@@ -34,8 +29,8 @@ username_info:
     name:text (unique)
 
 remote_username_relation:
-    rurid:integer (primary, autoincrement);
-    ruid:integer (foreign -> remote_info:remote_id);
+    ruid:integer (primary);
+    session_id:integer (notnull);
     uid:integer (foreign -> username_info:username_id)
 
 password_info:
@@ -43,18 +38,17 @@ password_info:
     password:text (unique);
 
 remote_password_relation:
-    rprid:integer (primary, autoincrement);
-    rpwid:integer (foreign -> remote_info:remote_id);
+    rpwdid:integer (primary);
+    session_id:integer (notnull);
     pid:integer (foreign -> password_info:password_id)
 
 publickey_info:
     pub_id:integer (primary, createtime ns, updatetime ns)
-    pub_fp:text (unique, notnull)
-    # port_id:integer (foreign -> port:id)
+    pub_fp:bytes (unique, notnull)
 
 remote_publickey_relation:
-    rprid:integer (primary);
-    rpbid:integer (foreign -> remote_info:remote_id);
+    rpubid:integer (primary);
+    session_id:integer (notnull);
     pid:integer (foreign -> publickey_info:pub_id);
 
 command_info:
@@ -63,7 +57,8 @@ command_info:
 
 # who did send a command at given time?
 remote_command_relation:
-    rcrid:integer (primary, notnull, autoincrement);
+    rcid:integer (primary);
+    session_id:integer (notnull);
     cid:integer (foreign -> command_info:command_id)
-    rcid:integer (foreign -> remote_username_relation:rurid)
+
 

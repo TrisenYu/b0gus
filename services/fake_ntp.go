@@ -199,9 +199,7 @@ type NTPServConf struct {
 }
 
 func (n *NTPServConf) NTPclientHandler(scc *configs.ServConcurrentCtrl) {
-	var (
-		endNtp atomic.Bool
-	)
+	var endNtp atomic.Bool
 	endNtp.Store(false)
 
 	// n.ConfigGenericCtrl.Ch <- struct{}{}
@@ -304,6 +302,10 @@ func (n *NTPServConf) Run(
 		configs.Logger.Info(payload)
 	}()
 	if len(args) > 1 || args[0] != nil {
+		return
+	}
+	if ntpConfPtr == nil {
+		configs.Logger.Error("empty configuration is provided")
 		return
 	}
 	ntpServConf := NTPServConf{

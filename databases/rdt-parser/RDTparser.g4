@@ -10,7 +10,7 @@ alias_name: ID;
 idx_name: ID;
 literal: ID;
 
-field_type: TEXT | INTEGER;
+field_type: TEXT | INTEGER | BYTES;
 time_unit: MS | US | NS;
 
 field_attrs: field_attr (COMMA field_attr)*;

@@ -6,9 +6,7 @@ package services
 References:
 	https://www.cs.colostate.edu/helpdocs/ftp.html
 	https://github.com/DearRude/easyGoFTP/blob/master/ftpserver/ftpserver.go
-*/
 
-/*
 	One way to emulate a ftp server is to create a very easy virtual memory file system
 	Port number: 20 and 21
 	20: data path
