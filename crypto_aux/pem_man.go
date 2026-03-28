@@ -1,84 +1,115 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// Package crypto_aux
 package crypto_aux
 
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+
 import (
+	"bytes"
+	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
+	"math/big"
+	"net"
 	"os"
 	"strings"
+	"sync/atomic"
+	"time"
 
-	b0gus_config "b0gus/configs"
+	"b0gus/configs"
 
-	ssh "golang.org/x/crypto/ssh"
+	"github.com/emmansun/gmsm/smx509"
+	"golang.org/x/crypto/ssh"
 )
 
-/*- Load ssh pem from given path
- * inParam: pem_path string; the path of the pem file, invisible to remote address
- * return ssh.Signer, error; if success, return ssh.Signer object and nil,
- * else return nil and error
- */
-func LoadSSHhostPem(pem_path string) (ssh.Signer, error) {
-	pem_fd, err := os.Open(pem_path)
+// loadSSHhostPem will Load ssh pem from given path
+// inParam: pemPath string; the path of the pem file, invisible to remote address
+// return ssh.Signer, error; if success, return ssh.Signer object and nil,
+// else return nil and error
+func loadSSHhostPem(pemPath string) (ssh.Signer, error) {
+	pemFd, err := os.Open(pemPath)
 	if err != nil {
-		b0gus_config.Logger.
-			WithField("pem_path", pem_path).
-			Error("Failed to open PEM file for SSH host key!\n")
+		openPemFailure := configs.GetLocalizedMsg(
+			"crypto_aux.PemFileOpenFailure",
+			map[string]any{"PemPath": pemPath},
+		)
+		// "Failed to read PEM file for SSH host key!"
+		configs.Logger.Error(openPemFailure)
 		return nil, err
 	}
-	pem_bytes, err := io.ReadAll(pem_fd)
+	defer func() { _ = pemFd.Close() }()
+	pemBytes, err := io.ReadAll(pemFd)
 	if err != nil {
-		b0gus_config.Logger.
-			Error("Failed to read PEM file for SSH host key!\n")
+		readPemFailure := configs.GetLocalizedMsg(
+			"crypto_aux.PemFileReadFailure", nil,
+		)
+		// "Failed to read PEM file for SSH host key!"
+		configs.Logger.Error(readPemFailure)
 		return nil, err
 	}
-	pem_fd.Close()
-	pem_block, _ := pem.Decode(pem_bytes)
-	if pem_block == nil {
-		b0gus_config.Logger.
-			Error("Failed to decode PEM block for SSH host key!\n")
+	pemBlock, _ := pem.Decode(pemBytes)
+	if pemBlock == nil {
+		pemDecodeFailure := configs.GetLocalizedMsg(
+			"crypto_aux.PemFileDecodeFailure", nil,
+		)
+		configs.Logger.Error(pemDecodeFailure)
 		return nil, err
 	}
-
-	switch pem_block.Type {
+	switch pemBlock.Type {
 	case "RSA PRIVATE KEY":
-		rsa_private, err := x509.ParsePKCS1PrivateKey(pem_block.Bytes)
-		if rsa_private == nil || err != nil {
+		rsaPrivate, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+		if rsaPrivate == nil || err != nil {
 			return nil, err
 		}
-		return ssh.NewSignerFromKey(rsa_private)
+		return ssh.NewSignerFromKey(rsaPrivate)
 	case "EC PRIVATE KEY":
 		// nil pointer error
-		ecc_private, err := x509.ParseECPrivateKey(pem_block.Bytes)
-		if ecc_private == nil || err != nil {
+		eccPrivate, err := x509.ParseECPrivateKey(pemBlock.Bytes)
+		if eccPrivate == nil || err != nil {
 			return nil, err
 		}
-		return ssh.NewSignerFromKey(ecc_private)
+		return ssh.NewSignerFromKey(eccPrivate)
 	case "PRIVATE KEY":
-		any_private, err := x509.ParsePKCS8PrivateKey(pem_block.Bytes)
-		if any_private == nil || err != nil {
+		anyPrivate, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+		if anyPrivate == nil || err != nil {
 			return nil, err
 		}
-		return ssh.NewSignerFromKey(any_private)
+		return ssh.NewSignerFromKey(anyPrivate)
+	//case "SM2 PRIVATE KEY":
+	//	sm2Private, err := smx509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+	//	if sm2Private == nil || err != nil {
+	//		return nil, err
+	//	}
+	//	return ssh.NewSignerFromKey(sm2Private)
 	default:
-		return nil, fmt.Errorf("unsupported signing pem format")
+		pemFileFormatErr := configs.GetLocalizedMsg(
+			"crypto_aux.PemFileFormatError", nil,
+		)
+		return nil, errors.New(pemFileFormatErr)
 	}
 }
 
-func handle_ed25519() (*ed25519.PrivateKey, error) {
-	_, private_key, err := ed25519.GenerateKey(rand.Reader)
-	return &private_key, err
+// handleEd25519 will get its result from `ed25519.GenerateKey(rand.Reader)`,
+// while aborting the public key since we can calculate the public key via
+// private key.
+func handleEd25519() (*ed25519.PrivateKey, error) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	return &privateKey, err
 }
 
-func handle_elliptic(pem_len uint64) (*ecdsa.PrivateKey, error) {
+func handleEcdsa(pemLen uint64) (*ecdsa.PrivateKey, error) {
 	var choice elliptic.Curve
-	switch pem_len {
+	switch pemLen {
 	case 224:
 		choice = elliptic.P224()
 	case 256:
@@ -88,112 +119,539 @@ func handle_elliptic(pem_len uint64) (*ecdsa.PrivateKey, error) {
 	case 521:
 		choice = elliptic.P521()
 	default:
-		return nil, fmt.Errorf(
-			"unsupported length<%d> for elliptic curve encryption algorithm",
-			pem_len,
+		invalidLen := configs.GetLocalizedMsg(
+			"crypto_aux.InvalidLengthForEllipticCurve",
+			map[string]any{
+				"PemLen": pemLen,
+			},
 		)
+		return nil, errors.New(invalidLen)
 	}
 	return ecdsa.GenerateKey(choice, rand.Reader)
 }
 
-func handle_rsa(pem_len uint64) (*rsa.PrivateKey, error) {
-	switch pem_len {
+func handleRsa(pemLen uint64) (*rsa.PrivateKey, error) {
+	switch pemLen {
 	case 1024:
-		// Use 2048 instead
-		pem_len = 2048
+		// this is not secure at all. Use 2048 instead
+		pemLen = 2048
 	case 2048:
 	case 4096:
 	case 8192:
 	default:
-		return nil, fmt.Errorf("invalid length<%d> for rsa public key", pem_len)
+		invalidLen := configs.GetLocalizedMsg(
+			"crypto_aux.InvalidLengthForRSA",
+			map[string]any{"PemLen": pemLen},
+		)
+		return nil, errors.New(invalidLen)
 	}
-	return rsa.GenerateKey(rand.Reader, int(pem_len&0xFFFF_FFFF))
+	return rsa.GenerateKey(rand.Reader, int(pemLen&0xFFFF_FFFF))
 }
 
-// Generate a new host key when a PEM file given by configuration is invalid/corrupted
-// or not exists
-func CreateSSHpem(
-	pem_path string,
-	pem_type string,
-	pem_len uint64,
-) (ssh.Signer, error) {
+// createPriObj will generate a private key
+func createPriObj(pemType string, pemLen uint64) (crypto.PrivateKey, error) {
 	var (
-		host_pem any = nil
-		err      error
+		hostPem any = nil
+		err     error
 	)
-	switch strings.ToLower(pem_type) {
+	switch strings.ToLower(pemType) {
 	case "ed25519":
-		_host_pem, err := handle_ed25519()
-		if err == nil && _host_pem != nil {
-			host_pem = *_host_pem
+		currPem, err := handleEd25519()
+		if err == nil && currPem != nil {
+			hostPem = *currPem
 		}
-	case "elliptic":
-		host_pem, err = handle_elliptic(pem_len)
+	case "ecdsa":
+		hostPem, err = handleEcdsa(pemLen)
 	case "rsa":
-		host_pem, err = handle_rsa(pem_len)
-
+		hostPem, err = handleRsa(pemLen)
+	//case "sm2":
+	//	hostPem, err = sm2.GenerateKey(rand.Reader)
 	default:
-		b0gus_config.Logger.Error(
-			"Invalid pem type was provided, won't generate any key!",
+		errInfo := configs.GetLocalizedMsg(
+			"crypto_aux.PemFileUnsupportedTypeError", nil,
 		)
-		return nil, fmt.Errorf("invalid pem type:<%v>", pem_type)
+		configs.Logger.Error(errInfo)
+		return nil, errors.New(errInfo) // fmt.Errorf("invalid pem type:<%v>", pem_type)
 	}
-	if err != nil {
-		b0gus_config.Logger.Error("Failed to generate host private key!")
-		return nil, err
-	}
-	host_key, err := ssh.NewSignerFromKey(host_pem)
-	if err != nil {
-		b0gus_config.Logger.Error("Failed to set private key for ssh!")
-		return nil, err
-	}
-	pem_file, err := os.Create(pem_path)
-	if err != nil {
-		b0gus_config.Logger.Errorf(
-			"Failed to create pem file into path:%v!\n", pem_path,
-		)
-		return nil, err
-	}
-	defer pem_file.Close()
-	host_pem_bytes, err := x509.MarshalPKCS8PrivateKey(host_pem)
-	if err != nil {
-		b0gus_config.Logger.Error("Failed to marshal pem bytes!\n")
-		return nil, err
-	}
-	host_pem_block := pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: host_pem_bytes,
-	}
-	err = pem.Encode(pem_file, &host_pem_block)
-	if err != nil {
-		b0gus_config.Logger.Error("Failed to encode pem bytes into pem file!\n")
-		return nil, err
-	}
-	return host_key, err
+	return hostPem, err
 }
 
-func LoadOrCreateSSHpem(
-	pem_path string,
-	pem_type string,
-	pem_len uint64,
+// createPriKey will Generate a new host key when
+// a PEM file given by configuration is invalid/corrupted or not exists
+func createPriKey(
+	pemPath, pemType string,
+	pemLen uint64,
+) (ssh.Signer, error) {
+	hostPem, err := createPriObj(pemType, pemLen)
+	if err != nil {
+		payload := configs.GetLocalizedMsg(
+			"crypto_aux.SSHPrivateKeyGenFailure",
+			map[string]any{"ErrInfo": err},
+		)
+		configs.Logger.Error(payload)
+		return nil, errors.New(payload)
+	}
+	hostKey, err := ssh.NewSignerFromKey(hostPem)
+	if err != nil {
+		payload := configs.GetLocalizedMsg(
+			"crypto_aux.SSHPrivateKeySetFailure",
+			map[string]any{"ErrInfo": err},
+		)
+		configs.Logger.Error(payload)
+		return nil, errors.New(payload)
+	}
+	pemFile, err := os.Create(pemPath)
+	if err != nil {
+		payload := configs.GetLocalizedMsg(
+			"crypto_aux.CreatePemToGivenPath",
+			map[string]any{"PemPath": pemPath},
+		)
+		configs.Logger.Error(payload)
+		return nil, errors.New(payload)
+	}
+	defer func() { _ = pemFile.Close() }()
+	hostPemBytes, err := x509.MarshalPKCS8PrivateKey(hostPem)
+	if err != nil {
+		payload := configs.GetLocalizedMsg(
+			"crypto_aux.PemFileDecodeFailure", nil,
+		)
+		configs.Logger.Error(payload)
+		return nil, errors.New(payload)
+	}
+	hostPemBlock := pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: hostPemBytes,
+	}
+	err = pem.Encode(pemFile, &hostPemBlock)
+	if err != nil {
+		payload := configs.GetLocalizedMsg(
+			"crypto_aux.Base64EncodeFailure", nil,
+		)
+		configs.Logger.Error(payload)
+		return nil, errors.New(payload)
+	}
+	return hostKey, err
+}
 
+// LoadOrCreateSSHpem will try to load pem from pemPath
+// if the previous actions failed, then the function will warn and attempt to creat one.
+func LoadOrCreateSSHpem(
+	pemPath, pemType string,
+	pemLen uint64,
 ) ssh.Signer {
-	pem_obj, err := LoadSSHhostPem(pem_path)
+	pemObj, err := loadSSHhostPem(pemPath)
 	if err == nil {
-		return pem_obj
+		return pemObj
 	}
 	var res ssh.Signer
-	b0gus_config.Logger.Warnf(
-		"Pem seems to be invalid or unsupported... detail:<%v>, b0gus will new one for you",
-		err,
+	payload := configs.GetLocalizedMsg(
+		"crypto_aux.UnsupportedOrInvalidPemWarn",
+		map[string]any{"ErrInfo": err},
 	)
-	res, err = CreateSSHpem(pem_path, pem_type, pem_len)
+	configs.Logger.Warn(payload)
+	res, err = createPriKey(pemPath, pemType, pemLen)
 	if err == nil {
+		// successfully generate one
 		return res
 	}
-	b0gus_config.Logger.Errorf(
-		"Unable to create pem at %s due to %v, won't execute start up server",
-		pem_path, err,
+	payload = configs.GetLocalizedMsg(
+		"crypto_aux.PemFileCreateFailure",
+		map[string]any{
+			"PemPath": pemPath,
+			"ErrInfo": err,
+		},
 	)
+	configs.Logger.Error(payload)
 	return nil
+}
+
+type CAInfo struct {
+	Cert       *smx509.Certificate
+	PrivateKey crypto.PrivateKey
+	KeyType    string
+}
+
+type CertSignConfig struct {
+	pkix.Name
+	Domains   []string
+	IPs       []string
+	KeyType   string
+	KeySize   uint64
+	ValidDays int
+}
+
+func CreateRootCaPair(
+	certSignConf *CertSignConfig,
+	caCertPath, caKeyPath string,
+) error {
+	rootCaKey, err := createPriObj(certSignConf.KeyType, certSignConf.KeySize)
+	if err != nil {
+		return err
+	}
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return err
+	}
+	template := &x509.Certificate{
+		SerialNumber:          serialNumber,
+		Subject:               certSignConf.Name,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, 0, certSignConf.ValidDays),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            2,
+		MaxPathLenZero:        false,
+		DNSNames:              certSignConf.Domains,
+		// OCSPServer:
+		// TODO: OCSP server for checking certificates' states
+	}
+	rootCaCert, err := smx509.CreateCertificate(
+		rand.Reader, template, template,
+		rootCaKey.(crypto.Signer).Public(), rootCaKey,
+	)
+	if err != nil {
+		return err
+	}
+	KeyBytes, err := smx509.MarshalPKCS8PrivateKey(rootCaKey)
+	if err != nil {
+		return err
+	}
+	certFd, err := os.Create(caCertPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = certFd.Close() }()
+	keyFd, err := os.Create(caKeyPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = keyFd.Close() }()
+	err = pem.Encode(keyFd, &pem.Block{Type: "PRIVATE KEY", Bytes: KeyBytes})
+	if err != nil {
+		return err
+	}
+	err = pem.Encode(certFd, &pem.Block{Type: "CERTIFICATE", Bytes: rootCaCert})
+	return err
+}
+
+// LoadCA will load CAInfo from given caCertPath and caKeyPath.
+func LoadCA(caCertPath, caKeyPath string) (*CAInfo, error) {
+	caCertData, err := os.ReadFile(caCertPath)
+	if err != nil {
+		// TODO
+		return nil, err
+	}
+	caCertBlock, _ := pem.Decode(caCertData)
+	caCert, err := smx509.ParseCertificate(caCertBlock.Bytes)
+	if err != nil {
+		// TODO
+		return nil, err
+	}
+	caKeyData, err := os.ReadFile(caKeyPath)
+	if err != nil {
+		// TODO
+		return nil, err
+	}
+	caKeyBlock, _ := pem.Decode(caKeyData)
+	if caKeyBlock == nil {
+		return nil, fmt.Errorf("invalid CA private key")
+	}
+	var (
+		privateKey crypto.PrivateKey
+		keyType    string
+	)
+	switch caKeyBlock.Type {
+	case "RSA PRIVATE KEY":
+		privateKey, err = x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
+		keyType = "rsa"
+	case "PRIVATE KEY", "EC PRIVATE KEY":
+		privateKey, err = smx509.ParsePKCS8PrivateKey(caKeyBlock.Bytes)
+		switch privateKey.(type) {
+		case *rsa.PrivateKey:
+			keyType = "rsa"
+		case *ecdsa.PrivateKey:
+			keyType = "ecdsa"
+		case *ed25519.PrivateKey:
+			keyType = "ed25519"
+		//case *sm2.PrivateKey:
+		//	keyType = "sm2"
+		default:
+			keyType = ""
+		}
+	default:
+		privateKey = nil
+		keyType = ""
+	}
+
+	return &CAInfo{
+		Cert:       caCert,
+		PrivateKey: privateKey,
+		KeyType:    keyType,
+	}, err
+}
+
+// IntranetSignCert is expected to sign local and trusted certificates.
+// Nevertheless, this is a function violated against the open-closed principle
+// due to the inconvenience of abstract/generic programming.
+func IntranetSignCert(
+	caInfo *CAInfo,
+	refPem crypto.PrivateKey,
+	SignedConf *CertSignConfig,
+) (certPEM []byte, keyPEM []byte, err error) {
+	// TODO: make errors info i18n
+	if caInfo == nil || len(caInfo.KeyType) == 0 {
+		return nil, nil, errors.New("CAInfo is nil")
+	}
+	if refPem == nil {
+		refPem, err = createPriObj(SignedConf.KeyType, SignedConf.KeySize)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// TODO: maintain the serialNumber
+	// it will be much more easier to maintain a increasing sequence of serialNumber
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject:      SignedConf.Name,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(0, 0, SignedConf.ValidDays),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth,
+		},
+		BasicConstraintsValid: true,
+		IsCA:                  false,
+		DNSNames:              SignedConf.Domains,
+		// OCSPServer:
+		// TODO: OCSP server for checking certificates' states
+	}
+	if len(SignedConf.IPs) > 0 {
+		template.IPAddresses = make([]net.IP, len(SignedConf.IPs))
+		for i, ip := range SignedConf.IPs {
+			tmp := net.ParseIP(ip)
+			if tmp == nil {
+				continue
+			}
+			template.IPAddresses[i] = tmp
+		}
+	}
+	// sign certificate here
+	var certBytes []byte
+	tmpPriKey, ok := refPem.(crypto.Signer)
+	if !ok {
+		return nil, nil, errors.New("invalid private key")
+	}
+	certBytes, err = smx509.CreateCertificate(
+		rand.Reader, template, caInfo.Cert,
+		tmpPriKey.Public(), caInfo.PrivateKey,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch SignedConf.KeyType {
+	//case "sm2":
+	//	pemAsBytes, _ := refPem.(*sm2.PrivateKey).Bytes()
+	//	keyPEM = pem.EncodeToMemory(&pem.Block{
+	//		Type:  "PRIVATE KEY",
+	//		Bytes: pemAsBytes,
+	//	})
+	case "rsa":
+		tmpCast, ok := refPem.(*rsa.PrivateKey)
+		if !ok {
+			return nil, nil, errors.New(
+				"unable to cast file into rsa private key",
+			)
+		}
+		keyPEM = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(tmpCast),
+		})
+	case "ed25519":
+		fallthrough
+	case "ecdsa":
+		pemAsBytes, _ := x509.MarshalPKCS8PrivateKey(refPem)
+		keyPEM = pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: pemAsBytes,
+		})
+	default:
+		return nil, nil, errors.New("encounter an unsupported key type")
+	}
+	certPEM = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+	// after returning result, the first thing has to do is to record them
+	return certPEM, keyPEM, nil
+}
+
+// CreateCertPairUnderFilePath will write certData and KeyData into certPath and keyPath, respectively
+// the certPath and keyPath should be
+func CreateCertPairUnderFilePath(
+	certPath, keyPath string,
+	certData, keyData []byte,
+	caData []byte,
+) error {
+	// TODO: i18n for error messages.
+	certFd, err := os.Create(certPath)
+	if err != nil {
+		var errSb strings.Builder
+		errSb.WriteString("can't not create certificate file due to: ")
+		errSb.WriteString(err.Error())
+		return errors.New(errSb.String())
+	}
+	defer func() { _ = certFd.Close() }()
+	keyFd, err := os.Create(keyPath)
+	if err != nil {
+		var errSb strings.Builder
+		errSb.WriteString("can't not create key file due to: ")
+		errSb.WriteString(err.Error())
+		return errors.New(errSb.String())
+	}
+	defer func() { _ = keyFd.Close() }()
+	// just write bytes into fd and not care success or otherwise.
+	_, _ = certFd.Write(append(certData, caData...))
+	_, _ = keyFd.Write(keyData)
+	return nil
+}
+
+// LoadLocalCertAsTLSServ will load signed (cert, key)-file for local tls-server and
+// set rootCA as their certificate chain.
+//	return nil if any error emerges.
+func LoadLocalCertAsTLSServ(
+	RootCaCertPath, SignedCertFile, SignedKeyFile string,
+) *tls.Config {
+	cert, err := tls.LoadX509KeyPair(SignedCertFile, SignedKeyFile)
+	if err != nil {
+		// TODO may need logging
+		return nil
+	}
+	RootCaCertPool := x509.NewCertPool()
+	rootCaCertBytes, err := os.ReadFile(RootCaCertPath)
+	if err != nil {
+		return nil
+	}
+	ok := RootCaCertPool.AppendCertsFromPEM(rootCaCertBytes)
+	if !ok {
+		// TODO: log it
+		return nil
+	}
+	return &tls.Config{
+		Certificates:           []tls.Certificate{cert},
+		RootCAs:                RootCaCertPool,
+		ClientCAs:              RootCaCertPool,
+		ClientAuth:             tls.RequireAndVerifyClientCert,
+		InsecureSkipVerify:     false,
+		SessionTicketsDisabled: true,
+		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return &cert, nil
+		},
+	}
+}
+
+// LoadLocalCertAsTLSClient will load **trust** (cert, key) from files and return the most
+// basic *tls.Config.
+// In order to make local-sign (cert, key) trustable, RootCaCertPath is required for building up Chain of Certificate.
+// For normal cert, use tls.LoadX509KeyPair is adequate.
+func LoadLocalCertAsTLSClient(
+	RootCaCertPath, SignedCertFile, SignedKeyFile string,
+	serverName string,
+) *tls.Config {
+	cert, err := tls.LoadX509KeyPair(SignedCertFile, SignedKeyFile)
+	if err != nil {
+		// TODO need logging
+		return nil
+	}
+	RootCaCertPool := x509.NewCertPool()
+	rootCaCertBytes, err := os.ReadFile(RootCaCertPath)
+	if err != nil {
+		return nil
+	}
+	ok := RootCaCertPool.AppendCertsFromPEM(rootCaCertBytes)
+	if !ok {
+		return nil
+	}
+	return &tls.Config{
+		Certificates:           []tls.Certificate{cert},
+		RootCAs:                RootCaCertPool,
+		ClientCAs:              RootCaCertPool,
+		ServerName:             serverName,
+		InsecureSkipVerify:     false,
+		SessionTicketsDisabled: true,
+	}
+}
+
+func handleTrustUpdateClients(tlsConn net.Conn) {
+	defer func() { _ = tlsConn.Close() }()
+	for {
+		buf := make([]byte, 1024)
+		_, err := tlsConn.Read(buf)
+		if err != nil {
+			configs.Logger.Warn(err.Error())
+			return
+		}
+		// we have to deal with a private protocol
+		// otherwise we can only collect limited string at one time
+		configs.Logger.Info(string(bytes.Trim(buf, "\x00")))
+	}
+}
+
+// PullUpdatesFromRemote will start up itself as a locality trust TLS server on configs.RemotePullSource.
+// The TLS server will cancel once the in-param ctx is canceled.
+func PullUpdatesFromRemote(
+	rootCaPath, signedCertPath, signedKeyPath string,
+	ctx context.Context,
+) {
+	// listen at local port and obey some formal syntax/private protocol
+	// during the runtime, the monitored port might be altered to another port
+	// so the session
+
+	// notice that this interface will provide distributed communication ability
+	// so encryption is required
+	tmpConf := LoadLocalCertAsTLSServ(rootCaPath, signedCertPath, signedKeyPath)
+	if tmpConf == nil {
+		configs.Logger.Warn("empty tlsConfig!")
+	}
+	listener, err := tls.Listen(
+		"tcp", configs.RemotePullSource,
+		tmpConf,
+	)
+	if err != nil || listener == nil {
+		configs.Logger.Error("can not listen on given tls port...")
+		if err != nil {
+			configs.Logger.Warn(err.Error())
+		} else {
+			configs.Logger.Warn("listener is nil")
+		}
+		return
+	}
+	defer func() { _ = listener.Close() }()
+	var atomFlag atomic.Bool
+	atomFlag.Store(true)
+	go func() {
+		<-ctx.Done()
+		atomFlag.Store(false)
+		_ = listener.Close()
+	}()
+	for atomFlag.Load() {
+		conn, err := listener.Accept()
+		if err != nil {
+			continue
+		}
+		// TODO: 0. also requires limitor for connections control.
+		// 		 1. handle in another go routine.
+		// 		 2. updates from different businesses should queue and then attempt to apply,
+		//			distribute responses of error if the provided updates is unacceptable.
+		go handleTrustUpdateClients(conn)
+	}
 }

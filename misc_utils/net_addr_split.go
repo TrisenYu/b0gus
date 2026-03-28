@@ -3,48 +3,66 @@ package misc_utils
 import (
 	"net"
 	"strconv"
-
-	b0gus_config "b0gus/configs"
+	"strings"
 )
 
-/*
-addr:port => (addr, port)
-
-	return "", 0 if any error emerges
-*/
-func IPaddrSplit(ip_port string) (string, uint16) {
-	// TODO: net.SplitHostPort
-	var (
-		res_ip string = ""
-		i      int
-		digits = map[string]any{
-			"0": nil, "1": nil, "2": nil, "3": nil, "4": nil,
-			"5": nil, "6": nil, "7": nil, "8": nil, "9": nil,
+// IPAddrSplit convert string whose form is similar to `addr:port` into (addr, port)
+//
+//	return "", 0 if there is any error
+func IPAddrSplit(ipPort string) (string, uint16) {
+	var resIp = ""
+	resIp, strPort, err := net.SplitHostPort(ipPort)
+	if err == nil {
+		resPort, err := strconv.ParseUint(strPort, 10, 16)
+		if err != nil {
+			return "", 0
 		}
-		lena_iport int = len(ip_port) - 1
+		flag := net.ParseIP(resIp)
+		if flag == nil {
+			return "", 0
+		}
+		return resIp, uint16(resPort & 0xFFFF)
+	}
+	var (
+		i         int
+		tmpPort   uint64
+		portDigit = map[string]struct{}{
+			"0": {}, "1": {}, "2": {}, "3": {},
+			"4": {}, "5": {}, "6": {}, "7": {},
+			"8": {}, "9": {},
+		}
+		tmpIp string
 	)
-
-	for i = lena_iport; i >= 0; i-- {
-		_, ok := digits[string(ip_port[i])]
+	for i = len(ipPort) - 1; i >= 0; i-- {
+		_, ok := portDigit[string(ipPort[i])]
 		if !ok {
 			break
 		}
 	}
 	if i >= 0 {
-		res_ip = ip_port[:i]
+		tmpIp = ipPort[:i]
 	}
-	if len(res_ip) > 0 && res_ip[0] == '[' && res_ip[len(res_ip)-1] == ']' {
-		res_ip = res_ip[1 : len(res_ip)-1]
-	}
-	res_port, err := strconv.ParseUint(ip_port[min(i+1, max(lena_iport, 0)):], 10, 16)
+	tmpPort, err = strconv.ParseUint(
+		ipPort[min(i+1, max(len(ipPort)-1, 0)):],
+		10, 16,
+	)
 	if err != nil {
-		b0gus_config.Logger.Errorf("%s %d %s", err.Error(), i, ip_port)
 		return "", 0
 	}
-	flag := net.ParseIP(res_ip)
+	if len(tmpIp) > 0 && tmpIp[0] == '[' && tmpIp[len(tmpIp)-1] == ']' {
+		tmpIp = tmpIp[1 : len(tmpIp)-1]
+	}
+	// check whether having zone
+	if strings.Contains(tmpIp, "%") {
+		slicer := strings.Split(tmpIp, "%")
+		if len(slicer) != 2 {
+			return "", 0
+		}
+		tmpIp, _ = slicer[0], slicer[1]
+	}
+	flag := net.ParseIP(tmpIp)
 	if flag == nil {
-		b0gus_config.Logger.Errorf("%v %d %s", err, i, ip_port)
 		return "", 0
 	}
-	return res_ip, uint16(res_port & 0xFFFF)
+	return tmpIp, uint16(tmpPort & 0xFFFF)
 }

@@ -1,0 +1,100 @@
+# AI-generated
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Директория статических ресурсов."
+    [meta_conf.ConfPath]
+    other = "Путь к локальному конфигурационному файлу."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Разрешение на изменение конфигурации во время выполнения."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Разрешение на самостоятельное изменение конфигурации во время выполнения."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Разрешение на установку конфигурации через командные строки оболочки во время выполнения."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Разрешение на установку конфигурации через удаленный pull во время выполнения."
+
+[main]
+    [main.DatabaseConnectionError]
+    other = "Не удалось подключиться к базе данных {{.DatabaseStr}}. Информация об ошибке: `{{.ErrInfo}}`."
+    [main.DatabaseEmptyError]
+    other = "По указанной конфигурации получен пустой оператор базы данных."
+    [main.DatabaseChangingWarn]
+    other = "Из-за внутренней ошибки текущая используемая база данных не будет заменена."
+    [main.TerminationSignalWarn]
+    other = "Пойман сигнал завершения работы сервера B0gus <{{.SignalStr}}>."
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "Не удалось открыть PEM-файл <{{.PemPath}}> для настройки локального SSH-открытого ключа!"
+    [crypto_aux.PemFileReadFailure]
+    other = "Не удалось прочитать указанный PEM-файл!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "Не удалось корректно декодировать PEM-файл!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Неподдерживаемый PEM-файл!"
+    [crypto_aux.PemFileFormatError]
+    other = "Формат данного сертификата подписи не поддерживается"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "Длина предоставленного открытого ключа <{{.PemLen}}> не подходит для известных алгоритмов криптографии на эллиптических кривых."
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "Длина предоставленного открытого ключа <{{.PemLen}}> не подходит для алгоритма шифрования RSA."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Использован недействительный или неподдерживаемый сертификат, детали: <{{.ErrInfo}}>. B0gus попытается сгенерировать сертификат в соответствии с конфигурацией."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Не удалось создать сертификат по пути <{{.pemPath}}> из-за ошибки <{{.ErrInfo}}>, и служба B0gus не будет запущена."
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Не удалось сгенерировать закрытый SSH-ключ по заданному алгоритму из-за ошибки <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Не удалось установить закрытый ключ для SSH-сервиса из-за ошибки <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Не удалось создать сертификат по заданному пути <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Не удалось корректно закодировать сертификат в строку Base64."
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "Обнаружена неподдерживаемая база данных <{{.Database}}>!"
+
+[configs]
+    # База данных
+    [configs.InvalidDatabaseAddrError]
+    other = "В конфигурационном файле указан недействительный адрес подключения к базе данных <{{.DatabaseAddr}}>!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Обнаружен неизвестный тип базы данных. В настоящее время B0gus поддерживает PostgreSQL, SQLite и MongoDB, а вы выбрали <{{.DatabaseType}}>."
+    # Глобальная конфигурационная информация
+    [configs.ReadingConfigurationFailure]
+    other = "Не удалось прочитать конфигурацию. Причина сбоя: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Не удалось перезагрузить конфигурационный файл! Текущая конфигурация не будет заменена. Причина сбоя: <{{.ErrInfo}}>."
+    [configs.UnmarshallingConfigurationFailure]
+    other = "Не удалось разобрать конфигурационный файл. Причина сбоя: <{{.ErrInfo}}>."
+
+[services]
+    # SSH
+    [services.SSHversionWarn]
+    other = "Не удалось сгенерировать 3 случайных байта. Будет возвращено значение по умолчанию для версии SSH."
+    [services.SSHWriteResponseError]
+    other = "При записи результата команды возникла ошибка <{{.ErrInfo}}>."
+    [services.SSHsetTimeoutError]
+    other = "Не удалось установить время ожидания для поступающего подключения из-за ошибки <{{.ErrInfo}}>."
+    [services.SSHEstablishConnectionFailure]
+    other = "Не удалось установить SSH-подключение. (Удаленный адрес, текущий номер версии SSH, причина сбоя): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "Не удалось принять предоставленный SSH-канал для удаленного адреса <{{.RemoteAddr}}> из-за ошибки <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Недействительная SSH-конфигурация, обновление пропущено"
+    [services.SSHSwitchListenerError]
+    other = "Не удалось переключиться на указанный адрес <{{.ListenAddr}}> для повторного прослушивания. В связи с этим текущий SSH-сервер B0gus не будет изменен."
+    [services.SSHSetupListenerError]
+    other = "Не удалось настроить прослушивание SSH-сервера по указанному адресу <{{.ListenAddr}}>."
+    [services.SSHAcceptConnWarn]
+    other = "Не удалось принять внешний запрос на SSH-подключение из-за ошибки <{{.ErrInfo}}>."
+    [services.SSHCanNotUseSigner]
+    other = "Невозможно использовать указанный сертификат <{{.Signer}}> для выполнения подписи во время взаимодействия по протоколу SSH."
+    [services.SSHQuitInfo]
+    other = "SSH-сервер завершил работу."
+    # NTP
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "NTP-сервер получил запрос на время длиной <{{.Len}}> от <{{.IP}}>."
+    [services.NTPQuitInfo]
+    other = "NTP-сервер завершил работу."

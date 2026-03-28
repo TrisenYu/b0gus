@@ -1,16 +1,143 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 package diff_tests
 
 import (
+	"crypto/x509/pkix"
 	"fmt"
-	"os"
+	"io"
+	"path/filepath"
 	"testing"
 
-	b0gus_crypto_aux "b0gus/crypto_aux"
-	b0gus_misc_utils "b0gus/misc_utils"
+	"b0gus/configs"
+	"b0gus/misc_utils"
 
-	assert "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestReflection(t *testing.T) {
+	// assemble to configs.Config_path_as_str
+	examConfPath := "../configs/example.toml"
+	testConfPath, _ := filepath.Abs(examConfPath)
+	localConf := configs.LoadDefaultConfig(testConfPath)
+	resMap := misc_utils.TurnStruct2Map(localConf.ServerConfig)
+	assert.NotEqual(t, resMap, nil)
+	for k, v := range resMap {
+		fmt.Println(k, v)
+	}
+	sshName := misc_utils.GetTypeNameViaType(localConf.ServerConfig.SSHconfig)
+	assert.Equal(t, "SSHconfig", sshName)
+	psshName := misc_utils.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
+	fmt.Println(psshName)
+	_, ok := resMap[sshName]
+	assert.Equal(t, true, ok)
+	resMap = misc_utils.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
+	for k := range resMap {
+		fmt.Println(k)
+	}
+
+	curr, err := misc_utils.GetFieldValueByName(localConf.ServerConfig, sshName)
+	assert.Equal(t, nil, err)
+	_, ok = curr.(*configs.SSHconfig)
+	assert.Equal(t, false, ok)
+	_, ok = curr.(configs.SSHconfig)
+	assert.Equal(t, true, ok)
+	recur, ok := curr.(configs.SSHconfig)
+	assert.Equal(t, true, ok)
+	assert.IsType(t, &configs.SSHconfig{}, &recur)
+
+	curr, err = misc_utils.GetFieldValueByName(
+		localConf.ServerConfig,
+		misc_utils.GetTypeNameViaType(localConf.ServerConfig.SMTPconfig),
+	)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, localConf.ServerConfig.SMTPconfig, curr)
+	_, ok = curr.(configs.SMTPconfig)
+	assert.Equal(t, true, ok)
+
+	curr, err = misc_utils.GetFieldValueByName(
+		map[string]map[string]any{
+			"ok": nil, "nok": {
+				"hello": "world",
+				"123":   123,
+			},
+		},
+		"nok",
+	)
+	assert.Equal(t, nil, err)
+}
+
+func TestAnyType(t *testing.T) {
+	type innerStruct struct {
+		A int
+		B string
+		C func()
+		D *testing.T
+	}
+	var (
+		a = 1
+		b ***int
+		c struct {
+			concealedPtr **int
+			HellYeah     *string
+			WhatCanIsay  []int
+			JustTestIt   []string
+			AnOpenFunc   func() int
+			ManHaha      map[int]string
+		}
+		d = &c
+		e innerStruct
+		f struct {
+			io.Writer
+			pkix.Name
+			tmp string
+		}
+	)
+	curr, err := misc_utils.GetFieldValueByName(a, "")
+	assert.Equal(t, nil, err)
+	t.Logf("%v", curr)
+	var aa any
+	assert.IsNotType(t, struct{}{}, nil)
+	assert.IsNotType(t, struct{}{}, aa)
+
+	bName := misc_utils.GetTypeNameViaType(b)
+	assert.NotEqual(t, "", bName)
+	fmt.Println(bName)
+
+	cName := misc_utils.GetTypeNameViaType(c.HellYeah)
+	assert.NotEqual(t, "", cName)
+	fmt.Println(cName)
+	cName = misc_utils.GetTypeNameViaType(c.WhatCanIsay)
+	assert.NotEqual(t, "", cName)
+	fmt.Println(cName)
+
+	cName = misc_utils.GetTypeNameViaType(c.JustTestIt)
+	assert.NotEqual(t, "", cName)
+	fmt.Println(cName)
+
+	cName = misc_utils.GetTypeNameViaType(c.AnOpenFunc)
+	assert.NotEqual(t, "", cName)
+	fmt.Println(cName)
+
+	cName = misc_utils.GetTypeNameViaType(c.ManHaha)
+	assert.NotEqual(t, "", cName)
+	fmt.Println(cName)
+
+	cName = misc_utils.GetTypeNameViaType(c)
+	assert.NotEqual(t, "", cName)
+	fmt.Println(cName)
+
+	dName := misc_utils.GetTypeNameViaType(d)
+	assert.NotEqual(t, "", dName)
+	fmt.Println(dName)
+
+	eName := misc_utils.GetTypeNameViaType(e)
+	assert.NotEqual(t, "", eName)
+	fmt.Println(eName)
+
+	fName := misc_utils.GetTypeNameViaType(f)
+	assert.NotEqual(t, "", fName)
+	fmt.Println(fName)
+}
 
 type ipPort struct {
 	Addr string
@@ -122,68 +249,16 @@ func TestIPvXparser(t *testing.T) {
 			"::1:BillieJean",
 			ipPort{"", 0},
 		},
-		// {
-		// 	"fe80::1cc0:3e8c:119f:c2e1%ens18/1234",
-		// 	ipPort{"fe80::1cc0:3e8c:119f:c2e1", 1234},
-		// },
+		{
+			"fe80::1cc0:3e8c:119f:c2e1%ens18/1234",
+			ipPort{"fe80::1cc0:3e8c:119f:c2e1", 1234},
+		},
 	}
 	for idx, tt := range tests {
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			str, num := b0gus_misc_utils.IPaddrSplit(tt.input)
+			str, num := misc_utils.IPAddrSplit(tt.input)
 			assert.Equal(t, tt.expected.Addr, str, "wrong addr")
 			assert.Equal(t, tt.expected.Port, num, "wrong port")
 		})
 	}
-}
-
-func TestPemHelper(t *testing.T) {
-
-	var del_pem = func() {
-		err := os.Remove("../assets/test.pem")
-		assert.Equal(t, err, nil, "Unable to delete test.pem")
-	}
-	what_we_have := b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ed25519", 0)
-	assert.NotEqual(t, what_we_have, nil, "Still got an nil after creating")
-	del_pem()
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 311)
-	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 521)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	del_pem()
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 384)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	del_pem()
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "elliptic", 0)
-	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ell1ptic", 0)
-	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 384)
-	assert.Equal(t, what_we_have, nil, "unexpected nil pem")
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 1024)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	del_pem()
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 2048)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	del_pem()
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "rsa", 4096)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	del_pem()
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ed25519", 123456)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	what_we_have = nil
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ed25519", 123456)
-	assert.NotEqual(t, what_we_have, nil, "unexpected nil pem")
-	del_pem()
-
-	what_we_have = b0gus_crypto_aux.LoadOrCreateSSHpem("../assets/test.pem", "ecdh", 123456)
-	assert.Equal(t, what_we_have, nil, "Still got an nil after creating")
 }

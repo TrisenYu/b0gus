@@ -1,12 +1,18 @@
-#### 配置导向型低交互golang蜜罐服务器
+#### 分布式管控及热重载配置型golang蜜网
 
-目前支持将`SSH`部署在指定非特权端口上作为蜜罐，记录攻击者IP、证书公钥、攻击时间、使用的用户名与弱口令等信息、支持热重载除数据库以外的配置信息。
-后续将在使用容器进一步隔离服务程序，并加入特权端口、systemctl的支持，此外打算引入文本模型来增强交互能力。
+##### 可用功能
+
+目前b0gus仍处在活跃开发的阶段。部分业务的功能并不是非常完善。
+支持将`SSH`与`NTP`等服务部署在指定非特权端口并转发到特权端口上作为蜜罐。
+可初步记录攻击者IP、证书公钥、攻击时间、使用的用户名与弱口令等信息。支持热重载除数据库以外的配置信息。
+后续将加入端口流量转发自动化配置、使用容器进一步隔离蜜罐，并加入分布式推送配置等支持。
+此外拟引入大语言模型来增强伪装与交互能力，拟收集各应用程序API以构建主动溯源与关联分析能力。
 
 #### 参考在线文档
 
 - [golang.halfiisland.com/community/pkgs/orm/gorm.html#外键](https://golang.halfiisland.com/community/pkgs/orm/gorm.html#%E9%92%A9%E5%AD%90)
 - [?](https://bg6cq.github.io/ITTS/)
+- [Golang 中文学习文档 > MongoDB](https://golang.halfiisland.com/community/database/MongoDB.html#%E8%81%9A%E5%90%88)
 - [Debian 打包教程](https://www.debian.org/doc/manuals/packaging-tutorial/packaging-tutorial.zh_CN.pdf)
 
 #### 关于许可证
@@ -29,5 +35,7 @@ B0gus按3条款BSD许可证分发。中译文具体如下。
 
 #### TODOs
 
-- 如果可能，配置[oss-fuzz](https://google.github.io/oss-fuzz/getting-started/new-project-guide/)
-- 代码内提及的所有todo
+- 如果可能，配置[oss-fuzz](https://google.github.io/oss-fuzz/getting-started/new-project-guide/)以评估潜在的实现缺陷。
+- 修完代码内提及的所有todo和fixme。
+- 完善协议与工具实现。
+- 如果可行，调GPU加速计算。

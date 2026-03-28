@@ -1,0 +1,98 @@
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "The directory of static assets."
+    [meta_conf.ConfPath]
+    other = "The file path of local configuration."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Permission for altering configuration in runtime."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Permission for configuration self-altering in runtime."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Permission for setting configuration through shell commands in runtime."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Permission for setting configuration through remote pulling in runtime."
+
+[main]
+    [main.DatabaseConnectionError]
+    other = "Failed to connect to {{.DatabaseStr}} due to {{.ErrStr}}!"
+    [main.DatabaseEmptyError]
+    other = "Gain an empty database file descriptor!"
+    [main.DatabaseChangingWarn]
+    other = "Won't update the database handler!"
+    [main.TerminationSignalWarn]
+    other = "Catch an OS signal<{{.SignalStr}}> for terminating B0gus server!"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "Failed to open PEM file<{{.PemPath}}> for SSH host key!"
+    [crypto_aux.PemFileReadFailure]
+    other = "Failed to read PEM file!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "Failed to decode PEM block!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Unsupported PEM file type!"
+    [crypto_aux.InvalidLengthForEllipticCurve]
+    other = "Unsupported length<{{.PemLen}}> for elliptic curve encryption algorithm!"
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "Unsupported length<{{.PemLen}}> for rsa public key!"
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Failed to generate SSH private key according to the given algorithm due to error <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Failed to set private key for SSH service due to error <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Failed to create certificate to the given path <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Failed to correctly encode the certificate into a Base64 string."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "An invalid or unsupported certificate was used, details: <{{.ErrInfo}}>. B0gus will attempt to generate a certificate according to the configuration."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Failed to create certificate at path <{{.PemPath}}> due to error <{{.ErrInfo}}>, and the B0gus service will not be started."
+
+[databases]
+    [databases.DatabaseTypeError]
+    other = "Unsupported Database<{{.Database}}> was found!"
+
+[configs]
+    # Database
+    [configs.InvalidDatabaseAddrError]
+    other = "Invalid database address<{{.DatabaseAddr}}> was gained from configuration!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Unknown or unsupported database type was found. B0gus Only supports PostgreSQL, SQLite and MongoDB at present, but what you select is <{{.DatabaseType}}>."
+    # Global Configuration Information
+    [configs.ReadingConfigurationFailure]
+    other = "Failed to read configuration. Failure reason: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Failed to reload configuration file! The current configuration will not be replaced. Failure reason: <{{.ErrInfo}}>."
+    [configs.configs.UnmarshallingConfigurationFailure]
+    other = "Unmarshal config failed due to <{{.ErrInfo}}>."
+    
+    
+[services]
+    # SSH
+    [services.SSHversionWarn]
+    other = "Unable to generate 3 random bytes for SSH version. B0gus will return a default value."
+    [services.SSHWriteResponseError]
+    other = "Encounter an error<{{.ErrInfo}}> when writing back payload."
+    [services.SSHsetTimeoutError]
+    other = "Due to err<{{.ErrInfo}}>, can not set deadline for incoming connections."
+    [services.SSHEstablishConnectionFailure]
+    other = "Can not establish a remote connection.(RemoteAddr,CurrSSHver,err):(<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "Can not accept the provided SSH channel for remote address <{{.RemoteAddr}}> due to error <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Invalid SSH configuration. Skip this updation requirement."
+    [services.SSHSwitchListenerError]
+    other = "Can not swtich to given IP<{{.ListenAddr}}> as a listener. Current B0gus SSH server will not update."
+    [services.SSHSetupListenerError]
+    other = "Can not listen on given IP<{{.ListenAddr}}> as B0gus SSH server"
+    [services.SSHAcceptConnWarn]
+    other = "Due to err<{{.ErrInfo}}>, can not handle outer SSH connection."
+    [services.SSHCanNotUseSigner]
+    other = "Cannot use the given certificate <{{.Signer}}> to perform signing during SSH protocol interactions."
+    [services.SSHQuitInfo]
+    other = "SSH server has exited."
+    # NTP
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "The NTP server received a time query request of length <{{.Len}}> from <{{.IP}}>."
+    [services.NTPQuitInfo]
+    other = "NTP server has exited."

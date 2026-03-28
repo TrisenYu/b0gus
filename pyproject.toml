@@ -1,0 +1,12 @@
+[project]
+name = "b0gus-pyenv"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.13"
+dependencies = [
+    "python-dotenv==1.2.1",
+]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true

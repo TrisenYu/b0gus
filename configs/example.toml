@@ -1,14 +1,13 @@
 ############################### NOTICE ###############################
 # DO NOT DELETE THIS FILE. THIS FILE IS ALSO USE AS ONE OF THE CONTENT 
-# SOURCE READING BY TESTCASES, The configuration file copied by docker
+# SOURCE READING BY TESTCASES, The configuration file copied by container.
 # This is an example configuration. You should create your own `config.toml` in the
 # same directory so that b0gus can run as what you expect it to obey.
 ############################### NOTICE ###############################
+
 [server_config]
 # Will store pem in the same `configs` directory
-pem_name = "b0gus-host.pem"
-pem_type = "ecdh"
-pem_len = 512
+language = "en"
 
 # It might be identical to run this program in port 22 as a b0gus ssh server
 # but for non-root user, binding to port < 1024 is not allowed
@@ -16,46 +15,53 @@ pem_len = 512
 [server_config.ssh]
     listen_addr = "localhost"
     listen_port = 2333
-
+    pem_name = "b0gus-host.pem"
+    pem_type = "ecdh"
+    pem_len = 512
     ## Strategy on ssh server configuration
     max_client_num = 32
     client_conn_timeout = 180 # time-unit is second
     # Only store `ip, username, password, access time and public key` information
     # TODO: set them as strategy
     permit_login = true
-    empty_shell = false # if you type, just enter a new line for every command
-    
+
     # Just repeat what user inputs back to the terminal
-    # TODO: add more response types which represent certain strategy 
+    # Optional-Mode: llm, repeater or empty
+    #   `repeater` means repeating the command typed by remote client
+    #   `empty` means if you try typing, then the expected behavior is just entering
+    #   `llm` means the command will handled by llm.
+    # another new line for every command.
     response_type = "repeater"
+    # when selecting `llm` for [response_type], then these fields are required.
+    llm_type = ""
 
-    # banner after successfully logining
-    login_banner = '''
-_______________#########_______________________
-______________############_____________________
-______________#############____________________
-_____________##__###########___________________
-____________###__######_#####__________________
-____________###_#######___####_________________
-___________###__##########_####________________
-__________####__###########_####_______________
-________#####___###########__#####_____________
-_______######___###_########___#####___________
-_______#####___###___########___######_________
-______######___###__###########___######_______
-_____######___####_##############__######______
-____#######__#####################_#######_____
-____#######__##############################____
-___#######__######_#################_#######___
-___#######__######_######_#########___######___
-___#######____##__######___######_____######___
-___#######________######____#####_____#####____
-____######________#####_____#####_____####_____
-_____#####________####______#####_____###______
-______#####______;###________###______#________
-________##_______####________####______________
-'''
-
+    # banner for displaying after successfully logining into system
+    login_banner = ''''''
+# _______________#########_______________________
+#______________############_____________________
+#______________#############____________________
+#_____________##__###########___________________
+#____________###__######_#####__________________
+#____________###_#######___####_________________
+#___________###__##########_####________________
+#__________####__###########_####_______________
+#________#####___###########__#####_____________
+#_______######___###_########___#####___________
+#_______#####___###___########___######_________
+#______######___###__###########___######_______
+#_____######___####_##############__######______
+#____#######__#####################_#######_____
+#____#######__##############################____
+#___#######__######_#################_#######___
+#___#######__######_######_#########___######___
+#___#######____##__######___######_____######___
+#___#######________######____#####_____#####____
+#____######________#####_____#####_____####_____
+#_____#####________####______#####_____###______
+#______#####______;###________###______#________
+#________##_______####________####______________
+# Or display a buddha but not a miku by uncommenting 
+# and set it as login_banner.
 #                   _oo0oo_
 #                  o8888888o
 #                  88" . "88
@@ -73,34 +79,50 @@ ________##_______####________####______________
 #     | | :  `- \`.;`\ _ /`;.`/ - ` : | |
 #     \  \ `_.   \_ __\ /__ _/   .-` /  /
 # =====`-.____`.___ \_____/___.-`___.-'=====
+# Or default one to make it more real...
 
 
-[server_config.telnet]
-    listen_addr = "localhost"
-    listen_port = 23333
+#[server_config.telnet]
+#    listen_addr = "localhost"
+#    listen_port = 23333
+
+[server_config.smtp]
+    listen_addr = "127.0.0.1"
+    listen_port = 2555
+    # (cert, key) should be signed by real CA
+    local_tls_cert_path = ""
+    local_tls_key_path = ""
+    local_save_dir = ""
+    max_client_num = 32
 
 [server_config.dns]
-    listen_addr = "localhost"
-    listen_port = 5321
+    listen_addr = "127.0.0.1"
+    listen_port = 2053
+    max_client_num = 32
 
-[server_config.ftp]
-    listen_addr = "localhost"
-    ctrl_port = 21
-    data_port = 20
+[server_config.fake_db]
+    # database as honeypot
+    # TODO
+    type = ""
 
-# Can't update configuration of database in runtime
-[server_config.database]
+# Can't update configuration of database during executing time
+[server_config.rec_db_config]
     # Yet to have a checking/filtering mechanism to determine 
     # whether database_addr:database_port is requried
-    database_type = "PostgreSQL"
-    database_name = "postgres"
-    database_addr = "localhost"
-    database_port = 5432
-    database_admin_name = "postgres"
-    database_admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
+
+    # PostgreSQL, SQLite, MongoDB
+    type = "PostgreSQL"
+    name = "postgres"
+    # Some database can be deemed as a distributed cluster,
+    # so an IP address is require.
+    addr = "localhost"
+    port = 5432
+    # Some database requires an admin to operate.
+    admin_name = "postgres"
+    admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
     # This redundant field is used for different SQLs like SQLite
     # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
     # explictly given. And default directory is set to `assets`, where stores the database
     # file that **have to be created** manually or by automatic scripts
     # Lastly, the corresponding dataname should fill with `sqlite`, `SQLITE`, or `SQLite`
-    database_path = "nasty-ssh-client.db"
+    path = "nasty-ssh-client.db"

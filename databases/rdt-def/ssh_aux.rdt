@@ -1,0 +1,64 @@
+# this is a line of comment
+
+# we use auto-generated rules to represent rather than 
+# hard-encoded implementation by hand for specific structures
+
+# and NoSQL may benefit from these reduced definitions
+
+addr_info:
+    # actually we can use the hex representation of address as primary key
+    id:integer(primary, autoincrement, notnull)
+    ip:text (unique, counter 0, index ip_name_idx);
+
+port_info:
+    port:integer (primary, notnull)
+
+# use session-ID for unique identification
+ssh_version_info:
+    id:integer (primary, createtime ns, updatetime ns, counter 0)
+    version:text (unique, notnull)
+
+# *** must define foreign key after its dependencies ***
+remote_sshver_relation:
+    rsid:integer (primary);
+    session_id:integer (notnull);
+    sid:integer (foreign -> ssh_version_info:id)
+
+username_info:
+    username_id:integer (primary, createtime ns, updatetime ns, counter 0)
+    name:text (unique)
+
+remote_username_relation:
+    ruid:integer (primary);
+    session_id:integer (notnull);
+    uid:integer (foreign -> username_info:username_id)
+
+password_info:
+    password_id:integer(primary, createtime ns, updatetime ns, counter 0)
+    password:text (unique);
+
+remote_password_relation:
+    rpwdid:integer (primary);
+    session_id:integer (notnull);
+    pid:integer (foreign -> password_info:password_id)
+
+publickey_info:
+    pub_id:integer (primary, createtime ns, updatetime ns)
+    pub_fp:bytes (unique, notnull)
+
+remote_publickey_relation:
+    rpubid:integer (primary);
+    session_id:integer (notnull);
+    pid:integer (foreign -> publickey_info:pub_id);
+
+command_info:
+    command_id:integer (primary, notnull, autoincrement)
+    cmd:text (notnull, createtime ns);
+
+# who did send a command at given time?
+remote_command_relation:
+    rcid:integer (primary);
+    session_id:integer (notnull);
+    cid:integer (foreign -> command_info:command_id)
+
+

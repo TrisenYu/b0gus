@@ -1,22 +1,22 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clause-BSD
 package services
+
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
 import (
 	"errors"
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	gorm "gorm.io/gorm"
-
-	b0gus_config "b0gus/configs"
-	b0gus_datatypes "b0gus/datatypes"
+	"b0gus/configs"
 )
 
 /*
-	https://www.rfc-editor.org/rfc/rfc958.html
-
+	NTP-RFC: www.rfc-editor.org/rfc/rfc958.html
+	this is NTP querying packet
+	--------------------------------------------------------------------------------------------
 	Field Name              Request    Reply                                   bytes
 	--------------------------------------------------------------------------------------------
 	LI                      0 or 3     0
@@ -34,14 +34,37 @@ import (
 	Originate Timestamp     ignore     copied from transmit timestamp			 24
 	Receive Timestamp       ignore     time of day							     32
 	Transmit Timestamp      (see text) time of day                               40
+	--------------------------------------------------------------------------------------------
 	                                                                    total:   48
+	--------------------------------------------------------------------------------------------
 	For receive timestamp, if no request has ever arrived from the client the
     value is zero
 	For transmit timestamp, server need to specify the local time
 	at which the reply departed for the client host
 
-	the roundtrip delay d and clock offset c is:
+	the round-trip delay d and clock offset c is:
          d = (t4 - t1) - (t3 - t2)  and  c = (t2 - t1 + t3 - t4)/2 .
+
+	while the control packet is
+	0                   1                   2                   3
+	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|LI | VN  |Mode |R|M| OpCode      | Sequence                  |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Association ID                                              |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Status                                                      |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Offset                                                      |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Count                                                       |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Data (variable length, max 468 octets)                    ...
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Padding (0-3 octets, zero)                                ...
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Authenticator (optional, 20 or 24 octets)                 ...
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 
 func validFormat(req []byte) bool {
@@ -59,58 +82,60 @@ func validFormat(req []byte) bool {
 				10      -1 second (following minute has 59 seconds)
 				11      reserved for future use
 		*/
-		LI_NO_WARNING = 0
-		LI_ADD        = 1
-		LI_SUB        = 2
-		LI_RESERVED   = 3
+		LiNoWarning = 0
+		LiAdd       = 1
+		LiSub       = 2
+		LiReserved  = 3
 		// VERSION NUMBER
-		VN_FIRST = 1
-		VN_LAST  = 4
+
+		VnFirst = 1
+		VnLast  = 4
 		// MODE
-		MODE_CLIENT = 3
+
+		ModeQuery = 3
+		ModeCtrl  = 6
 	)
-	b0gus_config.Logger.Info(req[0])
+	// configs.Logger.Info(req[0])
 	var (
 		/* 00_011_011 */
 		l = (req[0] >> 6) & 0b11
 		v = (req[0] >> 3) & 0b111
 	)
-	if !((l == LI_NO_WARNING) || (l == LI_RESERVED)) {
+	if !((l == LiNoWarning) || (l == LiReserved)) {
 		return false
 	}
-	return (VN_FIRST <= v && v <= VN_LAST) && (req[0]&0b111 == MODE_CLIENT)
+	return (VnFirst <= v && v <= VnLast) && (req[0]&0b111 == ModeQuery || req[0]&0b111 == ModeCtrl)
 }
 
-const FROM_1900_TO_1970 = 2208988800
+const From1900To1970 = 2208988800
 
 // unix time: the number of seconds elapsed since January 1, 1970 UTC
 // npt time: the number of seconds elapsed since January 1, 1900 UTC
 // 1900~1970
 func unix2ntp(u int64) int64 {
-	return u + FROM_1900_TO_1970
+	return u + From1900To1970
 }
 
-// int2bytes
-// format int number to four bytes.
-// big endian.
+// int2bytes converts int number to four bytes in big endian.
 func int2bytes(i int64) []byte {
 	var b = make([]byte, 4)
 	h1 := i >> 24
 	h2 := (i >> 16) - (h1 << 8)
 	h3 := (i >> 8) - (h1 << 16) - (h2 << 8)
-	h4 := byte(i)
 	b[0] = byte(h1)
 	b[1] = byte(h2)
 	b[2] = byte(h3)
-	b[3] = byte(h4)
+	b[3] = byte(i)
 	return b
 }
 
-// TODO: A little bit weird. And need to add time resolution hook
+// TODO: 1. A little bit weird. And need to add time resolution hook
+//		 2. what kind of information do we have to record?
+
 func generate(req []byte) []byte {
-	curr_time := time.Now()
-	var second = unix2ntp(curr_time.Unix())
-	var fraction = unix2ntp(int64(curr_time.Nanosecond()))
+	currTime := time.Now()
+	var second = unix2ntp(currTime.Unix())
+	var fraction = unix2ntp(int64(currTime.Nanosecond()))
 	var res = make([]byte, 48)
 	var vn = req[0] & 0b00_111_000
 	res[0] = vn + 4
@@ -137,112 +162,155 @@ func NTPServe(req []byte) ([]byte, error) {
 	if !validFormat(req) {
 		return nil, errors.New("invalid ntp format")
 	}
-	res := generate(req)
-	return res, nil
+	switch req[0] & 0b111 {
+	case 3:
+		res := generate(req)
+		return res, nil
+	case 6:
+		/*
+			TODO: record mode according to RFC 9327
+				1: read status
+				2: read variable
+				3: write variable
+				6: Set Trap Address/Port
+				7: Trap Response
+				9: Save Configuration
+				10: Read MRU
+				11: Read ordered list
+				12: Request Nonce
+				31: Unset Trap
+				13-31: Reserved
+			6/7 ~ [a mechanism for positively notifying events that happened in current NTP server]
+		*/
+		return nil, errors.New("unsupported NTP operation")
+	default:
+		return nil, errors.New("invalid ntp mode")
+	}
 }
 
-type NTPserverConf struct {
+type NTPServConf struct {
 	/* database handler for writing data */
-	DB_fd *gorm.DB
-	/* fields below need concurrenct control to follow the configuration */
-	AlterNTPListener  sync.Mutex
-	ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
+	DbFd *configs.RuntimeDB
+	/* fields below need concurrent control to follow the configuration */
+	AlterNTPListener sync.Mutex
+	// ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
 	serverListenerPtr *net.UDPConn // current listener on Addr:Port
-	Addr              string       // b0gus NTP server addr
-	Port              uint16       // b0gus NTP server port number
+	ConfOptions       *configs.NTPconfig
 }
 
-func (n *NTPserverConf) NTPclientHandler(
-	terminator *b0gus_datatypes.ConcurrentCtrl,
-) {
-	var (
-		addr string
-		port uint16
-	)
-	n.ConfigGenericCtrl.Ch <- struct{}{}
-	addr = n.Addr
-	port = n.Port
-	<-n.ConfigGenericCtrl.Ch
+func (n *NTPServConf) NTPclientHandler(scc *configs.ServConcurrentCtrl) {
+	var endNtp atomic.Bool
+	endNtp.Store(false)
 
-	udp_conn, err := net.ListenUDP(
+	// n.ConfigGenericCtrl.Ch <- struct{}{}
+	// <-n.ConfigGenericCtrl.Ch
+	port := n.ConfOptions.ListenPort
+	udpConn, err := net.ListenUDP(
 		"udp", &net.UDPAddr{
-			IP:   net.ParseIP(addr),
+			IP:   net.ParseIP(n.ConfOptions.ListenAddr),
 			Port: int(port),
 		},
 	)
 	if err != nil {
-		b0gus_config.Logger.Errorf(
-			"Failed to listen on given addr:%s",
-			fmt.Sprintf("%s:%d", addr, port),
+		configs.Logger.Error(
+			fmt.Sprintf("Failed to listen on given addr <:%d>", port),
 		)
 		return
 	}
-
-	defer udp_conn.Close()
-
-	n.AlterNTPListener.Lock()
-	n.serverListenerPtr = udp_conn
-	n.AlterNTPListener.Unlock()
+	defer func() { _ = udpConn.Close() }()
 
 	go func() {
-		/* signal to this channels will use as termination determinant */
-		<-terminator.Ch // stuck here until receiving termination signal
-		b0gus_config.Logger.Warn(
-			"Catch a signal requirement for shuting down b0gus NTP server ",
-		)
-		udp_conn.Close()
+	stuck:
+		select {
+		case <-scc.Ctx.Done(): // we are done
+		case castedDatum, ok := <-scc.DataCh:
+			if !ok {
+				goto stuck
+			}
+			switch castedDatum.(type) {
+			case nil: // terminated signal checked from updated configuration
+			case *configs.NTPconfig:
+				configs.Logger.Info(
+					fmt.Sprintf(
+						"yet to have capacity for updating ntp configuration<%v>",
+						castedDatum,
+					),
+				)
+				n.AlterNTPListener.Lock()
+				// TODO: we need an updater for connection listener
+				n.AlterNTPListener.Unlock()
+				goto stuck
+			case configs.NTPconfig:
+				goto stuck
+			default:
+				goto stuck
+			}
+		}
+		endNtp.Store(true)
+		_ = udpConn.Close()
 		n.AlterNTPListener.Lock()
-		n.serverListenerPtr.Close()
+		_ = n.serverListenerPtr.Close()
 		n.AlterNTPListener.Unlock()
 	}()
 
-	var curr_listener *net.UDPConn
+	n.AlterNTPListener.Lock()
+	n.serverListenerPtr = udpConn
+	n.AlterNTPListener.Unlock()
+
+	var currListener *net.UDPConn
 	for {
-		if terminator.Flag.Load() {
+		if endNtp.Load() {
 			break
 		}
-		data_buf := make([]byte, 1024)
+		dataBuf := make([]byte, 1024)
 		n.AlterNTPListener.Lock()
-		curr_listener = n.serverListenerPtr
+		currListener = n.serverListenerPtr
 		n.AlterNTPListener.Unlock()
-		_, remote_ip, err := curr_listener.ReadFromUDP(data_buf)
+		_, remoteIP, err := currListener.ReadFromUDP(dataBuf)
 		if err != nil {
-			b0gus_config.Logger.Warn(err)
+			configs.Logger.Warn(err.Error())
 			continue
 		}
-		b0gus_config.Logger.Infof(
-			"Receiving payload<len is %d> from %v",
-			len(data_buf), remote_ip,
+		payload := configs.GetLocalizedMsg(
+			"services.NTPReceivePayloadFromRemoteInfo",
+			map[string]any{
+				"IP":  remoteIP,
+				"Len": len(dataBuf),
+			},
 		)
-		resp, err := NTPServe(data_buf)
+		configs.Logger.Info(payload)
+		resp, _ := NTPServe(dataBuf)
+		_, err = currListener.WriteToUDP(resp[:], remoteIP)
 		if err != nil {
-			b0gus_config.Logger.Warn(err)
-		}
-		_, err = curr_listener.WriteToUDP(resp[:], remote_ip)
-		if err != nil {
-			b0gus_config.Logger.Warn(err)
 			continue
 		}
 	}
 }
 
-// TODO: utilize database pointer
-func NTPserver(
-	terminator *b0gus_datatypes.ConcurrentCtrl,
-	ntp_conf_obj *b0gus_config.NTPconfig,
-	db *gorm.DB,
-	wait_group *sync.WaitGroup,
+// Run executes NTP services
+func (n *NTPServConf) Run(
+	ntpConfPtr *configs.NTPconfig,
+	scc *configs.ServConcurrentCtrl,
+	db *configs.RuntimeDB, // *gorm.DB *redis.Client *mongo.Client
+	args ...any,
 ) {
-	defer wait_group.Done()
-	ntp_server_conf := NTPserverConf{
-		Addr:  ntp_conf_obj.ListenAddr,
-		Port:  ntp_conf_obj.ListenPort,
-		DB_fd: db,
+	defer func() {
+		payload := configs.GetLocalizedMsg(
+			"services.NTPQuitInfo",
+			nil,
+		)
+		configs.Logger.Info(payload)
+	}()
+	if len(args) > 1 || args[0] != nil {
+		return
 	}
-	ntp_server_conf.ConfigGenericCtrl.Ch = make(chan struct{}, 1)
-	ntp_server_conf.ConfigGenericCtrl.Flag.Store(false)
-
-	ntp_server_conf.NTPclientHandler(terminator)
-	close(ntp_server_conf.ConfigGenericCtrl.Ch)
-
+	if ntpConfPtr == nil {
+		configs.Logger.Error("empty configuration is provided")
+		return
+	}
+	ntpServConf := NTPServConf{
+		ConfOptions: ntpConfPtr,
+		DbFd:        db,
+	}
+	ntpServConf.NTPclientHandler(scc)
 }
