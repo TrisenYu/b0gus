@@ -19,7 +19,6 @@ fuzz/
 
 # private directory
 configs/*
-!configs/.example_translator_api
 !configs/.gitkeep
 !configs/example.toml
 !configs/*.go
