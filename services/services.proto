@@ -1,0 +1,15 @@
+syntax = "proto3";
+option go_package = ".;services";
+service ServRPC {
+    rpc PublishUpdate (ServConf) returns (ServReply) {}
+}
+
+message ServConf {
+    uint64 id = 1;
+    bytes serializedInfo = 2;
+}
+
+message ServReply {
+    uint64 code = 1;
+    string errInfo = 2;
+}

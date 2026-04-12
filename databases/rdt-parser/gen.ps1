@@ -8,6 +8,13 @@ if (-not $?) {
     exit 1
 }
 
+# version number must >= 4.13
+$version = (antlr4 2>&1) -match 'version (\d+)\.(\d+)' | Out-Null
+if ($matches[1] -lt 4 -or $matches[2] -lt 13) {
+    Write-Error "require version of antlr >= 4.13"
+    exit 1
+}
+
 go version | grep -in "go" > $null 2>&1
 if (-not $?) {
     Write-Error "require go in your system"

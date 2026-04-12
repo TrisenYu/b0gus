@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	currConfig LocalConfig
+	currConfig = LocalConfig{}
 	tmpHotConf = &LocalConfig{}
 )
 
@@ -54,8 +54,6 @@ func LoadDefaultConfig(confPath string) *LocalConfig {
 
 // AlterLocalConf will be invoked by monitorGivenLocalConf if the global configuration is enabled
 func AlterLocalConf() {
-	confLock.Lock()
-	defer confLock.Unlock()
 	err := viper.Unmarshal(&tmpHotConf)
 	if err != nil {
 		payload := GetLocalizedMsg(
@@ -65,8 +63,8 @@ func AlterLocalConf() {
 		Logger.Error(payload)
 		return
 	}
-	UpdateFlag <- tmpHotConf
-	currConfig = *tmpHotConf
+	// UpdateFlag <- tmpHotConf
+	// currConfig = *tmpHotConf
 }
 
 // monitorGivenLocalConf
@@ -96,7 +94,7 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 				fallthrough
 			case fsnotify.Write:
 				// check and push current update
-				AlterLocalConf()
+				// AlterLocalConf()
 			case fsnotify.Remove:
 				Logger.Info("given file has been removed at time, won't reload!")
 				fallthrough

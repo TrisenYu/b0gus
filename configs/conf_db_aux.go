@@ -37,6 +37,19 @@ func GuessAndDetermine(db any) int {
 	}
 }
 
+// SelectDatabaseBackend will attempt to cast dbConfig into proper type
+// by checking its Type member.
+// this function return nil as RuntimeDB if there is any error during
+// execution context.
+//
+// [TODO-other-db]:
+//  1. https://www.cockroachlabs.com/docs/v26.1/build-a-go-app-with-cockroachdb-gorm?
+//  2. https://pkg.go.dev/github.com/gocql/gocql
+//
+// [TODO]:
+//  1. the choice of certain database should integrate into services configuration
+//  2. sslmode=verify-full&sslrootcert=/var/lib/postgresql/ssl/root.crt.
+//     which means configuration can assign a certificate for postgreSQL
 func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
 	switch strings.ToLower(dbConfig.Type) {
 	case "postgresql": // deploy on certain port
@@ -49,21 +62,24 @@ func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
 			Logger.Fatal(payload)
 			return nil, "", errors.New(payload)
 		}
-		/*
-			TODO: sslmode=verify-full&sslrootcert=/var/lib/postgresql/ssl/root.crt
-			which means configuration can assign a certificate for postgreSQL
-		*/
+
 		pgDbConfig := fmt.Sprintf(
 			"host=%s port=%d user=%s password=%s dbname=%s search_path=public",
 			dbAddr, dbConfig.Port, dbConfig.AdminName,
 			dbConfig.AdminPassword, dbConfig.Name,
 		)
-		db, err := gorm.Open(gormpg.Open(pgDbConfig), &gorm.Config{})
+
+		db, err := gorm.Open(
+			gormpg.Open(pgDbConfig), &gorm.Config{
+				// set default timeout
+				DefaultTransactionTimeout: 10 * time.Second,
+			},
+		)
 		return db, "postgresql", err
-	case "sqlite": // localdatabase as a file
+	case "sqlite":
+		// localdatabase as a file?
 		absAssetsDirPath, _ := filepath.Abs(AssetsDirAsStr)
-		sqlitePath := dbConfig.Path
-		sqlitePath = filepath.Join(absAssetsDirPath, sqlitePath)
+		sqlitePath := filepath.Join(absAssetsDirPath, dbConfig.Path)
 		db, err := gorm.Open(gormsqlite.Open(sqlitePath), &gorm.Config{})
 		return db, "sqlite", err
 	case "mongodb":
@@ -100,19 +116,16 @@ func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
 			Logger.Error(err.Error())
 			return nil, "", err
 		}
-		db := mongoClient.Database("b0gus")
+		db := mongoClient.Database("b0gus-db")
 		return db, "mongodb", err
 	default:
 		payload := GetLocalizedMsg(
 			"configs.UnsupportDatabaseTypeError",
-			map[string]any{
-				"DatabaseType": dbConfig.Type,
-			},
+			map[string]any{"DatabaseType": dbConfig.Type},
 		)
 		Logger.Error(payload)
 		return nil, "", errors.New(payload)
 	}
-
 }
 
 // callback functions and context might be required
@@ -194,7 +207,7 @@ type DBhandler interface {
 	CreateTable(structures ...DBstruct) error
 
 	// CreateOrUpdateItem single inserts/updates task
-	CreateOrUpdateItem(cond *DBstruct, goal DBstruct) error
+	CreateOrUpdateItem(cond, goal DBstruct) error
 
 	// CreateOrUpdateItemsInSeq executes multiple inserting /updating tasks
 	CreateOrUpdateItemsInSeq(...DBstruct) error
@@ -249,9 +262,10 @@ func (r *RuntimeDB) CreateOrUpdateItem(cond, goal DBstruct) error {
 			err := currRes.Decode(&goal)
 			if err != nil {
 				Logger.Error(err.Error())
-				return currRes.Err() // return here because we do not get the value of counter
+				return currRes.Err()
+				// return here because we do not get the value of counter
 			}
-			// keep doing if nil.
+			// keep doing if nil
 		}
 		if goal.HasCounter() {
 			goal.UpdateCounter()
@@ -268,12 +282,14 @@ func (r *RuntimeDB) CreateOrUpdateItem(cond, goal DBstruct) error {
 	return nil
 }
 
+// AlterDatabaseHandler will analyze database fd created from SelectDatabaseBackend
+// and attempt to set it into RuntimeDB.db.
 func (r *RuntimeDB) AlterDatabaseHandler(dstDB any) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	switch GuessAndDetermine(dstDB) {
 	case GormSQL:
-		r.db = dstDB
+		r.db = dstDB // revoke by GC
 	case MongodbSQL:
 		casted, ok := r.db.(*mongo.Client)
 		if ok {
@@ -292,9 +308,7 @@ func (r *RuntimeDB) AlterDatabaseHandler(dstDB any) {
 }
 
 // CreateOrUpdateItemsInSeq Creates/Updates items sequentially
-func (r *RuntimeDB) CreateOrUpdateItemsInSeq(
-	targetItems ...DBstruct,
-) error {
+func (r *RuntimeDB) CreateOrUpdateItemsInSeq(targetItems ...DBstruct) error {
 	var err error = nil
 	// we can do one thing in this function: evaluate whether we can
 	for _, item := range targetItems {

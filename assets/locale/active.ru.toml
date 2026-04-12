@@ -21,7 +21,7 @@
     [main.DatabaseChangingWarn]
     other = "Из-за внутренней ошибки текущая используемая база данных не будет заменена."
     [main.TerminationSignalWarn]
-    other = "Пойман сигнал завершения работы сервера B0gus <{{.SignalStr}}>."
+    other = "Пойман сигнал завершения работы сервера b0gus <{{.SignalStr}}>."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -39,9 +39,9 @@
     [crypto_aux.InvalidLengthForRSAError]
     other = "Длина предоставленного открытого ключа <{{.PemLen}}> не подходит для алгоритма шифрования RSA."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Использован недействительный или неподдерживаемый сертификат, детали: <{{.ErrInfo}}>. B0gus попытается сгенерировать сертификат в соответствии с конфигурацией."
+    other = "Использован недействительный или неподдерживаемый сертификат, детали: <{{.ErrInfo}}>. b0gus попытается сгенерировать сертификат в соответствии с конфигурацией."
     [crypto_aux.PemFileCreateFailure]
-    other = "Не удалось создать сертификат по пути <{{.pemPath}}> из-за ошибки <{{.ErrInfo}}>, и служба B0gus не будет запущена."
+    other = "Не удалось создать сертификат по пути <{{.pemPath}}> из-за ошибки <{{.ErrInfo}}>, и служба b0gus не будет запущена."
     [crypto_aux.SSHPrivateKeyGenFailure]
     other = "Не удалось сгенерировать закрытый SSH-ключ по заданному алгоритму из-за ошибки <{{.ErrInfo}}>."
     [crypto_aux.SSHPrivateKeySetFailure]
@@ -60,7 +60,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "В конфигурационном файле указан недействительный адрес подключения к базе данных <{{.DatabaseAddr}}>!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Обнаружен неизвестный тип базы данных. В настоящее время B0gus поддерживает PostgreSQL, SQLite и MongoDB, а вы выбрали <{{.DatabaseType}}>."
+    other = "Обнаружен неизвестный тип базы данных. В настоящее время b0gus поддерживает PostgreSQL, SQLite и MongoDB, а вы выбрали <{{.DatabaseType}}>."
     # Глобальная конфигурационная информация
     [configs.ReadingConfigurationFailure]
     other = "Не удалось прочитать конфигурацию. Причина сбоя: <{{.ErrInfo}}>."
@@ -84,7 +84,7 @@
     [services.SSHinvalidConfigurationWarn]
     other = "Недействительная SSH-конфигурация, обновление пропущено"
     [services.SSHSwitchListenerError]
-    other = "Не удалось переключиться на указанный адрес <{{.ListenAddr}}> для повторного прослушивания. В связи с этим текущий SSH-сервер B0gus не будет изменен."
+    other = "Не удалось переключиться на указанный адрес <{{.ListenAddr}}> для повторного прослушивания. В связи с этим текущий SSH-сервер b0gus не будет изменен."
     [services.SSHSetupListenerError]
     other = "Не удалось настроить прослушивание SSH-сервера по указанному адресу <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]

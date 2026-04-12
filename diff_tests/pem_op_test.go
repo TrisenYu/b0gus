@@ -3,6 +3,7 @@ package diff_tests
 import (
 	"b0gus/configs"
 	"b0gus/crypto_aux"
+	"b0gus/services"
 	"context"
 	"crypto/tls"
 	"crypto/x509/pkix"
@@ -24,7 +25,7 @@ func TestPemHelper(t *testing.T) {
 			assert.Equal(t, nil, err, "Unable to delete test.pem")
 		}
 	)
-
+	// TODO: Too noisy
 	whatWeHave := crypto_aux.LoadOrCreateSSHpem(pemPath, "ed25519", 0)
 	assert.NotEqual(t, nil, whatWeHave, "Still got an nil after creating")
 	delPem()
@@ -88,6 +89,7 @@ func TestLocalCertSigning(t *testing.T) {
 	certKeyDir := "./test_dir/"
 	certPath := certKeyDir + "tmpCa.cert"
 	keyPath := certKeyDir + "tmpCa.key"
+
 	err := crypto_aux.CreateRootCaPair(
 		&crypto_aux.CertSignConfig{
 			Name:      pkix.Name{CommonName: "a.bcd"},
@@ -151,7 +153,7 @@ func TestLocalCertSigning(t *testing.T) {
 	configs.RemotePullSource = ":45678"
 	wg.Go(func() {
 		// client1 as server
-		crypto_aux.PullUpdatesFromRemote(
+		services.PullUpdatesFromRemote(
 			certKeyDir+"tmpCa.cert",
 			certKeyDir+"client1.cert",
 			certKeyDir+"client1.key",
@@ -181,7 +183,7 @@ func TestLocalCertSigning(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	wg.Go(func() {
 		// client1 as server
-		crypto_aux.PullUpdatesFromRemote(
+		services.PullUpdatesFromRemote(
 			certKeyDir+"tmpCa.cert",
 			certKeyDir+"client1.cert",
 			certKeyDir+"client1.key",
@@ -208,5 +210,16 @@ func TestLocalCertSigning(t *testing.T) {
 		_, _ = conn.Write([]byte("whoa!"))
 	})
 	wg.Wait()
-	// TODO: withdraw the registered root CA
+	err = os.Remove(certKeyDir + "tmpCa.cert")
+	assert.NoError(t, err)
+	err = os.Remove(certKeyDir + "tmpCa.key")
+	assert.NoError(t, err)
+	err = os.Remove(certKeyDir + "client2.cert")
+	assert.NoError(t, err)
+	err = os.Remove(certKeyDir + "client2.key")
+	assert.NoError(t, err)
+	err = os.Remove(certKeyDir + "client1.cert")
+	assert.NoError(t, err)
+	err = os.Remove(certKeyDir + "client1.key")
+	assert.NoError(t, err)
 }

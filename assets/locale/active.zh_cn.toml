@@ -20,7 +20,7 @@
     [main.DatabaseChangingWarn]
     other = "因内部错误，不更换当前正在使用的数据库。"
     [main.TerminationSignalWarn]
-    other = "捕获到终止运行B0gus服务器的信号<{{.SignalStr}}>。"
+    other = "捕获到终止运行b0gus服务器的信号<{{.SignalStr}}>。"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -46,9 +46,9 @@
     [crypto_aux.Base64EncodeFailure]
     other = "无法正确将证书编码为Base64字符串。"
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "使用了无效或者不受支持的证书，细节：<{{.ErrInfo}}>。B0gus将按配置情况尝试生成出一个证书。"
+    other = "使用了无效或者不受支持的证书，细节：<{{.ErrInfo}}>。b0gus将按配置情况尝试生成出一个证书。"
     [crypto_aux.PemFileCreateFailure]
-    other = "因错误<{{.ErrInfo}}>无法在路径<{{.PemPath}}>下创建证书，且将不会启动B0gus服务。"
+    other = "因错误<{{.ErrInfo}}>无法在路径<{{.PemPath}}>下创建证书，且将不会启动b0gus服务。"
 
 [databases]
     [databases.DatabaseTypeError]
@@ -59,7 +59,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "配置文件内提供了无效的数据库连接地址<{{.DatabaseAddr}}>！"
     [configs.UnsupportDatabaseTypeError]
-    other = "发现了未知的数据库类型。当前B0gus支持PostgreSQL、SQLite和MongoDB，而你选择了<{{.DatabaseType}}>。"
+    other = "发现了未知的数据库类型。当前b0gus支持PostgreSQL、SQLite和MongoDB，而你选择了<{{.DatabaseType}}>。"
     # 全局配置信息
     [configs.ReadingConfigurationFailure]
     other = "无法读取配置。失败原因：<{{.ErrInfo}}>。"
@@ -83,7 +83,7 @@
     [services.SSHinvalidConfigurationWarn]
     other = "无效的SSH配置，跳过更新"
     [services.SSHSwitchListenerError]
-    other = "无法切换到给定地址<{{.ListenAddr}}>来重新监听。受此影响不会修改当前的B0gus SSH服务器。"
+    other = "无法切换到给定地址<{{.ListenAddr}}>来重新监听。受此影响不会修改当前的b0gus SSH服务器。"
     [services.SSHSetupListenerError]
     other = "无法在给定地址<{{.ListenAddr}}>上让SSH服务器监听。"
     [services.SSHAcceptConnWarn]
@@ -97,3 +97,7 @@
     other = "NTP服务器接收到来自<{{.IP}}>发来的长度为<{{.Len}}>的时间查询请求。"
     [services.NTPQuitInfo]
     other = "NTP服务器已退出。"
+    # DNS
+    # SMTP
+    # HTTP
+    # ICMP

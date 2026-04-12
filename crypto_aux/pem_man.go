@@ -4,8 +4,6 @@ package crypto_aux
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
 import (
-	"bytes"
-	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -23,7 +21,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"b0gus/configs"
@@ -85,12 +82,6 @@ func loadSSHhostPem(pemPath string) (ssh.Signer, error) {
 			return nil, err
 		}
 		return ssh.NewSignerFromKey(anyPrivate)
-	//case "SM2 PRIVATE KEY":
-	//	sm2Private, err := smx509.ParsePKCS8PrivateKey(pemBlock.Bytes)
-	//	if sm2Private == nil || err != nil {
-	//		return nil, err
-	//	}
-	//	return ssh.NewSignerFromKey(sm2Private)
 	default:
 		pemFileFormatErr := configs.GetLocalizedMsg(
 			"crypto_aux.PemFileFormatError", nil,
@@ -164,8 +155,6 @@ func createPriObj(pemType string, pemLen uint64) (crypto.PrivateKey, error) {
 		hostPem, err = handleEcdsa(pemLen)
 	case "rsa":
 		hostPem, err = handleRsa(pemLen)
-	//case "sm2":
-	//	hostPem, err = sm2.GenerateKey(rand.Reader)
 	default:
 		errInfo := configs.GetLocalizedMsg(
 			"crypto_aux.PemFileUnsupportedTypeError", nil,
@@ -243,18 +232,13 @@ func LoadOrCreateSSHpem(
 	if err == nil {
 		return pemObj
 	}
-	var res ssh.Signer
-	payload := configs.GetLocalizedMsg(
-		"crypto_aux.UnsupportedOrInvalidPemWarn",
-		map[string]any{"ErrInfo": err},
-	)
-	configs.Logger.Warn(payload)
-	res, err = createPriKey(pemPath, pemType, pemLen)
+	// UnsupportedOrInvalidPemWarn
+	res, err := createPriKey(pemPath, pemType, pemLen)
 	if err == nil {
 		// successfully generate one
 		return res
 	}
-	payload = configs.GetLocalizedMsg(
+	payload := configs.GetLocalizedMsg(
 		"crypto_aux.PemFileCreateFailure",
 		map[string]any{
 			"PemPath": pemPath,
@@ -305,8 +289,7 @@ func CreateRootCaPair(
 		MaxPathLen:            2,
 		MaxPathLenZero:        false,
 		DNSNames:              certSignConf.Domains,
-		// OCSPServer:
-		// TODO: OCSP server for checking certificates' states
+		// [TODO]: OCSP server for checking and releasing certificates' states
 	}
 	rootCaCert, err := smx509.CreateCertificate(
 		rand.Reader, template, template,
@@ -376,8 +359,6 @@ func LoadCA(caCertPath, caKeyPath string) (*CAInfo, error) {
 			keyType = "ecdsa"
 		case *ed25519.PrivateKey:
 			keyType = "ed25519"
-		//case *sm2.PrivateKey:
-		//	keyType = "sm2"
 		default:
 			keyType = ""
 		}
@@ -421,14 +402,12 @@ func IntranetSignCert(
 	}
 
 	template := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject:      SignedConf.Name,
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(0, 0, SignedConf.ValidDays),
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{
-			x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth,
-		},
+		SerialNumber:          serialNumber,
+		Subject:               SignedConf.Name,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, 0, SignedConf.ValidDays),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 		DNSNames:              SignedConf.Domains,
@@ -459,12 +438,6 @@ func IntranetSignCert(
 		return nil, nil, err
 	}
 	switch SignedConf.KeyType {
-	//case "sm2":
-	//	pemAsBytes, _ := refPem.(*sm2.PrivateKey).Bytes()
-	//	keyPEM = pem.EncodeToMemory(&pem.Block{
-	//		Type:  "PRIVATE KEY",
-	//		Bytes: pemAsBytes,
-	//	})
 	case "rsa":
 		tmpCast, ok := refPem.(*rsa.PrivateKey)
 		if !ok {
@@ -527,6 +500,7 @@ func CreateCertPairUnderFilePath(
 
 // LoadLocalCertAsTLSServ will load signed (cert, key)-file for local tls-server and
 // set rootCA as their certificate chain.
+//
 //	return nil if any error emerges.
 func LoadLocalCertAsTLSServ(
 	RootCaCertPath, SignedCertFile, SignedKeyFile string,
@@ -559,6 +533,43 @@ func LoadLocalCertAsTLSServ(
 	}
 }
 
+// NormalLoadCertAsTLSServ will load a signed (cert, key)-file for server, which is acknowledged by real-world CA.
+func NormalLoadCertAsTLSServ(
+	SignedCertFile, SignedKeyFile string,
+) *tls.Config {
+	cert, err := tls.LoadX509KeyPair(SignedCertFile, SignedKeyFile)
+	if err != nil {
+		// TODO may need logging
+		return nil
+	}
+	return &tls.Config{
+		Certificates:           []tls.Certificate{cert},
+		ClientAuth:             tls.RequireAndVerifyClientCert,
+		InsecureSkipVerify:     false,
+		SessionTicketsDisabled: true,
+		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return &cert, nil
+		},
+	}
+}
+
+// NormalLoadCertAsTLSClient will load signed (cert, key)-file for client, which is acknowledged by real-world CA.
+func NormalLoadCertAsTLSClient(
+	SignedCertFile, SignedKeyFile, serverName string,
+) *tls.Config {
+	cert, err := tls.LoadX509KeyPair(SignedCertFile, SignedKeyFile)
+	if err != nil {
+		// TODO may need logging
+		return nil
+	}
+	return &tls.Config{
+		Certificates:           []tls.Certificate{cert},
+		ServerName:             serverName,
+		InsecureSkipVerify:     false,
+		SessionTicketsDisabled: true,
+	}
+}
+
 // LoadLocalCertAsTLSClient will load **trust** (cert, key) from files and return the most
 // basic *tls.Config.
 // In order to make local-sign (cert, key) trustable, RootCaCertPath is required for building up Chain of Certificate.
@@ -588,70 +599,5 @@ func LoadLocalCertAsTLSClient(
 		ServerName:             serverName,
 		InsecureSkipVerify:     false,
 		SessionTicketsDisabled: true,
-	}
-}
-
-func handleTrustUpdateClients(tlsConn net.Conn) {
-	defer func() { _ = tlsConn.Close() }()
-	for {
-		buf := make([]byte, 1024)
-		_, err := tlsConn.Read(buf)
-		if err != nil {
-			configs.Logger.Warn(err.Error())
-			return
-		}
-		// we have to deal with a private protocol
-		// otherwise we can only collect limited string at one time
-		configs.Logger.Info(string(bytes.Trim(buf, "\x00")))
-	}
-}
-
-// PullUpdatesFromRemote will start up itself as a locality trust TLS server on configs.RemotePullSource.
-// The TLS server will cancel once the in-param ctx is canceled.
-func PullUpdatesFromRemote(
-	rootCaPath, signedCertPath, signedKeyPath string,
-	ctx context.Context,
-) {
-	// listen at local port and obey some formal syntax/private protocol
-	// during the runtime, the monitored port might be altered to another port
-	// so the session
-
-	// notice that this interface will provide distributed communication ability
-	// so encryption is required
-	tmpConf := LoadLocalCertAsTLSServ(rootCaPath, signedCertPath, signedKeyPath)
-	if tmpConf == nil {
-		configs.Logger.Warn("empty tlsConfig!")
-	}
-	listener, err := tls.Listen(
-		"tcp", configs.RemotePullSource,
-		tmpConf,
-	)
-	if err != nil || listener == nil {
-		configs.Logger.Error("can not listen on given tls port...")
-		if err != nil {
-			configs.Logger.Warn(err.Error())
-		} else {
-			configs.Logger.Warn("listener is nil")
-		}
-		return
-	}
-	defer func() { _ = listener.Close() }()
-	var atomFlag atomic.Bool
-	atomFlag.Store(true)
-	go func() {
-		<-ctx.Done()
-		atomFlag.Store(false)
-		_ = listener.Close()
-	}()
-	for atomFlag.Load() {
-		conn, err := listener.Accept()
-		if err != nil {
-			continue
-		}
-		// TODO: 0. also requires limitor for connections control.
-		// 		 1. handle in another go routine.
-		// 		 2. updates from different businesses should queue and then attempt to apply,
-		//			distribute responses of error if the provided updates is unacceptable.
-		go handleTrustUpdateClients(conn)
 	}
 }

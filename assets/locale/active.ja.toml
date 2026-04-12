@@ -21,7 +21,7 @@
     [main.DatabaseChangingWarn]
     other = "内部エラーが発生したため、現在使用中のデータベースは切り替えません。"
     [main.TerminationSignalWarn]
-    other = "B0gusサーバーの終了シグナル<{{.SignalStr}}>をキャプチャしました。"
+    other = "b0gusサーバーの終了シグナル<{{.SignalStr}}>をキャプチャしました。"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -39,9 +39,9 @@
     [crypto_aux.InvalidLengthForRSAError]
     other = "提供された公開鍵の長さ<{{.PemLen}}>は、RSA暗号アルゴリズムに対応していません。"
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "無効またはサポートされていない証明書が使用されました。詳細：<{{.ErrInfo}}>。B0gusは設定に基づき証明書の生成を試みます。"
+    other = "無効またはサポートされていない証明書が使用されました。詳細：<{{.ErrInfo}}>。b0gusは設定に基づき証明書の生成を試みます。"
     [crypto_aux.PemFileCreateFailure]
-    other = "エラー<{{.ErrInfo}}>が発生したため、パス<{{.pemPath}}>に証明書を作成できず、B0gusサービスは起動しません。"
+    other = "エラー<{{.ErrInfo}}>が発生したため、パス<{{.pemPath}}>に証明書を作成できず、b0gusサービスは起動しません。"
     [crypto_aux.SSHPrivateKeyGenFailure]
     other = "エラー<{{.ErrInfo}}>により、指定されたアルゴリズムに基づいてSSH秘密鍵を生成できません。"
     [crypto_aux.SSHPrivateKeySetFailure]
@@ -60,7 +60,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "設定ファイルに無効なデータベース接続アドレス<{{.DatabaseAddr}}>が指定されています！"
     [configs.UnsupportDatabaseTypeError]
-    other = "未知のデータベースタイプが検出されました。現在B0gusがサポートしているのはPostgreSQL、SQLite、MongoDBですが、選択されたのは<{{.DatabaseType}}>です。"
+    other = "未知のデータベースタイプが検出されました。現在b0gusがサポートしているのはPostgreSQL、SQLite、MongoDBですが、選択されたのは<{{.DatabaseType}}>です。"
     # グローバル設定情報
     [configs.ReadingConfigurationFailure]
     other = "設定ファイルを読み取れません。失敗理由：<{{.ErrInfo}}>。"
@@ -84,7 +84,7 @@
     [services.SSHinvalidConfigurationWarn]
     other = "無効なSSH設定です。更新をスキップします"
     [services.SSHSwitchListenerError]
-    other = "再監視のため、指定されたアドレス<{{.ListenAddr}}>に切り替えられません。この影響により、現在のB0gus SSHサーバーは変更されません。"
+    other = "再監視のため、指定されたアドレス<{{.ListenAddr}}>に切り替えられません。この影響により、現在のb0gus SSHサーバーは変更されません。"
     [services.SSHSetupListenerError]
     other = "指定されたアドレス<{{.ListenAddr}}>でSSHサーバーの監視を設定できません。"
     [services.SSHAcceptConnWarn]

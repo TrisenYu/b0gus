@@ -6,82 +6,29 @@ import (
 	"context"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"b0gus/configs"
 	"b0gus/crypto_aux"
-	"b0gus/misc_utils"
 )
 
-// SetSpecConfViaTag is thus used as a bizarre generic function
-// in the scope of golang programming, due to the definition of SSHServConf
-// is separated from configs
-func SetSpecConfViaTag(tag string, conf any) configs.AbsServType {
-	switch tag {
-	case "SSHconfig":
-		res, ok := conf.(configs.SSHconfig)
-		if !ok || !configs.GenericConfChecker(conf, configs.CheckSSHconfig) {
-			return nil
-		}
-		var s SSHServConf
-		res.RegisterRunner(s.Run)
-		return res
-	case "NTPconfig":
-		res, ok := conf.(configs.NTPconfig)
-		if !ok || !configs.GenericConfChecker(conf, configs.CheckNTPconfig) {
-			return nil
-		}
-		var n NTPServConf
-		res.RegisterRunner(n.Run)
-		return res
-	case "DNSconfig":
-		res, ok := conf.(configs.DNSconfig)
-		if !ok || !configs.GenericConfChecker(conf, configs.CheckDNSconfig) {
-			return nil
-		}
-		var d DNSserverConf
-		res.RegisterRunner(d.Run)
-		return res
-	case "SMTPconfig":
-		res, ok := conf.(configs.SMTPconfig)
-		if !ok || !configs.GenericConfChecker(conf, configs.CheckSMTPconfig) { // TODO
-			return nil
-		}
-		var s SMTPServConf
-		res.RegisterRunner(s.Run)
-		return res
-	default: // unknown tag
-		return nil
-	}
-}
+type servRunner func(
+	ConfObj *atomic.Pointer[configs.LocalConfig],
+	scc *configs.ServConcurrentCtrl,
+	db *configs.RuntimeDB,
+	args ...any,
+)
 
-// GenericArgs adjusts arguments for different services
-func GenericArgs(tag string, servConf *configs.LocalConfig) any {
-	switch tag {
-	case "SSHconfig":
-		pemPath, _ := filepath.Abs(filepath.Join(
-			filepath.Dir(configs.LocalConfigPathAsStr),
-			// TODO: change the literal name and corresponding invocation path
-			servConf.ServerConfig.SSHconfig.PemName,
-		))
-		return crypto_aux.LoadOrCreateSSHpem(
-			pemPath, servConf.ServerConfig.SSHconfig.PemType,
-			servConf.ServerConfig.SSHconfig.PemLen,
-		)
-	default:
-		return nil
-	}
-}
-
-// Brancher manages every available services of b0gus
+// Brancher manages every available services of b0gus-arm64
 func Brancher(
-	needShutdown <-chan struct{},
-	serverConf *configs.LocalConfig,
-	db *configs.RuntimeDB, /* *gorm.DB, *mongo.Client */
+	terminator <-chan struct{},
+	serverConf *atomic.Pointer[configs.LocalConfig],
+	db *configs.RuntimeDB,
 ) {
 	var (
 		wg           sync.WaitGroup
-		chSlots      = make(map[string]chan any)
-		servAliveMap = make(map[string]bool)
+		chSlots      = make(map[configs.ServEnum]chan string)
+		servAliveMap = make(map[configs.ServEnum]bool)
 	)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -91,92 +38,77 @@ func Brancher(
 		}
 	}()
 
-	resMap := misc_utils.TurnStruct2Map(serverConf.ServerConfig)
-	for k := range resMap {
-		switch k {
-		case "Language":
-		case "RecDBConfig":
-		default:
-			chSlots[k] = make(chan any, 1)
-			servAliveMap[k] = false
-		}
+	for i := configs.RawEnum + 1; i < configs.ENDofEnum; i++ {
+		chSlots[i] = make(chan string)
 	}
-
 	go func() {
-	stuck:
-		select {
-		case <-needShutdown:
-			cancel() // ctx.cancel() used as a global shutdown convention
-			for ex := range servAliveMap {
-				servAliveMap[ex] = false
-			}
-			return
-		case currConfig, ok := <-configs.UpdateFlag:
-			if !ok {
-				goto stuck
-			}
-			// help for the only database that has registered in frontend
-			// go configs.GlobConfigMan.UpdateConfig(currConfig)
-
-			for servTag, val := range servAliveMap {
-				// check service_ex whether it should be killed or updated in this loop
-				currConf, _ := misc_utils.GetFieldValueByName(
-					currConfig.ServerConfig, servTag,
-				) // interface{}/any needs explicitly unwrapping by enforced type convertion,
-				// we only have tag-strings
-				decision := SetSpecConfViaTag(servTag, currConf)
-				aboutToRun := func() {
-					decision.InvokeRunner(
-						&configs.ServConcurrentCtrl{
-							Ctx:    rootCtx,
-							DataCh: chSlots[servTag],
-						}, db,
-						GenericArgs(servTag, currConfig),
-					)
-				}
-				if val && decision == nil {
-					// apparently without side effects
-					servAliveMap[servTag] = false
-					currConf = struct{}{}
-				} else if !val && decision == nil {
-					// does not have instantiated task-request
-					continue
-				} else if !val && decision != nil {
-					// startup
-					servAliveMap[servTag] = true
-					wg.Go(aboutToRun)
-					continue
-				}
-				chSlots[servTag] <- currConf
-			}
-			goto stuck
+		<-terminator
+		cancel()
+		for ex := range servAliveMap {
+			servAliveMap[ex] = false
 		}
+		// [FEAT]: temporary do not require for services updates
+		//         due to the engineering complexity .
 	}()
 
 	for k := range chSlots {
-		if len(k) == 0 {
-			continue
-		}
-		currConf, err := misc_utils.GetFieldValueByName(serverConf.ServerConfig, k)
-		if err != nil {
-			continue
-		}
-		decision := SetSpecConfViaTag(k, currConf)
+		decision := setSpecConfViaTag(k)
 		if decision == nil {
 			continue
 		}
 		servAliveMap[k] = true
-		// TODO: Remote Procedure Call, design for mitigating the pressure on current computer
-		// 	when its computing capacity is not robust.
+		// [TODO]: RPC. it can mitigate the intensive pressure on current host
+		// 		when its computing capacity is not robust.
+		// 		any configuration upon RPC has to be inspected here.
 		wg.Go(func() {
-			decision.InvokeRunner(
-				&configs.ServConcurrentCtrl{
-					Ctx:    rootCtx,
-					DataCh: chSlots[k],
-				}, db,
-				GenericArgs(k, serverConf),
+			decision(
+				serverConf, &configs.ServConcurrentCtrl{
+					Ctx:           rootCtx,
+					ServNetTypeCh: chSlots[k],
+				}, db, GenericArgs(k, serverConf),
 			)
 		})
 	}
 	wg.Wait()
+}
+
+// setSpecConfViaTag is thus used as a bizarre generic function
+// in the scope of golang programming, due to the definition of SSHServConf
+// is separated from configs
+func setSpecConfViaTag(tag configs.ServEnum) servRunner {
+	switch tag {
+	case configs.SSHEnum:
+		return (&SSHServConf{}).Run
+	case configs.NTPEnum:
+		return (&NTPServConf{}).Run
+	case configs.DNSEnum:
+		return (&DNSserverConf{}).Run
+	case configs.SMTPEnum:
+		return (&SMTPServConf{}).Run
+	case configs.HTTPEnum:
+		return (&HTTPservConf{}).Run
+	default: // unknown tag
+		return nil
+	}
+}
+
+// GenericArgs adjusts arguments for different services
+func GenericArgs(
+	tag configs.ServEnum,
+	servConf *atomic.Pointer[configs.LocalConfig],
+) any {
+	switch tag {
+	case configs.SSHEnum:
+		snapshot, ok := servConf.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+		if !ok {
+			return nil
+		}
+		pemPath, _ := filepath.Abs(filepath.Join(
+			filepath.Dir(configs.LocalConfigPathAsStr),
+			snapshot.PemName,
+		))
+		return crypto_aux.LoadOrCreateSSHpem(pemPath, snapshot.PemType, snapshot.PemLen)
+	default:
+		return nil
+	}
 }

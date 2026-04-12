@@ -1,4 +1,4 @@
-lexer grammar RDTlexer; // RDT stands for Reduced Database Table
+lexer grammar RDTlexer; // RDT stands for Reduced Database Table/Type
 
 /* column attributes */
 NOTNULL:        'notnull';

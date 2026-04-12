@@ -3,11 +3,12 @@
 *.exe
 *.dll
 *.so
-b0gus
+!b0gus.go
+b0gus*
 *.bak
+*.prof
 
 # directory or files created by coding IDE or tool
-sec_container/
 .vscode/
 .idea
 .antlr

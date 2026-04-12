@@ -20,7 +20,7 @@
     [main.DatabaseChangingWarn]
     other = "Won't update the database handler!"
     [main.TerminationSignalWarn]
-    other = "Catch an OS signal<{{.SignalStr}}> for terminating B0gus server!"
+    other = "Catch an OS signal<{{.SignalStr}}> for terminating b0gus server!"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -44,9 +44,9 @@
     [crypto_aux.Base64EncodeFailure]
     other = "Failed to correctly encode the certificate into a Base64 string."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "An invalid or unsupported certificate was used, details: <{{.ErrInfo}}>. B0gus will attempt to generate a certificate according to the configuration."
+    other = "An invalid or unsupported certificate was used, details: <{{.ErrInfo}}>. b0gus will attempt to generate a certificate according to the configuration."
     [crypto_aux.PemFileCreateFailure]
-    other = "Failed to create certificate at path <{{.PemPath}}> due to error <{{.ErrInfo}}>, and the B0gus service will not be started."
+    other = "Failed to create certificate at path <{{.PemPath}}> due to error <{{.ErrInfo}}>, and the b0gus service will not be started."
 
 [databases]
     [databases.DatabaseTypeError]
@@ -57,7 +57,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "Invalid database address<{{.DatabaseAddr}}> was gained from configuration!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Unknown or unsupported database type was found. B0gus Only supports PostgreSQL, SQLite and MongoDB at present, but what you select is <{{.DatabaseType}}>."
+    other = "Unknown or unsupported database type was found. b0gus Only supports PostgreSQL, SQLite and MongoDB at present, but what you select is <{{.DatabaseType}}>."
     # Global Configuration Information
     [configs.ReadingConfigurationFailure]
     other = "Failed to read configuration. Failure reason: <{{.ErrInfo}}>."
@@ -70,7 +70,7 @@
 [services]
     # SSH
     [services.SSHversionWarn]
-    other = "Unable to generate 3 random bytes for SSH version. B0gus will return a default value."
+    other = "Unable to generate 3 random bytes for SSH version. b0gus will return a default value."
     [services.SSHWriteResponseError]
     other = "Encounter an error<{{.ErrInfo}}> when writing back payload."
     [services.SSHsetTimeoutError]
@@ -82,9 +82,9 @@
     [services.SSHinvalidConfigurationWarn]
     other = "Invalid SSH configuration. Skip this updation requirement."
     [services.SSHSwitchListenerError]
-    other = "Can not swtich to given IP<{{.ListenAddr}}> as a listener. Current B0gus SSH server will not update."
+    other = "Can not swtich to given IP<{{.ListenAddr}}> as a listener. Current b0gus SSH server will not update."
     [services.SSHSetupListenerError]
-    other = "Can not listen on given IP<{{.ListenAddr}}> as B0gus SSH server"
+    other = "Can not listen on given IP<{{.ListenAddr}}> as b0gus SSH server"
     [services.SSHAcceptConnWarn]
     other = "Due to err<{{.ErrInfo}}>, can not handle outer SSH connection."
     [services.SSHCanNotUseSigner]

@@ -1,0 +1,10 @@
+http_info:
+    method:text(notnull);
+    path:text(notnull);
+    wrapped_info:bytes();
+    request:text();
+    session_id:integer(
+        primary, createtime ns, 
+        updatetime ns
+    );
+    

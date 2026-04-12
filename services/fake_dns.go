@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 
 	"codeberg.org/miekg/dns"
 	"codeberg.org/miekg/dns/dnsutil"
@@ -19,7 +19,6 @@ import (
 // Reference: https://github.com/EmilHernvall/dnsguide/
 
 // TODO: What if we send a wrong response to other computer?
-
 // Answers dns queries with a random ip address.
 // Responds to version bind queries with an old and unpatched version.
 
@@ -27,13 +26,11 @@ type DNSserverConf struct {
 	/* database handler for writing data */
 	DBFd *configs.RuntimeDB
 	/* fields below need concurrent control to follow the configuration */
-	AlterDNSListener  sync.Mutex
-	serverListenerPtr *net.UDPConn // current listener on Addr:Port
-	ConfOptions       *configs.DNSconfig
+	ConfOptions *configs.DNSconfig
 }
 
 func getDNSrr(queryType uint16, headerName string) dns.RR {
-	// TODO: we could set multiple answers for every query
+	// [TODO]: we could set multiple answers for every query
 	switch queryType {
 	case dns.TypeA:
 		var payload []byte
@@ -69,7 +66,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 				TTL:   600,
 			},
 			CNAME: rdata.CNAME{
-				Target: "cname.123.com",
+				Target: "cname." + headerName,
 			},
 		}
 	case dns.TypeTXT:
@@ -88,7 +85,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 				Class: dns.ClassINET,
 				TTL:   600,
 			},
-			MX: rdata.MX{Mx: "mail."+headerName},
+			MX: rdata.MX{Mx: "mail." + headerName},
 		}
 	case dns.TypeNS:
 		return &dns.NS{
@@ -97,7 +94,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 				Class: dns.ClassINET,
 				TTL:   600,
 			},
-			NS: rdata.NS{Ns: "ns1."+headerName},
+			NS: rdata.NS{Ns: "ns1." + headerName},
 		}
 	case dns.TypePTR:
 		return &dns.PTR{
@@ -106,7 +103,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 				Class: dns.ClassINET,
 				TTL:   600,
 			},
-			PTR: rdata.PTR{Ptr: "ptr1."+headerName},
+			PTR: rdata.PTR{Ptr: "ptr1." + headerName},
 		}
 	case dns.TypeSRV:
 		return &dns.SRV{
@@ -119,7 +116,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 				Priority: uint16(rand.IntN(65536)),
 				Weight:   uint16(rand.IntN(65536)),
 				Port:     uint16(rand.IntN(65536)),
-				Target:   "cname."+headerName,
+				Target:   "cname." + headerName,
 			},
 		}
 	default:
@@ -131,9 +128,9 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 func (d *DNSserverConf) analyzeQuery(req dns.RR, m *dns.Msg) {
 	headerName := req.Header().Name
 	payload := databases.DnsQuery{
-		DomainName:         headerName,
-		Opcode:             dnsutil.OpcodeToString(m.Opcode),
-		QueryType:          dnsutil.TypeToString(dns.RRToType(req)),
+		DomainName: headerName,
+		Opcode:     dnsutil.OpcodeToString(m.Opcode),
+		QueryType:  dnsutil.TypeToString(dns.RRToType(req)),
 	}
 	_ = d.DBFd.CreateOrUpdateItem(&payload, &payload)
 	answer := getDNSrr(dns.RRToType(req), headerName)
@@ -168,11 +165,9 @@ func (d *DNSserverConf) ServeDNS(
 		// TODO: ? multiple question should not affect the global section.
 		d.analyzeQuery(q, m)
 	}
-	m.Extra = append(m.Extra)
 	m.AuthenticatedData = true
 	m.Authoritative = true
 	m.Response = true
-	//m.Extra
 	_, err = m.WriteTo(respWriter)
 	if err != nil {
 		configs.Logger.Debug(err.Error())
@@ -182,32 +177,35 @@ func (d *DNSserverConf) ServeDNS(
 // Run will start up fake DNS server with recording
 // every query requests
 func (d *DNSserverConf) Run(
-	dnsConfObj *configs.DNSconfig,
+	ConfObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB, // db *gorm.DB *redis.Client *mongo.Client
-	args ...any,
+	db *configs.RuntimeDB, args ...any,
 ) {
 	defer func() { configs.Logger.Info("DNS server quit...") }()
 	if len(args) == 0 {
 		configs.Logger.Error("incorrect number of arguments")
 		return
-	} else if dnsConfObj == nil {
+	} else if ConfObj == nil {
 		configs.Logger.Error("empty configuration is provided")
+		return
+	}
+	snapshot, ok := ConfObj.Load().SelectTerm(configs.DNSEnum).(configs.DNSconfig)
+	if !ok {
+		configs.Logger.Error("can not select dns configuration from ConfObj")
 		return
 	}
 	var sb strings.Builder
 	sb.WriteString(":")
-	sb.WriteString(strconv.Itoa(int(dnsConfObj.ListenPort)))
+	sb.WriteString(strconv.Itoa(int(snapshot.ListenPort)))
 	s := &dns.Server{Addr: sb.String(), Net: "udp"}
 	d.DBFd = db
 	_ = d.DBFd.CreateTable(
-		&databases.AddrInfo{},
-		&databases.PortInfo{}, // have to re-create because services is separated
-		&databases.DnsQuery{},
+		// have to re-create for certain table because services are separated
+		&databases.AddrInfo{}, &databases.PortInfo{}, &databases.DnsQuery{},
 	)
 	go func() {
 		<-scc.Ctx.Done()
-		s.Shutdown(nil)
+		s.Shutdown(context.TODO())
 	}()
 	s.Handler = d
 	err := s.ListenAndServe()

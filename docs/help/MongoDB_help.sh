@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# Last modified at 2026/03/30 星期一 20:36:39
 # shellcheck disable=SC3040
 set -euo pipefail
 
@@ -13,10 +14,10 @@ cat << EOS
 
 $ mongosh # login into mongoServer
 > use admin
-> db.createUser({user:"admin",pwd:"password!!!",roles:[{role:"userAdminAnyDatabase",db:"admin"}]})
-> use b0gus
+admin> db.createUser({user:"admin",pwd:"password!!!",roles:[{role:"userAdminAnyDatabase",db:"admin"}]})
+admin> use b0gus
 b0gus> show tables
 b0gus> db.AddrInfo.drop()
 b0gus> db.CommandInfo.find()
-> quit
+b0gus> quit
 EOS

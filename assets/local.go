@@ -1,5 +1,7 @@
 package assets
 
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+
 import (
 	"embed"
 

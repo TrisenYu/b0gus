@@ -21,7 +21,7 @@
     [main.DatabaseChangingWarn]
     other = "Λόγω εσωτερικού σφάλματος, δεν αλλάζει η τρέχουσα βάση δεδομένων."
     [main.TerminationSignalWarn]
-    other = "Λήφθηκε σήμα τερματισμού του διακομιστή B0gus <{{.SignalStr}}>."
+    other = "Λήφθηκε σήμα τερματισμού του διακομιστή b0gus <{{.SignalStr}}>."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -39,9 +39,9 @@
     [crypto_aux.InvalidLengthForRSAError]
     other = "Το μήκος του παρεχόμενου δημόσιου κλειδιού <{{.PemLen}}> δεν είναι κατάλληλο για αλγόριθμο κρυπτογράφησης RSA."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Χρησιμοποιήθηκε άκυρο ή μη υποστηριζόμενο πιστοποιητικό. Λεπτομέρειες: <{{.ErrInfo}}>. Το B0gus θα προσπαθήσει να δημιουργήσει ένα πιστοποιητικό σύμφωνα με τη διαμόρφωση."
+    other = "Χρησιμοποιήθηκε άκυρο ή μη υποστηριζόμενο πιστοποιητικό. Λεπτομέρειες: <{{.ErrInfo}}>. Το b0gus θα προσπαθήσει να δημιουργήσει ένα πιστοποιητικό σύμφωνα με τη διαμόρφωση."
     [crypto_aux.PemFileCreateFailure]
-    other = "Αδυναμία δημιουργίας πιστοποιητικού στη διαδρομή <{{.pemPath}}> λόγω σφάλματος <{{.ErrInfo}}>. Η υπηρεσία B0gus δεν θα εκκινήσει."
+    other = "Αδυναμία δημιουργίας πιστοποιητικού στη διαδρομή <{{.pemPath}}> λόγω σφάλματος <{{.ErrInfo}}>. Η υπηρεσία b0gus δεν θα εκκινήσει."
     [crypto_aux.SSHPrivateKeyGenFailure]
     other = "Αποτυχία δημιουργίας ιδιωτικού κλειδιού SSH σύμφωνα με τον καθορισμένο αλγόριθμο λόγω σφάλματος <{{.ErrInfo}}>."
     [crypto_aux.SSHPrivateKeySetFailure]
@@ -60,7 +60,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "Μη έγκυρη διεύθυνση σύνδεσης βάσης δεδομένων στο αρχείο διαμόρφωσης <{{.DatabaseAddr}}>!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Ανιχνεύτηκε άγνωστος τύπος βάσης δεδομένων. Το B0gus υποστηρίζει αυτήν την στιγμή PostgreSQL, SQLite και MongoDB, ενώ επιλέχθηκε <{{.DatabaseType}}>."
+    other = "Ανιχνεύτηκε άγνωστος τύπος βάσης δεδομένων. Το b0gus υποστηρίζει αυτήν την στιγμή PostgreSQL, SQLite και MongoDB, ενώ επιλέχθηκε <{{.DatabaseType}}>."
     # Καθολική διαμόρφωση
     [configs.ReadingConfigurationFailure]
     other = "Αδυναμία ανάγνωσης διαμόρφωσης. Λόγος: <{{.ErrInfo}}>."
@@ -84,7 +84,7 @@
     [services.SSHinvalidConfigurationWarn]
     other = "Άκυρη διαμόρφωση SSH, παραλείπεται η ενημέρωση"
     [services.SSHSwitchListenerError]
-    other = "Αδυναμία μεταβολής στη διεύθυνση <{{.ListenAddr}}> για επανανακούστευση. Ο τρέχων διακομιστής SSH B0gus δεν τροποποιείται."
+    other = "Αδυναμία μεταβολής στη διεύθυνση <{{.ListenAddr}}> για επανανακούστευση. Ο τρέχων διακομιστής SSH b0gus δεν τροποποιείται."
     [services.SSHSetupListenerError]
     other = "Αδυναμία εκκίνησης ακρόασης διακομιστή SSH στη διεύθυνση <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]

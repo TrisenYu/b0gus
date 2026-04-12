@@ -2,6 +2,7 @@
 package diff_tests
 
 import (
+	"b0gus/crypto_aux"
 	"crypto/x509/pkix"
 	"fmt"
 	"io"
@@ -14,6 +15,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestBase64(t *testing.T) {
+	_, err := crypto_aux.Base64Recover("abc")
+	assert.NotNil(t, err)
+	whatWeHave, err := crypto_aux.Base64Recover("")
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(whatWeHave))
+	base64str := crypto_aux.Base64Convert([]byte("abc"))
+	originStr, err := crypto_aux.Base64Recover(base64str)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte("abc"), originStr)
+}
+
 func TestReflection(t *testing.T) {
 	// assemble to configs.Config_path_as_str
 	examConfPath := "../configs/example.toml"
@@ -21,20 +34,12 @@ func TestReflection(t *testing.T) {
 	localConf := configs.LoadDefaultConfig(testConfPath)
 	resMap := misc_utils.TurnStruct2Map(localConf.ServerConfig)
 	assert.NotEqual(t, resMap, nil)
-	for k, v := range resMap {
-		fmt.Println(k, v)
-	}
 	sshName := misc_utils.GetTypeNameViaType(localConf.ServerConfig.SSHconfig)
 	assert.Equal(t, "SSHconfig", sshName)
-	psshName := misc_utils.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
-	fmt.Println(psshName)
+	misc_utils.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
 	_, ok := resMap[sshName]
 	assert.Equal(t, true, ok)
 	resMap = misc_utils.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
-	for k := range resMap {
-		fmt.Println(k)
-	}
-
 	curr, err := misc_utils.GetFieldValueByName(localConf.ServerConfig, sshName)
 	assert.Equal(t, nil, err)
 	_, ok = curr.(*configs.SSHconfig)
@@ -101,42 +106,32 @@ func TestAnyType(t *testing.T) {
 
 	bName := misc_utils.GetTypeNameViaType(b)
 	assert.NotEqual(t, "", bName)
-	fmt.Println(bName)
 
 	cName := misc_utils.GetTypeNameViaType(c.HellYeah)
 	assert.NotEqual(t, "", cName)
-	fmt.Println(cName)
 	cName = misc_utils.GetTypeNameViaType(c.WhatCanIsay)
 	assert.NotEqual(t, "", cName)
-	fmt.Println(cName)
 
 	cName = misc_utils.GetTypeNameViaType(c.JustTestIt)
 	assert.NotEqual(t, "", cName)
-	fmt.Println(cName)
 
 	cName = misc_utils.GetTypeNameViaType(c.AnOpenFunc)
 	assert.NotEqual(t, "", cName)
-	fmt.Println(cName)
 
 	cName = misc_utils.GetTypeNameViaType(c.ManHaha)
 	assert.NotEqual(t, "", cName)
-	fmt.Println(cName)
 
 	cName = misc_utils.GetTypeNameViaType(c)
 	assert.NotEqual(t, "", cName)
-	fmt.Println(cName)
 
 	dName := misc_utils.GetTypeNameViaType(d)
 	assert.NotEqual(t, "", dName)
-	fmt.Println(dName)
 
 	eName := misc_utils.GetTypeNameViaType(e)
 	assert.NotEqual(t, "", eName)
-	fmt.Println(eName)
 
 	fName := misc_utils.GetTypeNameViaType(f)
 	assert.NotEqual(t, "", fName)
-	fmt.Println(fName)
 }
 
 type ipPort struct {

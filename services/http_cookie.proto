@@ -1,0 +1,9 @@
+// both serializer and deserializer are created by protoc for providing service for information in http.
+// like user-agent, cookie
+syntax = "proto3";
+option go_package = ".;services";
+
+message StrMapForHTTP {
+    map<string, string> cookie = 1;
+    string userAgent = 2;
+}

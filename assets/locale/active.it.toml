@@ -21,7 +21,7 @@
     [main.DatabaseChangingWarn]
     other = "A causa di un errore interno, non viene cambiato il database attualmente in uso."
     [main.TerminationSignalWarn]
-    other = "Ricevuto segnale di terminazione del server B0gus <{{.SignalStr}}>."
+    other = "Ricevuto segnale di terminazione del server b0gus <{{.SignalStr}}>."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -39,9 +39,9 @@
     [crypto_aux.InvalidLengthForRSAError]
     other = "La lunghezza della chiave pubblica fornita <{{.PemLen}}> non è adatta per l'algoritmo di crittografia RSA."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Utilizzato un certificato non valido o non supportato. Dettagli: <{{.ErrInfo}}>. B0gus tenterà di generare un certificato secondo la configurazione."
+    other = "Utilizzato un certificato non valido o non supportato. Dettagli: <{{.ErrInfo}}>. b0gus tenterà di generare un certificato secondo la configurazione."
     [crypto_aux.PemFileCreateFailure]
-    other = "Impossibile creare il certificato nel percorso <{{.pemPath}}> a causa dell'errore <{{.ErrInfo}}>. Il servizio B0gus non verrà avviato."
+    other = "Impossibile creare il certificato nel percorso <{{.pemPath}}> a causa dell'errore <{{.ErrInfo}}>. Il servizio b0gus non verrà avviato."
     [crypto_aux.SSHPrivateKeyGenFailure]
     other = "Impossibile generare la chiave privata SSH secondo l'algoritmo fornito a causa dell'errore <{{.ErrInfo}}>."
     [crypto_aux.SSHPrivateKeySetFailure]
@@ -60,7 +60,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "Indirizzo di connessione al database non valido nel file di configurazione <{{.DatabaseAddr}}>!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Rilevato tipo di database sconosciuto. B0gus attualmente supporta PostgreSQL, SQLite e MongoDB, è stato selezionato <{{.DatabaseType}}>."
+    other = "Rilevato tipo di database sconosciuto. b0gus attualmente supporta PostgreSQL, SQLite e MongoDB, è stato selezionato <{{.DatabaseType}}>."
     # Configurazione globale
     [configs.ReadingConfigurationFailure]
     other = "Impossibile leggere la configurazione. Motivo: <{{.ErrInfo}}>."
@@ -85,7 +85,7 @@
     [services.SSHinvalidConfigurationWarn]
     other = "Configurazione SSH non valida, aggiornamento saltato"
     [services.SSHSwitchListenerError]
-    other = "Impossibile passare all'indirizzo <{{.ListenAddr}}> per riascoltare. Il server SSH B0gus corrente non viene modificato."
+    other = "Impossibile passare all'indirizzo <{{.ListenAddr}}> per riascoltare. Il server SSH b0gus corrente non viene modificato."
     [services.SSHSetupListenerError]
     other = "Impossibile avviare l'ascolto del server SSH sull'indirizzo <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]

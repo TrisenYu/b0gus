@@ -4,9 +4,8 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"net"
-	"sync"
+	"net/http"
 	"sync/atomic"
 	"time"
 
@@ -188,110 +187,35 @@ func NTPServe(req []byte) ([]byte, error) {
 	}
 }
 
-type NTPServConf struct {
-	/* database handler for writing data */
-	DbFd *configs.RuntimeDB
-	/* fields below need concurrent control to follow the configuration */
-	AlterNTPListener sync.Mutex
-	// ConfigGenericCtrl b0gus_datatypes.ConcurrentCtrl
-	serverListenerPtr *net.UDPConn // current listener on Addr:Port
-	ConfOptions       *configs.NTPconfig
+// InvokeForTCPtask here will do nothing due to ntp requires udp
+func (n *NTPServConf) InvokeForTCPtask(net.Conn)                    {}
+func (n *NTPServConf) InvokeForICMPtask(net.Addr, []byte)           {}
+func (n *NTPServConf) ServeHTTP(http.ResponseWriter, *http.Request) {}
+func (n *NTPServConf) InvokeForUDPtask(remoteIP net.Addr, dataBuf []byte) []byte {
+	payload := configs.GetLocalizedMsg(
+		"services.NTPReceivePayloadFromRemoteInfo",
+		map[string]any{"IP": remoteIP, "Len": len(dataBuf)},
+	)
+	configs.Logger.Info(payload)
+	resp, err := NTPServe(dataBuf)
+	if err != nil {
+		// ntp error packet
+		return dataBuf
+	}
+	return resp
 }
 
-func (n *NTPServConf) NTPclientHandler(scc *configs.ServConcurrentCtrl) {
-	var endNtp atomic.Bool
-	endNtp.Store(false)
-
-	// n.ConfigGenericCtrl.Ch <- struct{}{}
-	// <-n.ConfigGenericCtrl.Ch
-	port := n.ConfOptions.ListenPort
-	udpConn, err := net.ListenUDP(
-		"udp", &net.UDPAddr{
-			IP:   net.ParseIP(n.ConfOptions.ListenAddr),
-			Port: int(port),
-		},
-	)
-	if err != nil {
-		configs.Logger.Error(
-			fmt.Sprintf("Failed to listen on given addr <:%d>", port),
-		)
-		return
-	}
-	defer func() { _ = udpConn.Close() }()
-
-	go func() {
-	stuck:
-		select {
-		case <-scc.Ctx.Done(): // we are done
-		case castedDatum, ok := <-scc.DataCh:
-			if !ok {
-				goto stuck
-			}
-			switch castedDatum.(type) {
-			case nil: // terminated signal checked from updated configuration
-			case *configs.NTPconfig:
-				configs.Logger.Info(
-					fmt.Sprintf(
-						"yet to have capacity for updating ntp configuration<%v>",
-						castedDatum,
-					),
-				)
-				n.AlterNTPListener.Lock()
-				// TODO: we need an updater for connection listener
-				n.AlterNTPListener.Unlock()
-				goto stuck
-			case configs.NTPconfig:
-				goto stuck
-			default:
-				goto stuck
-			}
-		}
-		endNtp.Store(true)
-		_ = udpConn.Close()
-		n.AlterNTPListener.Lock()
-		_ = n.serverListenerPtr.Close()
-		n.AlterNTPListener.Unlock()
-	}()
-
-	n.AlterNTPListener.Lock()
-	n.serverListenerPtr = udpConn
-	n.AlterNTPListener.Unlock()
-
-	var currListener *net.UDPConn
-	for {
-		if endNtp.Load() {
-			break
-		}
-		dataBuf := make([]byte, 1024)
-		n.AlterNTPListener.Lock()
-		currListener = n.serverListenerPtr
-		n.AlterNTPListener.Unlock()
-		_, remoteIP, err := currListener.ReadFromUDP(dataBuf)
-		if err != nil {
-			configs.Logger.Warn(err.Error())
-			continue
-		}
-		payload := configs.GetLocalizedMsg(
-			"services.NTPReceivePayloadFromRemoteInfo",
-			map[string]any{
-				"IP":  remoteIP,
-				"Len": len(dataBuf),
-			},
-		)
-		configs.Logger.Info(payload)
-		resp, _ := NTPServe(dataBuf)
-		_, err = currListener.WriteToUDP(resp[:], remoteIP)
-		if err != nil {
-			continue
-		}
-	}
+type NTPServConf struct {
+	/* database handler for writing data */
+	DbFd        *configs.RuntimeDB
+	ConfOptions *atomic.Pointer[configs.LocalConfig]
 }
 
 // Run executes NTP services
 func (n *NTPServConf) Run(
-	ntpConfPtr *configs.NTPconfig,
+	ConfObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB, // *gorm.DB *redis.Client *mongo.Client
+	db *configs.RuntimeDB,
 	args ...any,
 ) {
 	defer func() {
@@ -304,13 +228,16 @@ func (n *NTPServConf) Run(
 	if len(args) > 1 || args[0] != nil {
 		return
 	}
-	if ntpConfPtr == nil {
+	if ConfObj == nil {
 		configs.Logger.Error("empty configuration is provided")
 		return
 	}
-	ntpServConf := NTPServConf{
-		ConfOptions: ntpConfPtr,
-		DbFd:        db,
+	_, ok := ConfObj.Load().SelectTerm(configs.NTPEnum).(configs.NTPconfig)
+	if !ok {
+		return
 	}
-	ntpServConf.NTPclientHandler(scc)
+	var clientAux = ReEnterNetType{}
+	clientAux.Init(configs.NTPEnum, n)
+	go ConcurrentEventDispatcher(&clientAux, ConfObj, scc)
+	clientAux.AlterNetFd(UDPEnum, ConfObj)
 }

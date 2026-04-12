@@ -3,6 +3,7 @@ package misc_utils
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -72,7 +73,10 @@ func GetFieldValueByName(obj any, fieldName string) (any, error) {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
-		return v.Interface(), nil
+		if v.CanInterface() {
+			return v.Interface(), nil
+		}
+		return struct{}{}, errors.New("unable to gain interface")
 	}
 	field := v.FieldByName(fieldName)
 

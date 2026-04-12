@@ -22,6 +22,13 @@ func TestShell(t *testing.T) {
 		"[ -z \"$PWD\"] && echo `hell yeah'",
 		"[ -z \"$PWD\"] && echo \x00`hell yeah'",
 		"abc \\\\\\\a\b\f\n\r\t\v\\",
+		"صَبَاحُ الْخَيْرِ",
+		"早安！",
+		"\x1b[",
+		"\x1b[1",
+		"\x1b[1;",
+		"\x1b[1;bm",
+		"\x1b\x12",
 	}
 
 	buf := bytes.NewBuffer(nil)
@@ -29,7 +36,10 @@ func TestShell(t *testing.T) {
 		buf.WriteString(payload)
 		buf.WriteByte('\n')
 	}
-	term := terminal.NewShell(buf, &bytes.Buffer{}, true)
+	term := terminal.NewShell(
+		buf, &bytes.Buffer{}, true,
+		"$ ", "> ", false,
+	)
 	go func() {
 		_ = term.Run()
 	}()
@@ -47,6 +57,7 @@ func FuzzShell(f *testing.F) {
 	var seeds = []string{
 		"",
 		"\x01\x02\x03\x04",
+		"\uf800",
 		"\u1234\u2345\u6789\u789a",
 		"ls -liha",
 		"ls -liha \n echo 'helo'",
@@ -57,13 +68,32 @@ func FuzzShell(f *testing.F) {
 		"[ -z \"$PWD\"] && echo `hell yeah'",
 		"[ -z \"$PWD\"] && echo \x00`hell yeah'",
 		"abc \\\\\\\a\b\f\n\r\t\v\\",
+		"صَبَاحُ الْخَيْرِ",
+		"早安！",
+		"\x1b[",
+		"\x1b[1",
+		"\x1b[1;",
+		"\x1b[1;bm",
+		"\x1b\x12",
 	}
 	for _, seed := range seeds {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, input string) {
 		inBuf := bytes.NewBufferString(input)
-		term := terminal.NewShell(inBuf, &bytes.Buffer{}, false)
+		term := terminal.NewShell(
+			inBuf, &bytes.Buffer{}, false,
+			"$ ", "> ", false,
+		)
 		_ = term.Run()
 	})
 }
+
+/*
+	// for local shell, one way to invoke the shell is:
+	shell := terminal.NewShell(
+		os.Stdout, os.Stdin, false,
+		"$ ", "> ", false,
+	)
+	_ = shell.Run()
+*/

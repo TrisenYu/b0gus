@@ -21,7 +21,7 @@
     [main.DatabaseChangingWarn]
     other = "Le gestionnaire de base de données ne sera pas mis à jour!"
     [main.TerminationSignalWarn]
-    other = "Réception d'un signal système<{{.SignalStr}}> pour arrêter le serveur B0gus!"
+    other = "Réception d'un signal système<{{.SignalStr}}> pour arrêter le serveur b0gus!"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -45,9 +45,9 @@
     [crypto_aux.Base64EncodeFailure]
     other = "Échec du codage correct du certificat en chaîne Base64."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Un certificat invalide ou non pris en charge a été utilisé, détails: <{{.ErrInfo}}>. B0gus tentera de générer un certificat selon la configuration."
+    other = "Un certificat invalide ou non pris en charge a été utilisé, détails: <{{.ErrInfo}}>. b0gus tentera de générer un certificat selon la configuration."
     [crypto_aux.PemFileCreateFailure]
-    other = "Échec de la création du certificat au chemin <{{.PemPath}}> à cause de l'erreur <{{.ErrInfo}}>, le service B0gus ne démarrera pas."
+    other = "Échec de la création du certificat au chemin <{{.PemPath}}> à cause de l'erreur <{{.ErrInfo}}>, le service b0gus ne démarrera pas."
 
 [databases]
     [databases.DatabaseTypeError]
@@ -58,7 +58,7 @@
     [configs.InvalidDatabaseAddrError]
     other = "Adresse de base de données invalide<{{.DatabaseAddr}}> récupérée depuis la configuration!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Type de base de données inconnu ou non pris en charge détecté. B0gus ne supporte actuellement que PostgreSQL, SQLite et MongoDB, mais vous avez sélectionné <{{.DatabaseType}}>."
+    other = "Type de base de données inconnu ou non pris en charge détecté. b0gus ne supporte actuellement que PostgreSQL, SQLite et MongoDB, mais vous avez sélectionné <{{.DatabaseType}}>."
     # Global Configuration Information
     [configs.ReadingConfigurationFailure]
     other = "Échec de la lecture de la configuration. Raison: <{{.ErrInfo}}>."
@@ -70,7 +70,7 @@
 [services]
     # SSH
     [services.SSHversionWarn]
-    other = "Impossible de générer 3 octets aléatoires pour la version SSH. B0gus renverra une valeur par défaut."
+    other = "Impossible de générer 3 octets aléatoires pour la version SSH. b0gus renverra une valeur par défaut."
     [services.SSHWriteResponseError]
     other = "Erreur<{{.ErrInfo}}> lors de l'écriture de la réponse."
     [services.SSHsetTimeoutError]
@@ -82,9 +82,9 @@
     [services.SSHinvalidConfigurationWarn]
     other = "Configuration SSH invalide. Cette mise à jour est ignorée."
     [services.SSHSwitchListenerError]
-    other = "Impossible de basculer vers l'IP indiquée<{{.ListenAddr}}> en tant qu'écouteur. Le serveur SSH B0gus actuel ne sera pas mis à jour."
+    other = "Impossible de basculer vers l'IP indiquée<{{.ListenAddr}}> en tant qu'écouteur. Le serveur SSH b0gus actuel ne sera pas mis à jour."
     [services.SSHSetupListenerError]
-    other = "Impossible d'écouter sur l'IP indiquée<{{.ListenAddr}}> en tant que serveur SSH B0gus"
+    other = "Impossible d'écouter sur l'IP indiquée<{{.ListenAddr}}> en tant que serveur SSH b0gus"
     [services.SSHAcceptConnWarn]
     other = "À cause de l'erreur<{{.ErrInfo}}>, impossible de gérer la connexion SSH externe."
     [services.SSHCanNotUseSigner]
