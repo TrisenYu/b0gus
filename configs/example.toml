@@ -1,15 +1,15 @@
 ############################### NOTICE ###############################
-# DO NOT DELETE THIS FILE. THIS FILE IS ALSO USE AS ONE OF THE CONTENT 
+# DO NOT DELETE THIS FILE. THIS FILE IS ALSO USE AS ONE OF THE CONTENT
 # SOURCE READING BY TESTCASES, The configuration file copied by container.
 # This is an example configuration. You should create your own `config.toml` in the
-# same directory so that b0gus-arm64 can run as what you expect it to obey.
+# same directory so that b0gus can run as what you expect it to obey.
 ############################### NOTICE ###############################
 
 [server_config]
 # Will store pem in the same `configs` directory
 language = "en"
 
-# It might be identical to run this program in port 22 as a b0gus-arm64 ssh server
+# It might be identical to run this program in port 22 as a b0gus ssh server
 # but for non-root user, binding to port < 1024 is not allowed
 # So we will use docker in the future to achieve such goal
 [server_config.ssh]
@@ -111,13 +111,14 @@ language = "en"
     # or, let (key, cert) exist and is signed off by real CA
     tls_key_path = ""
 
+
 # Can't update configuration of database during executing time
 # Yet to have a checking/filtering mechanism to determine
 # whether database_addr:database_port is requried
 [server_config.rec_db_config]
 
     # PostgreSQL, SQLite, MongoDB
-    type = "PostgreSQL" # mongodb, MONGODB, MongoDB 
+    type = "PostgreSQL" # mongodb, MONGODB, MongoDB
     name = "postgres"
 
     # Some database can be deemed as a distributed cluster,
@@ -130,7 +131,7 @@ language = "en"
     admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
 
     # This redundant field is used for different SQLs like SQLite
-    # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is 
+    # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is
     # explictly given. And default directory is set to `assets`, where stores the database
     # file that **have to be created** manually or by automatic scripts
     # Lastly, the corresponding dataname should fill with `sqlite`, `SQLITE`, or `SQLite`

@@ -14,6 +14,8 @@ import (
 
 // PullUpdatesFromRemote will start up itself as a locality trust TLS server on configs.RemotePullSource.
 // The TLS server will cancel once the in-param ctx is canceled.
+//
+//nolint:unused
 func PullUpdatesFromRemote(
 	rootCaPath, signedCertPath, signedKeyPath string,
 	ctx context.Context,
@@ -67,6 +69,7 @@ func PullUpdatesFromRemote(
 	}
 }
 
+//nolint:unused
 func handleTrustUpdateClients(tlsConn net.Conn) {
 	defer func() { _ = tlsConn.Close() }()
 	for {

@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-antlr4 | grep -in "antlr" > $null 2>&1
+antlr4 | Select-String -Pattern "antlr" -CaseSensitive:$false | Out-Null
 if (-not $?) {
     Write-Error "require ANTLR Parser Generator in your system"
     exit 1
@@ -14,8 +14,7 @@ if ($matches[1] -lt 4 -or $matches[2] -lt 13) {
     Write-Error "require version of antlr >= 4.13"
     exit 1
 }
-
-go version | grep -in "go" > $null 2>&1
+go version | Select-String -Pattern "go" -CaseSensitive:$false | Out-Null
 if (-not $?) {
     Write-Error "require go in your system"
     exit 1

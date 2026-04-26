@@ -1,10 +1,9 @@
 http_info:
     method:text(notnull);
     path:text(notnull);
-    wrapped_info:bytes();
+    wrapped_info:bytes(); # cookie or user-agent
     request:text();
     session_id:integer(
-        primary, createtime ns, 
+        primary, createtime ns,
         updatetime ns
     );
-    

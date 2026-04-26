@@ -1,31 +1,32 @@
-# AI-generated
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "静的アセットのディレクトリ。"
+    other = "静的リソースのディレクトリを設定します。"
     [meta_conf.ConfPath]
     other = "ローカル設定ファイルのパス。"
     [meta_conf.PermitConfAlterInRuntime]
-    other = "ランタイム中の設定変更権限。"
+    other = "実行中に設定の変更を許可する設定。"
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "ランタイム中の設定の自動変更権限。"
+    other = "実行中に設定の自己変更を許可する設定。"
     [meta_conf.PermitShellAlterInRuntime]
-    other = "ランタイム中にシェルコマンドで設定を変更する権限。"
+    other = "実行中にシェルへのコマンド入力による設定変更を許可する権限設定。"
     [meta_conf.PermitRemotePullInRuntime]
-    other = "ランタイム中にリモートプルで設定を変更する権限。"
+    other = "実行中にリモートからの設定取得による変更を許可する権限設定。"
 
 [main]
     [main.DatabaseConnectionError]
     other = "データベース{{.DatabaseStr}}に接続できません。エラー詳細：`{{.ErrInfo}}`。"
     [main.DatabaseEmptyError]
-    other = "指定された設定に基づき、空のデータベースオペレーターが取得されました。"
+    other = "指定された設定で空のデータベース演算子が取得されました。"
     [main.DatabaseChangingWarn]
-    other = "内部エラーが発生したため、現在使用中のデータベースは切り替えません。"
+    other = "内部エラーのため、現在使用中のデータベースは変更されません。"
     [main.TerminationSignalWarn]
-    other = "b0gusサーバーの終了シグナル<{{.SignalStr}}>をキャプチャしました。"
+    other = "b0gusサーバーの終了シグナル<{{.SignalStr}}>を検出しました。"
+	[main.FailToApplyConfiguration]
+	other = "指定された設定ファイルを現在の設定に適用できません。"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "ローカルのSSH公開鍵を設定するため、PEMファイル<{{.PemPath}}>を開けません！"
+    other = "ローカルのSSH公開鍵を設定するためにPEMファイル<{{.PemPath}}>を開けません！"
     [crypto_aux.PemFileReadFailure]
     other = "指定されたPEMファイルを読み取れません！"
     [crypto_aux.PemFileDecodeFailure]
@@ -35,21 +36,21 @@
     [crypto_aux.PemFileFormatError]
     other = "この署名証明書の形式はサポートされていません"
     [crypto_aux.InvalidLengthForEllipticCurveError]
-    other = "提供された公開鍵の長さ<{{.PemLen}}>は、既知の楕円曲線暗号アルゴリズムに対応していません。"
+    other = "指定された公開鍵の長さ<{{.PemLen}}>は既知の楕円曲線暗号アルゴリズムに適用できません。"
     [crypto_aux.InvalidLengthForRSAError]
-    other = "提供された公開鍵の長さ<{{.PemLen}}>は、RSA暗号アルゴリズムに対応していません。"
-    [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "無効またはサポートされていない証明書が使用されました。詳細：<{{.ErrInfo}}>。b0gusは設定に基づき証明書の生成を試みます。"
-    [crypto_aux.PemFileCreateFailure]
-    other = "エラー<{{.ErrInfo}}>が発生したため、パス<{{.pemPath}}>に証明書を作成できず、b0gusサービスは起動しません。"
+    other = "指定された公開鍵の長さ<{{.PemLen}}>はRSA暗号アルゴリズムに適用できません。"
     [crypto_aux.SSHPrivateKeyGenFailure]
-    other = "エラー<{{.ErrInfo}}>により、指定されたアルゴリズムに基づいてSSH秘密鍵を生成できません。"
+    other = "エラー<{{.ErrInfo}}>により、指定されたアルゴリズムでSSH秘密鍵を生成できません。"
     [crypto_aux.SSHPrivateKeySetFailure]
     other = "エラー<{{.ErrInfo}}>により、SSHサービスに秘密鍵を設定できません。"
     [crypto_aux.CreatePemToGivenPathError]
     other = "指定されたパス<{{.PemPath}}>に証明書を作成できません。"
     [crypto_aux.Base64EncodeFailure]
     other = "証明書をBase64文字列に正しくエンコードできません。"
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "無効またはサポートされていない証明書が使用されました。詳細：<{{.ErrInfo}}>。b0gusは設定に従って証明書の生成を試みます。"
+    [crypto_aux.PemFileCreateFailure]
+    other = "エラー<{{.ErrInfo}}>により、パス<{{.PemPath}}>に証明書を作成できず、b0gusサービスは起動されません。"
 
 [databases]
     [databases.DatabaseTypeError]
@@ -58,43 +59,80 @@
 [configs]
     # データベース
     [configs.InvalidDatabaseAddrError]
-    other = "設定ファイルに無効なデータベース接続アドレス<{{.DatabaseAddr}}>が指定されています！"
+    other = "設定ファイル内に無効なデータベース接続アドレス<{{.DatabaseAddr}}>が指定されています！"
     [configs.UnsupportDatabaseTypeError]
-    other = "未知のデータベースタイプが検出されました。現在b0gusがサポートしているのはPostgreSQL、SQLite、MongoDBですが、選択されたのは<{{.DatabaseType}}>です。"
+    other = "未知のデータベースタイプが検出されました。現在b0gusはPostgreSQL、SQLite、MongoDBをサポートしており、選択されたのは<{{.DatabaseType}}>です。"
     # グローバル設定情報
     [configs.ReadingConfigurationFailure]
-    other = "設定ファイルを読み取れません。失敗理由：<{{.ErrInfo}}>。"
+    other = "設定を読み取れません。失敗原因：<{{.ErrInfo}}>。"
     [configs.ReloadingConfigurationFailure]
-    other = "設定ファイルのリロードに失敗しました！現在の設定は変更されません。失敗理由：<{{.ErrInfo}}>。"
+    other = "設定ファイルの再読み込みに失敗しました！現在の設定は変更されません。失敗原因：<{{.ErrInfo}}>。"
     [configs.UnmarshallingConfigurationFailure]
-    other = "設定ファイルを解析できません。失敗理由：<{{.ErrInfo}}>。"
+    other = "設定ファイルを解析できません。失敗原因：<{{.ErrInfo}}>。"
 
 [services]
+	# abstract_tcpip
+	[services.absTCPIPUninitErr]
+	other = "初期化されていないReentrantNetTypeが使用されました"
+	[services.absTCPIPUnknownNetType]
+	other = "未知のネットワークタイプが使用されました。"
+	[services.absTCPIPUDPConnCastingErr]
+	other = "net.UDPConnへの変換に失敗しました。"
     # SSH
     [services.SSHversionWarn]
-    other = "ランダムな3バイトの生成に失敗しました。SSHバージョンにはデフォルト値を返します。"
+    other = "3つのランダムバイトを生成できません。SSHバージョンにはデフォルト値が返されます。"
     [services.SSHWriteResponseError]
-    other = "コマンド結果の書き戻し時にエラー<{{.ErrInfo}}>が発生しました。"
+    other = "コマンド結果の書き戻し中にエラー<{{.ErrInfo}}>が発生しました。"
     [services.SSHsetTimeoutError]
-    other = "エラー<{{.ErrInfo}}>が発生したため、接続待ちのタイムアウト時間を設定できません。"
+    other = "エラー<{{.ErrInfo}}>により、接続のタイムアウト時間を設定できません。"
     [services.SSHEstablishConnectionFailure]
-    other = "SSH接続の確立に失敗しました。（リモートアドレス、現在のSSHバージョン番号、失敗理由）：（<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>）。"
+    other = "SSH接続を確立できません。（リモートアドレス、現在のSSHバージョン、失敗原因）：（<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>）。"
     [services.SSHchannelAcceptanceError]
-    other = "エラー<{{.ErrInfo}}>により、リモートアドレス<{{.RemoteAddr}}>に提供されたSSHチャンネルを受け入れられません。"
+    other = "エラー<{{.ErrInfo}}>により、リモートアドレス<{{.RemoteAddr}}>に提供されたSSHチャネルを受け入れられません。"
     [services.SSHinvalidConfigurationWarn]
-    other = "無効なSSH設定です。更新をスキップします"
+    other = "無効なSSH設定のため、更新をスキップします"
     [services.SSHSwitchListenerError]
-    other = "再監視のため、指定されたアドレス<{{.ListenAddr}}>に切り替えられません。この影響により、現在のb0gus SSHサーバーは変更されません。"
+    other = "指定されたアドレス<{{.ListenAddr}}>へのリスナー切り替えができません。これにより、現在のb0gus SSHサーバーは変更されません。"
     [services.SSHSetupListenerError]
-    other = "指定されたアドレス<{{.ListenAddr}}>でSSHサーバーの監視を設定できません。"
+    other = "指定されたアドレス<{{.ListenAddr}}>でSSHサーバーのリスニングを開始できません。"
     [services.SSHAcceptConnWarn]
-    other = "エラー<{{.ErrInfo}}>が発生したため、外部からのSSH接続リクエストを受け入れられません。"
+    other = "エラー<{{.ErrInfo}}>により、外部のSSH接続要求を受け入れられません。"
     [services.SSHCanNotUseSigner]
-    other = "SSHプロトコルの通信中に、指定された証明書<{{.Signer}}>を使用して署名を実行できません。"
+    other = "指定された証明書<{{.Signer}}>をSSHプロトコル交換時の署名に使用できません。"
     [services.SSHQuitInfo]
-    other = "SSHサーバーは終了しました。"
+    other = "SSHサービスが終了しました。"
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
-    other = "NTPサーバーは<{{.IP}}>から送信された長さ<{{.Len}}>の時刻クエリリクエストを受信しました。"
+    other = "NTPサーバーが<{{.IP}}>から長さ<{{.Len}}>の時刻照会要求を受信しました。"
     [services.NTPQuitInfo]
-    other = "NTPサーバーは終了しました。"
+    other = "NTPサービスが終了しました。"
+	[services.NTPNullConfErr]
+	other = "空のNTP設定が提供されました"
+    # DNS
+	[services.DNSQuitInfo]
+	other = "DNSサービスが終了しました。"
+	[services.DNSNullConfErr]
+	other = "空のDNS設定が提供されました"
+	[services.DNSWrongParamNumErr]
+	other = "パラメータ数が誤っています。期待値：{{.Expect}}個、実際：{{.Actual}}個。"
+	[services.DNSConfLoadErr]
+	other = "設定からDNSサブ設定を抽出できません！"
+    # SMTP
+	[services.SMTPQuitInfo]
+	other = "SMTPサービスが終了しました"
+	[services.SMTPWrongParamNumErr]
+	other = "パラメータ数が誤っています。期待値：{{.Expect}}個、実際：{{.Actual}}個。"
+	[services.SMTPNullConfErr]
+	other = "空のSMTP設定が提供されました"
+	# HTTP
+	[services.HTTPQuitInfo]
+	other = "HTTPサービスが終了しました"
+	[services.HTTPNullConfErr]
+	other = "空のHTTP設定が提供されました"
+	[services.HTTPWrongParamNumErr]
+	other = "パラメータ数が誤っています。期待値：{{.Expect}}個、実際：{{.Actual}}個。"
+	[services.HTTPConfLoadErr]
+	other = "HTTP設定を読み込めません"
+    # ICMP
+	[services.ICMPwindowsUnsupportWarn]
+	other = "WindowsシステムではICMPサーバーの構築はサポートされていません"

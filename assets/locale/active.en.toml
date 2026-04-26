@@ -1,98 +1,138 @@
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "The directory of static assets."
+    other = "Set the directory for static assets."
     [meta_conf.ConfPath]
-    other = "The file path of local configuration."
+    other = "Path to the local configuration file."
     [meta_conf.PermitConfAlterInRuntime]
-    other = "Permission for altering configuration in runtime."
+    other = "Settings to allow configuration changes during runtime."
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "Permission for configuration self-altering in runtime."
+    other = "Settings to allow self-modification of configuration during runtime."
     [meta_conf.PermitShellAlterInRuntime]
-    other = "Permission for setting configuration through shell commands in runtime."
+    other = "Permission settings to allow configuration changes via shell commands during runtime."
     [meta_conf.PermitRemotePullInRuntime]
-    other = "Permission for setting configuration through remote pulling in runtime."
+    other = "Permission settings to allow configuration changes by pulling from remote sources during runtime."
 
 [main]
     [main.DatabaseConnectionError]
-    other = "Failed to connect to {{.DatabaseStr}} due to {{.ErrStr}}!"
+    other = "Failed to connect to database {{.DatabaseStr}}. Check error: `{{.ErrInfo}}`."
     [main.DatabaseEmptyError]
-    other = "Gain an empty database file descriptor!"
+    other = "Retrieved an empty database operator based on the given configuration."
     [main.DatabaseChangingWarn]
-    other = "Won't update the database handler!"
+    other = "Due to internal error, the currently used database will not be replaced."
     [main.TerminationSignalWarn]
-    other = "Catch an OS signal<{{.SignalStr}}> for terminating b0gus server!"
+    other = "Captured termination signal <{{.SignalStr}}> for b0gus server."
+    [main.FailToApplyConfiguration]
+    other = "Failed to apply the given configuration file to the current configuration."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "Failed to open PEM file<{{.PemPath}}> for SSH host key!"
+    other = "Failed to open PEM file <{{.PemPath}}> to configure local SSH public key!"
     [crypto_aux.PemFileReadFailure]
-    other = "Failed to read PEM file!"
+    other = "Failed to read the given PEM file!"
     [crypto_aux.PemFileDecodeFailure]
-    other = "Failed to decode PEM block!"
+    other = "Failed to decode the PEM file correctly!"
     [crypto_aux.PemFileUnsupportedTypeError]
     other = "Unsupported PEM file type!"
-    [crypto_aux.InvalidLengthForEllipticCurve]
-    other = "Unsupported length<{{.PemLen}}> for elliptic curve encryption algorithm!"
+    [crypto_aux.PemFileFormatError]
+    other = "Unsupported format for this type of signature certificate."
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "Provided public key length <{{.PemLen}}> is not suitable for known elliptic curve cryptography algorithms."
     [crypto_aux.InvalidLengthForRSAError]
-    other = "Unsupported length<{{.PemLen}}> for rsa public key!"
+    other = "Provided public key length <{{.PemLen}}> is not suitable for RSA encryption algorithm."
     [crypto_aux.SSHPrivateKeyGenFailure]
-    other = "Failed to generate SSH private key according to the given algorithm due to error <{{.ErrInfo}}>."
+    other = "Failed to generate SSH private key based on given algorithm due to error <{{.ErrInfo}}>."
     [crypto_aux.SSHPrivateKeySetFailure]
     other = "Failed to set private key for SSH service due to error <{{.ErrInfo}}>."
     [crypto_aux.CreatePemToGivenPathError]
-    other = "Failed to create certificate to the given path <{{.PemPath}}>."
+    other = "Failed to create certificate at given path <{{.PemPath}}>."
     [crypto_aux.Base64EncodeFailure]
-    other = "Failed to correctly encode the certificate into a Base64 string."
+    other = "Failed to encode certificate as Base64 string correctly."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "An invalid or unsupported certificate was used, details: <{{.ErrInfo}}>. b0gus will attempt to generate a certificate according to the configuration."
+    other = "Invalid or unsupported certificate used, details: <{{.ErrInfo}}>. b0gus will attempt to generate a certificate based on configuration."
     [crypto_aux.PemFileCreateFailure]
-    other = "Failed to create certificate at path <{{.PemPath}}> due to error <{{.ErrInfo}}>, and the b0gus service will not be started."
+    other = "Failed to create certificate at path <{{.PemPath}}> due to error <{{.ErrInfo}}>, and b0gus service will not start."
 
 [databases]
     [databases.DatabaseTypeError]
-    other = "Unsupported Database<{{.Database}}> was found!"
+    other = "Unsupported database <{{.Database}}> detected!"
 
 [configs]
     # Database
     [configs.InvalidDatabaseAddrError]
-    other = "Invalid database address<{{.DatabaseAddr}}> was gained from configuration!"
+    other = "Invalid database connection address <{{.DatabaseAddr}}> provided in configuration file!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Unknown or unsupported database type was found. b0gus Only supports PostgreSQL, SQLite and MongoDB at present, but what you select is <{{.DatabaseType}}>."
-    # Global Configuration Information
+    other = "Unknown database type detected. Currently b0gus supports PostgreSQL, SQLite, and MongoDB, but you selected <{{.DatabaseType}}>."
+    # Global configuration info
     [configs.ReadingConfigurationFailure]
-    other = "Failed to read configuration. Failure reason: <{{.ErrInfo}}>."
+    other = "Failed to read configuration. Reason: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
-    other = "Failed to reload configuration file! The current configuration will not be replaced. Failure reason: <{{.ErrInfo}}>."
-    [configs.configs.UnmarshallingConfigurationFailure]
-    other = "Unmarshal config failed due to <{{.ErrInfo}}>."
-    
-    
+    other = "Failed to reload configuration file! Current configuration will not be replaced. Reason: <{{.ErrInfo}}>."
+    [configs.UnmarshallingConfigurationFailure]
+    other = "Failed to parse configuration file. Reason: <{{.ErrInfo}}>."
+
 [services]
+    # abstract_tcpip
+    [services.absTCPIPUninitErr]
+    other = "Used an uninitialized ReentrantNetType."
+    [services.absTCPIPUnknownNetType]
+    other = "Unknown network type used."
+    [services.absTCPIPUDPConnCastingErr]
+    other = "Failed to cast to net.UDPConn."
     # SSH
     [services.SSHversionWarn]
-    other = "Unable to generate 3 random bytes for SSH version. b0gus will return a default value."
+    other = "Failed to generate 3 random bytes. Will return a default value for SSH version."
     [services.SSHWriteResponseError]
-    other = "Encounter an error<{{.ErrInfo}}> when writing back payload."
+    other = "Encountered an error <{{.ErrInfo}}> while writing back command result."
     [services.SSHsetTimeoutError]
-    other = "Due to err<{{.ErrInfo}}>, can not set deadline for incoming connections."
+    other = "Failed to set timeout for incoming connection due to error <{{.ErrInfo}}>."
     [services.SSHEstablishConnectionFailure]
-    other = "Can not establish a remote connection.(RemoteAddr,CurrSSHver,err):(<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    other = "Failed to establish SSH connection. (Remote address, current SSH version, failure reason): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
     [services.SSHchannelAcceptanceError]
-    other = "Can not accept the provided SSH channel for remote address <{{.RemoteAddr}}> due to error <{{.ErrInfo}}>."
+    other = "Failed to accept SSH channel offered to remote address <{{.RemoteAddr}}> due to error <{{.ErrInfo}}>."
     [services.SSHinvalidConfigurationWarn]
-    other = "Invalid SSH configuration. Skip this updation requirement."
+    other = "Invalid SSH configuration, skipping update."
     [services.SSHSwitchListenerError]
-    other = "Can not swtich to given IP<{{.ListenAddr}}> as a listener. Current b0gus SSH server will not update."
+    other = "Failed to switch listener to given address <{{.ListenAddr}}>. Current b0gus SSH server will not be modified as a result."
     [services.SSHSetupListenerError]
-    other = "Can not listen on given IP<{{.ListenAddr}}> as b0gus SSH server"
+    other = "Failed to set up SSH server listener on given address <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]
-    other = "Due to err<{{.ErrInfo}}>, can not handle outer SSH connection."
+    other = "Failed to accept external SSH connection request due to error <{{.ErrInfo}}>."
     [services.SSHCanNotUseSigner]
-    other = "Cannot use the given certificate <{{.Signer}}> to perform signing during SSH protocol interactions."
+    other = "Cannot use given certificate <{{.Signer}}> for signing during SSH protocol interaction."
     [services.SSHQuitInfo]
-    other = "SSH server has exited."
+    other = "SSH service has exited."
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
-    other = "The NTP server received a time query request of length <{{.Len}}> from <{{.IP}}>."
+    other = "NTP server received a time query request of length <{{.Len}}> from <{{.IP}}>."
     [services.NTPQuitInfo]
-    other = "NTP server has exited."
+    other = "NTP service has exited."
+    [services.NTPNullConfErr]
+    other = "Provided empty NTP configuration."
+    # DNS
+    [services.DNSQuitInfo]
+    other = "DNS service has exited."
+    [services.DNSNullConfErr]
+    other = "Provided empty DNS configuration."
+    [services.DNSWrongParamNumErr]
+    other = "Incorrect number of parameters passed. Expected {{.Expect}}, got {{.Actual}}."
+    [services.DNSConfLoadErr]
+    other = "Failed to extract DNS sub-configuration from configuration!"
+    # SMTP
+    [services.SMTPQuitInfo]
+    other = "SMTP service has exited."
+    [services.SMTPWrongParamNumErr]
+    other = "Incorrect number of parameters passed. Expected {{.Expect}}, got {{.Actual}}."
+    [services.SMTPNullConfErr]
+    other = "Provided empty SMTP configuration."
+    # HTTP
+    [services.HTTPQuitInfo]
+    other = "HTTP service has exited."
+    [services.HTTPNullConfErr]
+    other = "Provided empty HTTP configuration."
+    [services.HTTPWrongParamNumErr]
+    other = "Incorrect number of parameters passed. Expected {{.Expect}}, got {{.Actual}}."
+    [services.HTTPConfLoadErr]
+    other = "Failed to load HTTP configuration."
+    # ICMP
+    [services.ICMPwindowsUnsupportWarn]
+    other = "Windows system does not support setting up an ICMP server."

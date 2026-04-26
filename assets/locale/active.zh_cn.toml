@@ -21,6 +21,8 @@
     other = "因内部错误，不更换当前正在使用的数据库。"
     [main.TerminationSignalWarn]
     other = "捕获到终止运行b0gus服务器的信号<{{.SignalStr}}>。"
+	[main.FailToApplyConfiguration]
+	other = "无法将给定配置文件应用于当前配置。"
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
@@ -69,6 +71,13 @@
     other = "无法解析配置文件。失败原因：<{{.ErrInfo}}>。"
 
 [services]
+	# abstract_tcpip
+	[services.absTCPIPUninitErr]
+	other = "使用了没有初始化的ReentrantNetType"
+	[services.absTCPIPUnknownNetType]
+	other = "使用了未知的网络类型。"
+	[services.absTCPIPUDPConnCastingErr]
+	other = "转换net.UDPConn失败。"
     # SSH
     [services.SSHversionWarn]
     other = "无法生成3个随机字节。将为SSH版本返回一个默认值。"
@@ -91,13 +100,39 @@
     [services.SSHCanNotUseSigner]
     other = "无法使用给定的证书<{{.Signer}}>用于SSH协议交互期间实施签名。"
     [services.SSHQuitInfo]
-    other = "SSH服务器已退出。"
+    other = "SSH服务已退出。"
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTP服务器接收到来自<{{.IP}}>发来的长度为<{{.Len}}>的时间查询请求。"
     [services.NTPQuitInfo]
-    other = "NTP服务器已退出。"
+    other = "NTP服务已退出。"
+	[services.NTPNullConfErr]
+	other = "提供了空的NTP配置"
     # DNS
+	[services.DNSQuitInfo]
+	other = "DNS服务已退出。"
+	[services.DNSNullConfErr]
+	other = "提供了空的DNS配置"
+	[services.DNSWrongParamNumErr]
+	other = "传入了错误数量的参数。预期传{{.Expect}}个，实际传{{.Actual}}个。"
+	[services.DNSConfLoadErr]
+	other = "无法从配置中提取出DNS子配置！"
     # SMTP
-    # HTTP
+	[services.SMTPQuitInfo]
+	other = "SMTP服务已退出"
+	[services.SMTPWrongParamNumErr]
+	other = "传入了错误数量的参数。预期传{{.Expect}}个，实际传{{.Actual}}个。"
+	[services.SMTPNullConfErr]
+	other = "提供了空的SMTP配置"
+	# HTTP
+	[services.HTTPQuitInfo]
+	other = "HTTP服务已退出"
+	[services.HTTPNullConfErr]
+	other = "提供了空的HTTP配置"
+	[services.HTTPWrongParamNumErr]
+	other = "传入了错误数量的参数。预期传{{.Expect}}个，实际传{{.Actual}}个。"
+	[services.HTTPConfLoadErr]
+	other = "无法加载HTTP配置"
     # ICMP
+	[services.ICMPwindowsUnsupportWarn]
+	other = "windows系统不支持搭建ICMP服务器"

@@ -21,7 +21,7 @@ import (
 	"golang.org/x/net/icmp"
 )
 
-// AbsServNetAux is a business-callback interface used by the ReEnterNetType.
+// AbsServNetAux is a business-callback interface used by the ReentrantNetType.
 type AbsServNetAux interface {
 	http.Handler
 
@@ -36,9 +36,9 @@ type AbsServNetAux interface {
 	InvokeForICMPtask(addr net.Addr, payload []byte)
 }
 
-// ReEnterNetType is used for setup network listener without caring
-// how to update monitoring port or type.
-type ReEnterNetType struct {
+// ReentrantNetType is used for directly setup network listener without caring
+// how to update monitoring port or its corresponding type.
+type ReentrantNetType struct {
 	servFd        io.Closer     // servFd temporarily stores the listener and is guarded by fdGuard
 	clientLimiter atomic.Uint32 // clientLimiter is as a filter to limit the max number of alive connections.
 	ShutdownFlag  atomic.Bool
@@ -54,14 +54,22 @@ const (
 	UDPEnum
 	HTTPEnum // actually http here is quic
 	ICMPEnum
+	OtherEnum
 )
 
-func (nt *ReEnterNetType) AlterNetFd(
+func (nt *ReentrantNetType) AlterNetFd(
 	netType NetTypeEnum,
 	confObj *atomic.Pointer[configs.LocalConfig],
 ) {
 	if nt.servTag < configs.RawEnum || nt.servTag >= configs.ENDofEnum {
-		configs.Logger.Error("use an uninitialized NetType")
+		configs.Logger.Error(
+			configs.GetLocalizedMsg("services.absTCPIPUninitErr", nil),
+		)
+		return
+	} else if confObj == nil {
+		configs.Logger.Error(
+			configs.GetLocalizedMsg("services.absTCPIPUnknownNetType", nil),
+		)
 		return
 	}
 	switch netType {
@@ -79,7 +87,7 @@ func (nt *ReEnterNetType) AlterNetFd(
 		if nt.servFd != nil {
 			nt.CloseServFd()
 		}
-		nt.http3(confObj)
+		nt.http(confObj)
 	case ICMPEnum: // flip-flop
 		// because there is no notion named port in ICMP.
 		// for windows, skip this function calling.
@@ -93,12 +101,14 @@ func (nt *ReEnterNetType) AlterNetFd(
 			nt.icmp()
 		}
 	default:
-		configs.Logger.Warn("unknown network type")
+		configs.Logger.Warn(
+			configs.GetLocalizedMsg("services.UnknownNetType", nil),
+		)
 		return
 	}
 }
 
-func (nt *ReEnterNetType) errHandler(err error) {
+func (nt *ReentrantNetType) errHandler(err error) {
 	choice, ok := configs.ServLUT[nt.servTag]
 	if !ok {
 		choice = "<unknown services>: "
@@ -109,7 +119,7 @@ func (nt *ReEnterNetType) errHandler(err error) {
 	configs.Logger.Warn(sb.String())
 }
 
-func (nt *ReEnterNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
+func (nt *ReentrantNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 	port := ConfObj.Load().SelectPort(nt.servTag)
 	if port <= 1024 {
 		return
@@ -166,7 +176,7 @@ func (nt *ReEnterNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 	}
 }
 
-func (nt *ReEnterNetType) tcpClientHandler(
+func (nt *ReentrantNetType) tcpClientHandler(
 	inConn net.Conn,
 	ConfObj *atomic.Pointer[configs.LocalConfig],
 ) {
@@ -195,7 +205,7 @@ func (nt *ReEnterNetType) tcpClientHandler(
 }
 
 // CloseServFd attempt to close nt.servFd and set it to nil when finding it is not nil.
-func (nt *ReEnterNetType) CloseServFd() {
+func (nt *ReentrantNetType) CloseServFd() {
 	nt.fdGuard.Lock()
 	defer nt.fdGuard.Unlock()
 	if nt.servFd != nil {
@@ -204,7 +214,7 @@ func (nt *ReEnterNetType) CloseServFd() {
 	}
 }
 
-func (nt *ReEnterNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
+func (nt *ReentrantNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 	port := ConfObj.Load().SelectPort(nt.servTag)
 	if port < 1024 {
 		return
@@ -233,7 +243,9 @@ func (nt *ReEnterNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 		nt.fdGuard.RLock()
 		currListener, ok := nt.servFd.(*net.UDPConn)
 		if !ok {
-			configs.Logger.Warn("net.PacketConn casting failure")
+			configs.Logger.Warn(
+				configs.GetLocalizedMsg("services.UDPConnCastingErr", nil),
+			)
 			nt.fdGuard.RUnlock()
 			break
 		}
@@ -241,10 +253,9 @@ func (nt *ReEnterNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 		// Don't set timeout for udp connection
 		dataBuf := make([]byte, 1024)
 		_, remoteConn, err := currListener.ReadFromUDP(dataBuf)
-		if err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
-				break
-			}
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
+			break
+		} else if err != nil {
 			nt.errHandler(err)
 			continue
 		}
@@ -252,7 +263,7 @@ func (nt *ReEnterNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 	}
 }
 
-func (nt *ReEnterNetType) udpResponse(addr *net.UDPAddr, dataBuf []byte) {
+func (nt *ReentrantNetType) udpResponse(addr *net.UDPAddr, dataBuf []byte) {
 	wConn, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
 		nt.errHandler(err)
@@ -266,7 +277,7 @@ func (nt *ReEnterNetType) udpResponse(addr *net.UDPAddr, dataBuf []byte) {
 }
 
 // icmp implements for Internet Control Message Protocol
-func (nt *ReEnterNetType) icmp() {
+func (nt *ReentrantNetType) icmp() {
 	icmpListener, err := icmp.ListenPacket("udp4", "localhost")
 	if err != nil {
 		nt.errHandler(err)
@@ -282,10 +293,9 @@ func (nt *ReEnterNetType) icmp() {
 	for !checkFlag.Load() {
 		dataBuf := make([]byte, 1024)
 		length, remoteConn, err := icmpListener.ReadFrom(dataBuf)
-		if err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
-				break
-			}
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
+			break
+		} else if err != nil {
 			nt.errHandler(err)
 			continue
 		}
@@ -305,7 +315,7 @@ func (nt *ReEnterNetType) icmp() {
 	}
 }
 
-func (nt *ReEnterNetType) http3(confObj *atomic.Pointer[configs.LocalConfig]) {
+func (nt *ReentrantNetType) http(confObj *atomic.Pointer[configs.LocalConfig]) {
 	port := confObj.Load().SelectPort(nt.servTag)
 	if port < 1024 {
 		return
@@ -342,37 +352,36 @@ func (nt *ReEnterNetType) http3(confObj *atomic.Pointer[configs.LocalConfig]) {
 }
 
 // Init requires pass `port`, `callback`, `clientNumThreshold`, `clientConnTimeout`.
-// In order to identify with which service the ReEnterNetType is helping,
+// In order to identify with which service the ReentrantNetType is helping,
 // servTag is thereby required.
-func (nt *ReEnterNetType) Init(servTag configs.ServEnum, callBack AbsServNetAux) {
+func (nt *ReentrantNetType) Init(servTag configs.ServEnum, callBack AbsServNetAux) {
 	nt.servTag, nt.callBack = servTag, callBack
 }
 
-// ConcurrentEventDispatcher will attempt to update or
-// shutdown the networking port
-func ConcurrentEventDispatcher(
-	initedNt *ReEnterNetType,
+// EventMonitor will attempt to update or shutdown the networking port
+func (nt *ReentrantNetType) EventMonitor(
 	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
 ) {
-	for {
-		select {
-		case <-scc.Ctx.Done(): // terminated notification
-		case netTypeStr := <-scc.ServNetTypeCh:
-			var choice = TCPEnum
-			tmp := strings.ToLower(netTypeStr)
-			if strings.Contains(tmp, "udp") {
-				choice = UDPEnum
-			} else if strings.Contains(tmp, "icmp") {
-				choice = ICMPEnum
-			} else if strings.Contains(tmp, "http") {
-				choice = HTTPEnum
-			}
-			initedNt.AlterNetFd(choice, confObj)
-			continue
-		}
-		break
+	if nt.servTag < configs.RawEnum || nt.callBack == nil {
+		return
 	}
-	initedNt.ShutdownFlag.Store(true)
-	initedNt.CloseServFd()
+back:
+	select {
+	case <-scc.Ctx.Done(): // terminated notification
+	case netTypeStr := <-scc.ServNetTypeCh:
+		var choice = TCPEnum
+		tmp := strings.ToLower(netTypeStr)
+		if strings.Contains(tmp, "udp") {
+			choice = UDPEnum
+		} else if strings.Contains(tmp, "icmp") {
+			choice = ICMPEnum
+		} else if strings.Contains(tmp, "http") {
+			choice = HTTPEnum
+		}
+		nt.AlterNetFd(choice, confObj)
+		goto back
+	}
+	nt.ShutdownFlag.Store(true)
+	nt.CloseServFd()
 }

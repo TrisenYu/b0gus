@@ -181,17 +181,25 @@ func (d *DNSserverConf) Run(
 	scc *configs.ServConcurrentCtrl,
 	db *configs.RuntimeDB, args ...any,
 ) {
-	defer func() { configs.Logger.Info("DNS server quit...") }()
+	defer func() {
+		configs.Logger.Info(configs.GetLocalizedMsg("services.DNSQuitInfo", nil))
+	}()
 	if len(args) == 0 {
-		configs.Logger.Error("incorrect number of arguments")
+		configs.Logger.Error(configs.GetLocalizedMsg(
+			"services.DNSWrongParamNumErr",
+			map[string]any{
+				"Expect": "> 0",
+				"Actual": 0,
+			},
+		))
 		return
 	} else if ConfObj == nil {
-		configs.Logger.Error("empty configuration is provided")
+		configs.Logger.Error(configs.GetLocalizedMsg("services.DNSNullConfErr", nil))
 		return
 	}
 	snapshot, ok := ConfObj.Load().SelectTerm(configs.DNSEnum).(configs.DNSconfig)
 	if !ok {
-		configs.Logger.Error("can not select dns configuration from ConfObj")
+		configs.Logger.Error(configs.GetLocalizedMsg("services.DNSConfLoadErr", nil))
 		return
 	}
 	var sb strings.Builder
@@ -203,6 +211,7 @@ func (d *DNSserverConf) Run(
 		// have to re-create for certain table because services are separated
 		&databases.AddrInfo{}, &databases.PortInfo{}, &databases.DnsQuery{},
 	)
+	// TODO: since we use the framework, it is a little hard to switch the services
 	go func() {
 		<-scc.Ctx.Done()
 		s.Shutdown(context.TODO())

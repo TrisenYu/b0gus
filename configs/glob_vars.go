@@ -1,8 +1,6 @@
-// Package configs
 package configs
 
 // SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
-// (C) All rights reserved. Author: <kisfg@hotmail.com> in 2025
 
 import (
 	"b0gus/assets"
@@ -16,13 +14,13 @@ import (
 
 // TODO: can we use environment variables as meta configuration?
 //		can updates come from different sources like trusted remote network activities or remote client's commands?
-//		should we record the configuration change as a log?
+//		shall we record the configuration change as a log?
 
 var (
 	GlobConf atomic.Pointer[LocalConfig]
 
 	AssetsDirAsStr string
-	// LocalConfigPathAsStr is a relative path defined in the perspective of `b0gus-arm64.go`.
+	// LocalConfigPathAsStr is a relative path defined in the perspective of `b0gus.go`.
 	// Read-only except the diff_tests.
 	LocalConfigPathAsStr   = "./configs/config.toml"
 	RemotePullSource       string

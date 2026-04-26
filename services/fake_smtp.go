@@ -93,11 +93,14 @@ type SMTPClientCtx struct {
 // SendResp will send response of one command as input.
 // Note that When requiring sending multiple response for one command, the context should set normal for the
 // first one, while the others have to be kept as nil. Otherwise, the whole service will be stuck by the full channel.
-func (s *SMTPClientCtx) SendResp(ctx context.Context, code SMTPRespStatus, resp string) {
+func (s *SMTPClientCtx) SendResp(
+	ctx context.Context,
+	code SMTPRespStatus, resp string,
+) {
 	payload := fmt.Sprintf("%d %s", code, resp)
-	//_, err := s.Writer.WriteString(payload)
+	// unexpected output behavior
 	if ctx == nil {
-		_, _ = fmt.Fprintln(s.term.GetWriter(), payload)
+		_, _ = s.term.GetWriter().Write(append([]byte(payload), []byte("\r\n")...))
 	} else {
 		s.term.SetCurrResp(&terminal.ShellSyncObj{Ctx: ctx, Payload: payload})
 	}
@@ -105,8 +108,7 @@ func (s *SMTPClientCtx) SendResp(ctx context.Context, code SMTPRespStatus, resp 
 
 func (s *SMTPClientCtx) EHLOhandler(ctx context.Context) {
 	s.SendResp(ctx, SMTPOk, "Hello")
-	// [TODO]: ? SMTPUTF8 still need improving
-	supported := []string{"STARTTLS", "DSN", "ETRN", "8BITMIME", "AUTH PLAIN LOGIN"}
+	supported := []string{"STARTTLS", "DSN", "ETRN", "8BITMIME", "AUTH PLAIN LOGIN", "SMTPUTF8"}
 	rand.Shuffle(len(supported), func(i, j int) {
 		supported[i], supported[j] = supported[j], supported[i]
 	})
@@ -116,6 +118,17 @@ func (s *SMTPClientCtx) EHLOhandler(ctx context.Context) {
 		// here the logic requires using nil to represent current context.
 		s.SendResp(nil, SMTPOk, t)
 	}
+}
+
+func (s *SMTPClientCtx) mailHandler() {
+	// from, exist
+	// opt<to, cc/bcc>
+	// opt<subj>
+	// opt<date>
+	// ext<mal-info>/<trust-info>
+	// new-break-line
+	// [content]
+	// [.]
 }
 
 func (s *SMTPClientCtx) LoginHandler(
@@ -181,7 +194,10 @@ func (s *SMTPClientCtx) PlainHandler(
 	return true
 }
 
-func (s *SMTPClientCtx) upgradeToTLS(currSMTPconf configs.SMTPconfig, conn net.Conn) (*tls.Conn, error) {
+func (s *SMTPClientCtx) upgradeToTLS(
+	currSMTPconf configs.SMTPconfig,
+	conn net.Conn,
+) (*tls.Conn, error) {
 
 	cert, err := tls.LoadX509KeyPair(
 		currSMTPconf.LocalTLSCertPath,
@@ -310,7 +326,6 @@ func (s *SMTPClientCtx) CommandDispatcher(
 		s.SendResp(ctx, SMTPOk, "reset OK")
 	case "noop":
 		s.SendResp(ctx, SMTPOk, "OK")
-		return SMTPOk
 	case "quit":
 		s.SendResp(ctx, SMTPOk, "Bye")
 		return nil
@@ -336,7 +351,7 @@ func (s *SMTPClientCtx) CommandDispatcher(
 		// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid `mail from`")
 		// 	return SMTPBadSequence
 		// }
-		// // currTest[1] // as source email, but have to inspect the validation
+		// // currTest[1] // as source email, but have to validate
 		// // temporarily drop here.
 		// s.CmdStatus = SMTPMailRequired
 		// _ = s.SendResp(SMTPOk, "Ok")
@@ -400,7 +415,11 @@ func (s *SMTPServConf) ServeHTTP(http.ResponseWriter, *http.Request) {}
 func (s *SMTPServConf) InvokeForTCPtask(conn net.Conn) {
 	// somehow, it is acceptable to send the response to AI.
 	defer func() { _ = conn.Close() }()
-	s.term = terminal.NewShell(conn, conn, true, "> ", "", true)
+	s.term = terminal.NewShell(
+		conn, conn, true,
+		"> ", "",
+		true, false,
+	)
 	var shouldCease atomic.Bool
 	shouldCease.Store(false)
 	go func() {
@@ -465,12 +484,25 @@ func (s *SMTPServConf) Run(
 	db *configs.RuntimeDB,
 	args ...any,
 ) {
-	defer func() { configs.Logger.Info("SMTP service has quited") }()
+	defer func() {
+		configs.Logger.Info(configs.GetLocalizedMsg(
+			"services.SMTPQuitInfo", nil,
+		))
+	}()
 	if len(args) != 1 {
-		configs.Logger.Info(fmt.Sprintf("too many arguments<%d> for smtp", len(args)))
+		payload := configs.GetLocalizedMsg(
+			"services.SMTPWrongParamNumErr",
+			map[string]any{
+				"Expect": 1,
+				"Actual": len(args),
+			},
+		)
+		configs.Logger.Info(payload)
 		return
 	} else if confObj == nil {
-		configs.Logger.Error("empty configuration is provided")
+		configs.Logger.Error(configs.GetLocalizedMsg(
+			"services.SMTPNullConfErr", nil,
+		))
 		return
 	}
 	_, ok := confObj.Load().SelectTerm(configs.SMTPEnum).(configs.SMTPconfig)
@@ -481,8 +513,8 @@ func (s *SMTPServConf) Run(
 	_ = db.CreateTable(
 		&databases.UsernameInfo{}, &databases.PasswordInfo{},
 	)
-	var clientAux ReEnterNetType
+	var clientAux ReentrantNetType
 	clientAux.Init(configs.SMTPEnum, s)
-	go ConcurrentEventDispatcher(&clientAux, confObj, scc)
+	go clientAux.EventMonitor(confObj, scc)
 	clientAux.AlterNetFd(TCPEnum, confObj)
 }

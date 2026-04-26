@@ -22,8 +22,6 @@ import (
 	"b0gus/terminal"
 )
 
-// default port number: 22
-// https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
 var (
 	sshSoftwareArr = []string{
 		"OpenSSH", "libssh", "libssh2", "billsSSHP",
@@ -72,6 +70,9 @@ func getRandomSSHVersion() string {
 }
 
 // SSHServConf is designed for executing the fake ssh service.
+//
+//	default port number: 22
+//	https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
 type SSHServConf struct {
 	// hostSigner holds the ssh key of host
 	hostSigner ssh.Signer
@@ -83,7 +84,7 @@ type SSHServConf struct {
 
 // Run is the function for invoking
 func (s *SSHServConf) Run(
-	ConfObj *atomic.Pointer[configs.LocalConfig],
+	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
 	db *configs.RuntimeDB, args ...any,
 ) {
@@ -98,11 +99,11 @@ func (s *SSHServConf) Run(
 	if len(args) != 1 {
 		// [TODO]: add an description for this.
 		return
-	} else if ConfObj == nil {
+	} else if confObj == nil {
 		configs.Logger.Error("empty configuration is provided")
 		return
 	}
-	_, ok := ConfObj.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+	_, ok := confObj.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
 	if !ok {
 		configs.Logger.Error("can not select ssh config from ConfObj")
 		return
@@ -131,11 +132,11 @@ func (s *SSHServConf) Run(
 		configs.Logger.Error(err.Error())
 		return
 	}
-	var clientAux ReEnterNetType
-	s.ConfOptions, s.DbFd = ConfObj, db
+	var clientAux ReentrantNetType
+	s.ConfOptions, s.DbFd = confObj, db
 	clientAux.Init(configs.SSHEnum, s)
-	go ConcurrentEventDispatcher(&clientAux, ConfObj, scc)
-	clientAux.AlterNetFd(TCPEnum, ConfObj)
+	go clientAux.EventMonitor(confObj, scc)
+	clientAux.AlterNetFd(TCPEnum, confObj)
 }
 
 // InvokeForUDPtask here will do nothing due to ssh is a TCP protocol
@@ -147,7 +148,7 @@ func (s *SSHServConf) ServeHTTP(http.ResponseWriter, *http.Request) {}
 // InvokeForICMPtask here will do nothing due to ssh is a TCP protocol
 func (s *SSHServConf) InvokeForICMPtask(net.Addr, []byte) {}
 
-// InvokeForTCPtask is implemented for the callback function defined in ReEnterNetType.
+// InvokeForTCPtask is implemented for the callback function defined in ReentrantNetType.
 func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 	snapshot, ok := s.ConfOptions.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
@@ -159,8 +160,7 @@ func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 	hashAlg := crypto_aux.OnceHashByChoice(snapshot.HashAlgorithm)
 	ip, port := misc_utils.IPAddrSplit(conn.RemoteAddr().String())
 	sessionID := int64(binary.LittleEndian.Uint64(hashAlg(
-		[]byte(conn.RemoteAddr().String()),
-		[]byte(time.Now().String()),
+		[]byte(conn.RemoteAddr().String()), []byte(time.Now().String()),
 	)[:8]))
 	_ = s.DbFd.CreateOrUpdateItemsInSeq(
 		&databases.AddrInfo{Ip: ip},
@@ -246,20 +246,20 @@ func (s *SSHServConf) handleNewSSHchan(
 		return
 	}
 	sshChan, reqs, err := newChan.Accept()
-	if err != nil {
-		payload := configs.GetLocalizedMsg(
-			"services.SSHchannelAcceptanceError",
-			map[string]any{
-				"RemoteAddr": sshConn.RemoteAddr().String(),
-				"ErrInfo":    err,
-			},
-		)
-		configs.Logger.Error(payload)
+	if err == nil {
+		// [TODO]: use configuration to determine which kind of mode we really need.
+		//		1. talk with an LLM with tailored prompt
+		s.mockShellForRemote(sessionId, sshConn, sshChan, reqs)
 		return
 	}
-	// [TODO]: use configuration to determine which mode do we need.
-	//		1. talk with an LLM with tailored prompt
-	s.mockShellForRemote(sessionId, sshConn, sshChan, reqs)
+	payload := configs.GetLocalizedMsg(
+		"services.SSHchannelAcceptanceError",
+		map[string]any{
+			"RemoteAddr": sshConn.RemoteAddr().String(),
+			"ErrInfo":    err,
+		},
+	)
+	configs.Logger.Error(payload)
 }
 
 func (s *SSHServConf) mockShellForRemote(
@@ -269,7 +269,10 @@ func (s *SSHServConf) mockShellForRemote(
 	reqs <-chan *ssh.Request,
 ) {
 	defer func() {
-		_, _ = sshChan.SendRequest("exit-status", false, []byte{0, 0, 0, 0})
+		_, _ = sshChan.SendRequest(
+			"exit-status", false,
+			ssh.Marshal(&struct{ Status uint32 }{0}),
+		)
 		_ = sshChan.Close()
 	}()
 	for req := range reqs {
@@ -287,23 +290,48 @@ func (s *SSHServConf) mockShellForRemote(
 			)
 			_, _ = sshChan.Write([]byte(welcomeMsg))
 			go s.cmdForwarding(sessionId, sshChan)
+		case "pty-req":
+			fallthrough
 		case "env":
-
+			fallthrough
+		case "window-change":
+			var sb strings.Builder
+			sb.WriteString(req.Type)
+			sb.WriteString(" [")
+			for i, p := range req.Payload {
+				sb.WriteString("0x")
+				div, mod := p>>4, p&15
+				if div > 10 {
+					sb.WriteByte(div - 10 + 'a')
+				} else {
+					sb.WriteByte(div + '0')
+				}
+				if mod > 10 {
+					sb.WriteByte(mod - 10 + 'a')
+				} else {
+					sb.WriteByte(mod + '0')
+				}
+				if i < len(req.Payload)-1 {
+					sb.WriteRune(',')
+				}
+			}
+			sb.WriteRune(']')
+			configs.Logger.Debug(sb.String())
+			fallthrough
 		default:
 			/*
 				just accept 'pty-req' and 'window-change' without any action
 
 				payload format of 'window-change':
-					`uint32(rows)#uint32(cols)#uint32(width)#uint32(height)`
-				here `#` means concatenate the information
+					`uint32(rows)||uint32(cols)||uint32(width)||uint32(height)`
+				here `||` means concatenate the information
 
 				reject/abort all other requests like "exec"
 
 				[TODO]: scp will send 'subsystem' as its pre-executed request.
-					so it is worth wondering what kind of attacking payload does the attacker send.
+					so it is worth wondering the payload sent by the attacker.
 					To achieve this goal, the requirements are container and privilege deprivation
 			*/
-			configs.Logger.Debug(req.Type)
 			_ = req.Reply(
 				req.Type == "pty-req" || req.Type == "window-change",
 				nil,
@@ -318,7 +346,8 @@ func (s *SSHServConf) cmdForwarding(
 ) {
 	term := terminal.NewShell(
 		sshChan, sshChan, true,
-		"$ ", "> ", false,
+		"$ ", "> ",
+		false, false,
 	)
 	var shouldCease atomic.Bool
 	shouldCease.Store(false)
@@ -328,7 +357,12 @@ func (s *SSHServConf) cmdForwarding(
 		err := term.Run()
 		defer shouldCease.Store(true)
 		if err == nil {
-			_ = sshChan.CloseWrite()
+			// send exit-status before quiting.
+			_, _ = sshChan.SendRequest(
+				"exit-status", false,
+				ssh.Marshal(&struct{ Status uint32 }{0}),
+			)
+			_ = sshChan.Close()
 			return
 		}
 		logInfo := configs.GetLocalizedMsg(

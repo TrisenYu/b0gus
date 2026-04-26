@@ -1,0 +1,11 @@
+.feats/
+.git/
+.github/
+.idea/
+.venv/
+.vscode/
+diff_tests/
+docs/
+b0gus
+b0gus.exe
+b0gus-*

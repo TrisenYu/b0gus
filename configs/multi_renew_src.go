@@ -68,6 +68,8 @@ func AlterLocalConf() {
 }
 
 // monitorGivenLocalConf
+//
+//nolint:unused
 func monitorGivenLocalConf(ctx context.Context, path string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -116,7 +118,8 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 }
 
 // network updates should enable augmented authentication
-
+//
+//nolint:unused
 func DetectConfigUpdates(ctx context.Context, filepath string) {
 	// crying stack
 	go monitorGivenLocalConf(ctx, filepath)

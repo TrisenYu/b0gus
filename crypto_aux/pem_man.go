@@ -278,12 +278,17 @@ func CreateRootCaPair(
 		return err
 	}
 	template := &x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               certSignConf.Name,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(0, 0, certSignConf.ValidDays),
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		SerialNumber: serialNumber,
+		Subject:      certSignConf.Name,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(0, 0, certSignConf.ValidDays),
+		KeyUsage: x509.KeyUsageCertSign |
+			x509.KeyUsageKeyEncipherment |
+			x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+			x509.ExtKeyUsageClientAuth,
+		},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 		MaxPathLen:            2,
@@ -402,12 +407,15 @@ func IntranetSignCert(
 	}
 
 	template := &x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               SignedConf.Name,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(0, 0, SignedConf.ValidDays),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		SerialNumber: serialNumber,
+		Subject:      SignedConf.Name,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(0, 0, SignedConf.ValidDays),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+			x509.ExtKeyUsageClientAuth,
+		},
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 		DNSNames:              SignedConf.Domains,
@@ -468,8 +476,8 @@ func IntranetSignCert(
 	return certPEM, keyPEM, nil
 }
 
-// CreateCertPairUnderFilePath will write certData and KeyData into certPath and keyPath, respectively
-// the certPath and keyPath should be
+// CreateCertPairUnderFilePath will write certData and KeyData
+// into certPath and keyPath, respectively the certPath and keyPath should be
 func CreateCertPairUnderFilePath(
 	certPath, keyPath string,
 	certData, keyData []byte,
@@ -533,7 +541,8 @@ func LoadLocalCertAsTLSServ(
 	}
 }
 
-// NormalLoadCertAsTLSServ will load a signed (cert, key)-file for server, which is acknowledged by real-world CA.
+// NormalLoadCertAsTLSServ will load a signed (cert, key)-file for server,
+// which is acknowledged by real-world CA.
 func NormalLoadCertAsTLSServ(
 	SignedCertFile, SignedKeyFile string,
 ) *tls.Config {
@@ -553,7 +562,8 @@ func NormalLoadCertAsTLSServ(
 	}
 }
 
-// NormalLoadCertAsTLSClient will load signed (cert, key)-file for client, which is acknowledged by real-world CA.
+// NormalLoadCertAsTLSClient will load signed (cert, key)-file for client,
+// which is acknowledged by real-world CA.
 func NormalLoadCertAsTLSClient(
 	SignedCertFile, SignedKeyFile, serverName string,
 ) *tls.Config {
@@ -572,7 +582,8 @@ func NormalLoadCertAsTLSClient(
 
 // LoadLocalCertAsTLSClient will load **trust** (cert, key) from files and return the most
 // basic *tls.Config.
-// In order to make local-sign (cert, key) trustable, RootCaCertPath is required for building up Chain of Certificate.
+// In order to make local-sign (cert, key) trustable,
+// RootCaCertPath is required for building up Chain of Certificate.
 // For normal cert, use tls.LoadX509KeyPair is adequate.
 func LoadLocalCertAsTLSClient(
 	RootCaCertPath, SignedCertFile, SignedKeyFile string,

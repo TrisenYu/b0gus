@@ -3,7 +3,9 @@
 set -euo pipefail
 
 # unix or darwin?
+# shellcheck disable=SC2209
 grep_check=grep
+
 if [ "$(uname)" = "Darwin" ]; then
     grep_check=ggrep
     # require `brew install gnu-grep`
@@ -17,7 +19,9 @@ if [ "$?" != 0 ]; then
 fi
 
 # version number must >= 4.13
-to_be_test=`antlr4 2>/dev/null | $grep_check -oiP "version \K[\d\.]+" | awk -F'.' '{ major=$1; minor=$2 } major >=4 && minor >= 13'`
+to_be_test=$(\
+antlr4 2>/dev/null | $grep_check -oiP "version \K[\d\.]+" | \
+awk -F'.' '{ major=$1; minor=$2 } major >=4 && minor >= 13')
 if [ -z "$to_be_test" ]; then
     echo "require version of antlr >= 4.13"
     exit 1
@@ -32,13 +36,14 @@ fi
 
 Lang="Go"
 # antlr4 defined in /usr/share/bin/: $(which java) -jar antlr4-complete.jar $@
-ls *.g4 | xargs -I {} antlr4 -Werror -Dlanguage="$Lang" -no-visitor -listener {} -o "$(pwd)/" -Xexact-output-dir 2>/dev/null
+ls *.g4 | xargs -I {} \
+	antlr4 -Werror -Dlanguage="$Lang" -no-visitor -listener {} -o "$(pwd)/" -Xexact-output-dir 2>/dev/null
 if [[ "$Lang" = "Go" ]]; then
 	alter_list=`$grep_check "package parser" -rl . | $grep_check -v "gen.*"`
 	if [ -z "$alter_list" ]; then
 		echo ""
 	else
-		echo "$alter_list" | xargs sed -i "s/package parser/package main/g" 
+		echo "$alter_list" | xargs sed -i "s/package parser/package main/g"
 	fi
 fi
 

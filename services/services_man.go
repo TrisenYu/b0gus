@@ -13,13 +13,13 @@ import (
 )
 
 type servRunner func(
-	ConfObj *atomic.Pointer[configs.LocalConfig],
+	globConf *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
 	db *configs.RuntimeDB,
 	args ...any,
 )
 
-// Brancher manages every available services of b0gus-arm64
+// Brancher manages every available services of b0gus
 func Brancher(
 	terminator <-chan struct{},
 	serverConf *atomic.Pointer[configs.LocalConfig],
@@ -65,7 +65,7 @@ func Brancher(
 				serverConf, &configs.ServConcurrentCtrl{
 					Ctx:           rootCtx,
 					ServNetTypeCh: chSlots[k],
-				}, db, GenericArgs(k, serverConf),
+				}, db, genericArgs(k, serverConf),
 			)
 		})
 	}
@@ -73,8 +73,7 @@ func Brancher(
 }
 
 // setSpecConfViaTag is thus used as a bizarre generic function
-// in the scope of golang programming, due to the definition of SSHServConf
-// is separated from configs
+// in the scope of golang programming.
 func setSpecConfViaTag(tag configs.ServEnum) servRunner {
 	switch tag {
 	case configs.SSHEnum:
@@ -87,13 +86,16 @@ func setSpecConfViaTag(tag configs.ServEnum) servRunner {
 		return (&SMTPServConf{}).Run
 	case configs.HTTPEnum:
 		return (&HTTPservConf{}).Run
+	case configs.SIPEnum:
+		// yet to complete
+		return nil
 	default: // unknown tag
 		return nil
 	}
 }
 
-// GenericArgs adjusts arguments for different services
-func GenericArgs(
+// genericArgs adjusts arguments required for different services
+func genericArgs(
 	tag configs.ServEnum,
 	servConf *atomic.Pointer[configs.LocalConfig],
 ) any {

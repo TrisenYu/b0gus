@@ -18,7 +18,7 @@ func TestLocale(t *testing.T) {
 	currConf.ServerConfig.Language = "en"
 	configs.GlobConf.Store(currConf)
 	payload = configs.GetLocalizedMsg("main.DatabaseChangingWarn", nil)
-	assert.Equal(t, "Won't update the database handler!", payload)
+	assert.Equal(t, "Due to internal error, the currently used database will not be replaced.", payload)
 	currConf.ServerConfig.Language = "de"
 	configs.GlobConf.Store(currConf)
 	payload = configs.GetLocalizedMsg(
@@ -29,7 +29,7 @@ func TestLocale(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"PEM-Datei </etc/hosts.deny> zum Einrichten des lokalen SSH-Public-Keys konnte nicht geöffnet werden!",
+		"PEM-Datei </etc/hosts.deny> kann nicht zum Konfigurieren des lokalen SSH-Public Keys geöffnet werden!",
 		payload,
 	)
 	currConf.ServerConfig.Language = "ja"
@@ -44,7 +44,7 @@ func TestLocale(t *testing.T) {
 	)
 	assert.Equal(
 		t,
-		"SSH接続の確立に失敗しました。（リモートアドレス、現在のSSHバージョン番号、失敗理由）："+
+		"SSH接続を確立できません。（リモートアドレス、現在のSSHバージョン、失敗原因）："+
 			"（<192.168.0.2>, <SSH-2.0-OpenSSH_11.1p2_3.4.5 Debian-67>, <Broken network>）。",
 		payload,
 	)
@@ -56,7 +56,7 @@ func TestLocale(t *testing.T) {
 			"Database": "MySQL",
 		},
 	)
-	assert.Equal(t, "지원되지 않는 데이터베이스<MySQL>가 발견되었습니다!", payload)
+	assert.Equal(t, "지원되지 않는 데이터베이스 <MySQL>를 발견했습니다!", payload)
 	currConf.ServerConfig.Language = "en"
 	configs.GlobConf.Store(currConf)
 }

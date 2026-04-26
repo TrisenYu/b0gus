@@ -1,5 +1,7 @@
 package configs
 
+// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+
 import (
 	"context"
 	"errors"
@@ -130,8 +132,11 @@ func SelectDatabaseBackend(dbConfig *RecDBConfig) (any, string, error) {
 
 // callback functions and context might be required
 
+// RuntimeDB is only used as a database **write** descriptor.
 type RuntimeDB struct {
-	db any // db holds the current database instance address
+	// db holds the current database instance address
+	db any
+
 	// Mutex protects the operation upon db specifically targeting at altering database instance
 	Mutex sync.Mutex
 }

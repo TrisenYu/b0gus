@@ -1,5 +1,6 @@
-// Last modified at 2026/02/11 星期三 22:25:54
 package main
+
+// Last modified at 2026/02/11 星期三 22:25:54
 
 import (
 	"fmt"
@@ -276,7 +277,7 @@ func fieldAttrForeignHandler(
 		extFieldName: &fieldInfo{
 			TopUpperCamelConvertor(refTabName), // type
 			fmt.Sprintf(
-				"foreignKey:%s;references:%s;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;",
+				"foreignKey:%s;references:%s;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;",
 				fieldName, TopUpperCamelConvertor(refFieldName),
 			), "-", "-", // gtag, json and bson
 		},
@@ -583,7 +584,6 @@ func RDTGenAux(
 	for tabName, tabMemArr := range listener.MetaStruct {
 		tabName = TopUpperCamelConvertor(tabName)
 		res[tabName] = make(fieldArr, 0)
-
 		for fieldName, v := range tabMemArr {
 			fieldName = TopUpperCamelConvertor(fieldName)
 			fieldAttrsHandler(
@@ -593,6 +593,8 @@ func RDTGenAux(
 		}
 	}
 	formRecordsHandler(listener.ShouldImportTime, res, auxFunc)
+	// fix: close fd
+	_ = fd.Close()
 }
 
 func getRDTfilesInDir(dir string) ([]string, error) {

@@ -128,12 +128,13 @@ func (x HTTPconfig) GetMaxNum() uint32  { return x.MaxClientNum }
 func (x HTTPconfig) GetTimeout() uint32 { return x.ClientConnTimeout }
 
 const (
-	RawEnum ServEnum = iota
+	RawEnum ServEnum = iota + 1
 	SSHEnum
 	NTPEnum
 	DNSEnum
 	SMTPEnum
 	HTTPEnum
+	SIPEnum
 	ENDofEnum
 )
 
@@ -239,6 +240,7 @@ func CheckSSHconfig(sshConf *SSHconfig) bool {
 	if sshConf == nil || sshConf.ListenPort <= 1024 {
 		return false
 	}
+
 	// At this moment and at most, we can only check whether those fields are null
 	if sshConf.MaxClientNum == 0 {
 		sshConf.MaxClientNum = 1

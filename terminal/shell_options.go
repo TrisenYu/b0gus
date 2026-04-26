@@ -1,6 +1,6 @@
 package terminal
 
-// TODO
+// [TODO]
 
 type ShellOptions struct {
 	PromptAlter   func(ty int) string

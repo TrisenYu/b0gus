@@ -213,7 +213,7 @@ type NTPServConf struct {
 
 // Run executes NTP services
 func (n *NTPServConf) Run(
-	ConfObj *atomic.Pointer[configs.LocalConfig],
+	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
 	db *configs.RuntimeDB,
 	args ...any,
@@ -228,16 +228,16 @@ func (n *NTPServConf) Run(
 	if len(args) > 1 || args[0] != nil {
 		return
 	}
-	if ConfObj == nil {
-		configs.Logger.Error("empty configuration is provided")
+	if confObj == nil {
+		configs.Logger.Error(configs.GetLocalizedMsg("NTPNullConfErr", nil))
 		return
 	}
-	_, ok := ConfObj.Load().SelectTerm(configs.NTPEnum).(configs.NTPconfig)
+	_, ok := confObj.Load().SelectTerm(configs.NTPEnum).(configs.NTPconfig)
 	if !ok {
 		return
 	}
-	var clientAux = ReEnterNetType{}
+	var clientAux = ReentrantNetType{}
 	clientAux.Init(configs.NTPEnum, n)
-	go ConcurrentEventDispatcher(&clientAux, ConfObj, scc)
-	clientAux.AlterNetFd(UDPEnum, ConfObj)
+	go clientAux.EventMonitor(confObj, scc)
+	clientAux.AlterNetFd(UDPEnum, confObj)
 }

@@ -1,100 +1,138 @@
-# AI-generated
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "정적 자산의 디렉터리입니다."
+    other = "정적 리소스 디렉터리를 설정합니다."
     [meta_conf.ConfPath]
     other = "로컬 구성 파일의 경로입니다."
     [meta_conf.PermitConfAlterInRuntime]
-    other = "런타임 중 구성 변경 권한입니다."
+    other = "실행 중 구성 변경을 허용하는 설정입니다."
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "런타임 중 구성 자체 변경 권한입니다."
+    other = "실행 중 구성 자체 변경을 허용하는 설정입니다."
     [meta_conf.PermitShellAlterInRuntime]
-    other = "런타임 중 셸 명령어로 구성을 설정하는 권한입니다."
+    other = "실행 중 셸에 명령어를 입력하여 구성을 변경할 수 있는 권한 설정입니다."
     [meta_conf.PermitRemotePullInRuntime]
-    other = "런타임 중 원격 풀을 통해 구성을 설정하는 권한입니다."
+    other = "실행 중 원격에서 구성을 가져와 변경할 수 있는 권한 설정입니다."
 
 [main]
     [main.DatabaseConnectionError]
-    other = "데이터베이스{{.DatabaseStr}}에 연결할 수 없습니다. 오류 정보: `{{.ErrInfo}}`."
+    other = "데이터베이스 {{.DatabaseStr}}에 연결할 수 없습니다. 오류 확인: `{{.ErrInfo}}`."
     [main.DatabaseEmptyError]
-    other = "지정된 구성에 따라 빈 데이터베이스 연산자가 가져와졌습니다."
+    other = "주어진 구성으로 빈 데이터베이스 연산자를 가져왔습니다."
     [main.DatabaseChangingWarn]
     other = "내부 오류로 인해 현재 사용 중인 데이터베이스를 교체하지 않습니다."
     [main.TerminationSignalWarn]
-    other = "b0gus 서버 종료 신호<{{.SignalStr}}>를 포착했습니다."
+    other = "b0gus 서버 실행 종료 신호 <{{.SignalStr}}>를 감지했습니다."
+	[main.FailToApplyConfiguration]
+	other = "주어진 구성 파일을 현재 구성에 적용할 수 없습니다."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "로컬 SSH 공개키를 구성하기 위해 PEM 파일<{{.PemPath}}>을 열 수 없습니다!"
+    other = "로컬 SSH 공개 키를 구성하기 위해 PEM 파일 <{{.PemPath}}>을(를) 열 수 없습니다!"
     [crypto_aux.PemFileReadFailure]
-    other = "지정된 PEM 파일을 읽을 수 없습니다!"
+    other = "주어진 PEM 파일을 읽을 수 없습니다!"
     [crypto_aux.PemFileDecodeFailure]
     other = "PEM 파일을 올바르게 디코딩할 수 없습니다!"
     [crypto_aux.PemFileUnsupportedTypeError]
     other = "지원되지 않는 PEM 파일입니다!"
     [crypto_aux.PemFileFormatError]
-    other = "이 유형의 서명 인증서 형식은 지원되지 않습니다"
+    other = "이 유형의 서명 인증서 형식은 지원되지 않습니다."
     [crypto_aux.InvalidLengthForEllipticCurveError]
-    other = "제공된 공개키 길이<{{.PemLen}}>은 알려진 타원곡선 암호화 알고리즘에 적합하지 않습니다."
+    other = "제공된 공개 키 길이 <{{.PemLen}}>은(는) 알려진 타원 곡선 암호화 알고리즘에 적합하지 않습니다."
     [crypto_aux.InvalidLengthForRSAError]
-    other = "제공된 공개키 길이<{{.PemLen}}>은 RSA 암호화 알고리즘에 적합하지 않습니다."
-    [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "유효하지 않거나 지원되지 않는 인증서가 사용되었습니다. 세부 정보: <{{.ErrInfo}}>.b0gus는 구성 설정에 따라 인증서를 생성하려고 시도합니다."
-    [crypto_aux.PemFileCreateFailure]
-    other = "오류<{{.ErrInfo}}>로 인해 경로<{{.pemPath}}>에 인증서를 생성할 수 없으며, b0gus 서비스를 시작하지 않습니다."
+    other = "제공된 공개 키 길이 <{{.PemLen}}>은(는) RSA 암호화 알고리즘에 적합하지 않습니다."
     [crypto_aux.SSHPrivateKeyGenFailure]
-    other = "오류<{{.ErrInfo}}>로 인해 지정된 알고리즘에 따라 SSH 개인 키를 생성할 수 없습니다."
+    other = "오류 <{{.ErrInfo}}>로 인해 주어진 알고리즘으로 SSH 비밀 키를 생성할 수 없습니다."
     [crypto_aux.SSHPrivateKeySetFailure]
-    other = "오류<{{.ErrInfo}}>로 인해 SSH 서비스에 개인 키를 설정할 수 없습니다."
+    other = "오류 <{{.ErrInfo}}>로 인해 SSH 서비스에 비밀 키를 설정할 수 없습니다."
     [crypto_aux.CreatePemToGivenPathError]
-    other = "지정된 경로<{{.PemPath}}>에 인증서를 생성할 수 없습니다."
+    other = "주어진 경로 <{{.PemPath}}>에 인증서를 생성할 수 없습니다."
     [crypto_aux.Base64EncodeFailure]
     other = "인증서를 Base64 문자열로 올바르게 인코딩할 수 없습니다."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "잘못되었거나 지원되지 않는 인증서를 사용했습니다. 세부 정보: <{{.ErrInfo}}>. b0gus는 구성에 따라 인증서를 생성하려고 시도합니다."
+    [crypto_aux.PemFileCreateFailure]
+    other = "오류 <{{.ErrInfo}}>로 인해 경로 <{{.PemPath}}>에 인증서를 생성할 수 없으며, b0gus 서비스가 시작되지 않습니다."
 
 [databases]
     [databases.DatabaseTypeError]
-    other = "지원되지 않는 데이터베이스<{{.Database}}>가 발견되었습니다!"
+    other = "지원되지 않는 데이터베이스 <{{.Database}}>를 발견했습니다!"
 
 [configs]
     # 데이터베이스
     [configs.InvalidDatabaseAddrError]
-    other = "구성 파일에 유효하지 않은 데이터베이스 연결 주소<{{.DatabaseAddr}}>가 제공되었습니다!"
+    other = "구성 파일에 잘못된 데이터베이스 연결 주소 <{{.DatabaseAddr}}>가 제공되었습니다!"
     [configs.UnsupportDatabaseTypeError]
-    other = "알 수 없는 데이터베이스 유형이 발견되었습니다. 현재 b0gus는 PostgreSQL、SQLite、MongoDB를 지원하지만, 선택하신 것은 <{{.DatabaseType}}>입니다."
+    other = "알 수 없는 데이터베이스 유형을 발견했습니다. 현재 b0gus는 PostgreSQL, SQLite 및 MongoDB를 지원하며, 선택한 유형은 <{{.DatabaseType}}>입니다."
     # 전역 구성 정보
     [configs.ReadingConfigurationFailure]
     other = "구성을 읽을 수 없습니다. 실패 원인: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
-    other = "구성 파일을 다시 로드하는 데 실패했습니다! 현재 구성은 교체되지 않습니다. 실패 원인: <{{.ErrInfo}}>."
+    other = "구성 파일 재로드 실패! 현재 구성은 교체되지 않습니다. 실패 원인: <{{.ErrInfo}}>."
     [configs.UnmarshallingConfigurationFailure]
     other = "구성 파일을 파싱할 수 없습니다. 실패 원인: <{{.ErrInfo}}>."
 
 [services]
+	# abstract_tcpip
+	[services.absTCPIPUninitErr]
+	other = "초기화되지 않은 ReentrantNetType을 사용했습니다."
+	[services.absTCPIPUnknownNetType]
+	other = "알 수 없는 네트워크 유형을 사용했습니다."
+	[services.absTCPIPUDPConnCastingErr]
+	other = "net.UDPConn으로 변환하는 데 실패했습니다."
     # SSH
     [services.SSHversionWarn]
-    other = "임의의 3바이트를 생성할 수 없습니다. SSH 버전에 기본값을 반환합니다."
+    other = "3개의 랜덤 바이트를 생성할 수 없습니다. SSH 버전에 대해 기본값을 반환합니다."
     [services.SSHWriteResponseError]
-    other = "명령 결과를 다시 쓰는 중 오류<{{.ErrInfo}}>가 발생했습니다."
+    other = "명령 결과를 다시 쓸 때 오류 <{{.ErrInfo}}>가 발생했습니다."
     [services.SSHsetTimeoutError]
-    other = "오류<{{.ErrInfo}}>로 인해 다가올 연결에 타임아웃 시간을 설정할 수 없습니다."
+    other = "오류 <{{.ErrInfo}}>로 인해 다가오는 연결에 대해 타임아웃을 설정할 수 없습니다."
     [services.SSHEstablishConnectionFailure]
-    other = "SSH 연결을 설정할 수 없습니다. (원격 주소, 현재 SSH 버전 번호, 실패 원인): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    other = "SSH 연결을 설정할 수 없습니다. (원격 주소, 현재 SSH 버전, 실패 원인): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
     [services.SSHchannelAcceptanceError]
-    other = "오류<{{.ErrInfo}}>로 인해 원격 주소<{{.RemoteAddr}}>에 제공된 SSH 채널을 수락할 수 없습니다."
+    other = "오류 <{{.ErrInfo}}>로 인해 원격 주소 <{{.RemoteAddr}}>에 제공된 현재 SSH 채널을 수락할 수 없습니다."
     [services.SSHinvalidConfigurationWarn]
-    other = "유효하지 않은 SSH 구성입니다. 업데이트를 건너뜁니다"
+    other = "잘못된 SSH 구성입니다. 업데이트를 건너뜁니다."
     [services.SSHSwitchListenerError]
-    other = "다시 수신하기 위해 지정된 주소<{{.ListenAddr}}>로 전환할 수 없습니다. 이로 인해 현재 b0gus SSH 서버는 수정되지 않습니다."
+    other = "주어진 주소 <{{.ListenAddr}}>로 전환하여 다시 수신 대기할 수 없습니다. 이로 인해 현재 b0gus SSH 서버는 수정되지 않습니다."
     [services.SSHSetupListenerError]
-    other = "지정된 주소<{{.ListenAddr}}>에서 SSH 서버가 수신하도록 설정할 수 없습니다."
+    other = "주어진 주소 <{{.ListenAddr}}>에서 SSH 서버가 수신 대기할 수 없습니다."
     [services.SSHAcceptConnWarn]
-    other = "오류<{{.ErrInfo}}>로 인해 외부 SSH 연결 요청을 수락할 수 없습니다."
+    other = "오류 <{{.ErrInfo}}>로 인해 외부 SSH 연결 요청을 수락할 수 없습니다."
     [services.SSHCanNotUseSigner]
-    other = "SSH 프로토콜 통신 중에 지정된 인증서<{{.Signer}}>를 사용하여 서명을 수행할 수 없습니다."
+    other = "SSH 프로토콜 상호 작용 중 서명을 수행하는 데 주어진 인증서 <{{.Signer}}>를 사용할 수 없습니다."
     [services.SSHQuitInfo]
-    other = "SSH 서버가 종료되었습니다."
+    other = "SSH 서비스가 종료되었습니다."
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
-    other = "NTP 서버는 <{{.IP}}>에서 전송된 길이 <{{.Len}}>의 시간 쿼리 요청을 수신했습니다."
+    other = "NTP 서버가 <{{.IP}}>에서 길이 <{{.Len}}>의 시간 조회 요청을 받았습니다."
     [services.NTPQuitInfo]
-    other = "NTP 서버가 종료되었습니다."
+    other = "NTP 서비스가 종료되었습니다."
+	[services.NTPNullConfErr]
+	other = "빈 NTP 구성이 제공되었습니다."
+    # DNS
+	[services.DNSQuitInfo]
+	other = "DNS 서비스가 종료되었습니다."
+	[services.DNSNullConfErr]
+	other = "빈 DNS 구성이 제공되었습니다."
+	[services.DNSWrongParamNumErr]
+	other = "잘못된 수의 매개변수가 전달되었습니다. 예상: {{.Expect}}개, 실제: {{.Actual}}개."
+	[services.DNSConfLoadErr]
+	other = "구성에서 DNS 하위 구성을 추출할 수 없습니다!"
+    # SMTP
+	[services.SMTPQuitInfo]
+	other = "SMTP 서비스가 종료되었습니다."
+	[services.SMTPWrongParamNumErr]
+	other = "잘못된 수의 매개변수가 전달되었습니다. 예상: {{.Expect}}개, 실제: {{.Actual}}개."
+	[services.SMTPNullConfErr]
+	other = "빈 SMTP 구성이 제공되었습니다."
+	# HTTP
+	[services.HTTPQuitInfo]
+	other = "HTTP 서비스가 종료되었습니다."
+	[services.HTTPNullConfErr]
+	other = "빈 HTTP 구성이 제공되었습니다."
+	[services.HTTPWrongParamNumErr]
+	other = "잘못된 수의 매개변수가 전달되었습니다. 예상: {{.Expect}}개, 실제: {{.Actual}}개."
+	[services.HTTPConfLoadErr]
+	other = "HTTP 구성을 로드할 수 없습니다."
+    # ICMP
+	[services.ICMPwindowsUnsupportWarn]
+	other = "Windows 시스템은 ICMP 서버 구축을 지원하지 않습니다."
