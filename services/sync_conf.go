@@ -1,6 +1,6 @@
 package services
 
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"b0gus/configs"
@@ -14,6 +14,8 @@ import (
 
 // PullUpdatesFromRemote will start up itself as a locality trust TLS server on configs.RemotePullSource.
 // The TLS server will cancel once the in-param ctx is canceled.
+//
+// Currently, only used in pem_op_test.go
 //
 //nolint:unused
 func PullUpdatesFromRemote(
@@ -69,6 +71,8 @@ func PullUpdatesFromRemote(
 	}
 }
 
+// Currently, only used in pem_op_test.go
+//
 //nolint:unused
 func handleTrustUpdateClients(tlsConn net.Conn) {
 	defer func() { _ = tlsConn.Close() }()

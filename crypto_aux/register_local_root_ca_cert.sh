@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
-# SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+# SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
-# I don't think this certificates would help
+# I don't think this scripts designed for certificates would help
 
 #### check for dependencies programs
 # shellcheck disable=SC3040
@@ -18,7 +18,8 @@ DEFAULT_PATH="$HOME/.b0gus-ca/"
 KEY_REL_PATH="private/b0gus_root_$CURR_USER.key.pem"
 CERT_REL_PATH="certs/b0gus_root_$CURR_USER.crt.pem"
 
-#### TODO precisely check for if local directory already has certs or keys by verifying if the cert is signed by pri-key
+#### [TODO] precisely check for if local directory already has certs or
+# keys by verifying if the cert is signed by pri-key
 if [ -f "$DEFAULT_PATH/$KEY_REL_PATH" ] && [ -f "$DEFAULT_PATH/$CERT_REL_PATH" ]; then
     echo "There is already (key, cert) under $DEFAULT_PATH."
     exit 1

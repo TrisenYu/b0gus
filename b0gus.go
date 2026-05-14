@@ -1,9 +1,10 @@
 package main
 
-/// Last modified at 2026/04/17 星期五 21:26:16
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+/// Last modified at 2026/04/26 星期日 21:46:42
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
+	"b0gus/databases"
 	"flag"
 	"fmt"
 	"os"
@@ -34,12 +35,9 @@ func initConfFlags() {
 	}
 	showVersion := flag.Bool("version", false, "")
 	flag.BoolVar(showVersion, "v", false, "")
-
-	flag.StringVar(
-		&configs.AssetsDirAsStr, "assets-dir", "./assets/",
-		configs.GetLocalizedMsg("meta_conf.AssetsDir", nil),
-	)
 	flag.StringVar(&configs.RemotePullSource, "remote-pull-source", ":65431", "")
+	// TODO: CA is typically helping for intranet peers to verify each other
+	//       not convert the functionality into cluster at current time
 	flag.StringVar(
 		&configs.LocalRootCaCertAbsPath, "local-root-ca-cert-abs-path",
 		"./configs/root-ca.cert", "",
@@ -51,7 +49,8 @@ func initConfFlags() {
 
 	flag.Parse()
 	if *showVersion {
-		payload := `b0gus Version: %s-%s
+		payload :=
+			`b0gus Version: %s-%s
 Build Time:    %s
 Build Hash:    %s
 Builder Name:  %s
@@ -82,8 +81,8 @@ Current OS:    %s
   	                                  |--> fake database         (not even a draft)
   	                                  +--> HTTP(s)               (basic shape)
   	      							   ...
-                                       ^
-                                   TODO: decouple this layer from current computer by Secure RPC?
+                                        ^
+                               [TODO]: decouple this layer from current host by using Encrypted RPC?
  *-------------------------------------------------------------------------------------------------+
  TO-Evaluate: configuration should not be located inside the environment where the program stays.
 	configuration can fetch from network or filled by an interactive shell.
@@ -93,12 +92,12 @@ Current OS:    %s
  *-------------------------------------------------------------------------------------------------+
 */
 
-// The entry of b0gus.
+// main function is the entry of b0gus.
 // configuration in `./configs/` should be properly set up before executing
 func main() {
 	initConfFlags()
 	defer func() { _ = configs.Logger.Sync() }()
-	db, dbStr, err := configs.SelectDatabaseBackend(
+	db, dbStr, err := databases.SelectDatabaseBackend(
 		&configs.GlobConf.Load().ServerConfig.RecDBConfig,
 	)
 	if err != nil {
@@ -118,7 +117,7 @@ func main() {
 	}
 
 	var (
-		globRecordDb = configs.RuntimeDB{}
+		globRecordDb = databases.RuntimeDB{}
 		terminator   = make(chan struct{}, 1)
 		signalChan   = make(chan os.Signal, 1)
 	)

@@ -1,26 +1,26 @@
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "Définit le répertoire des ressources statiques."
+    other = "Définir le répertoire des ressources statiques."
     [meta_conf.ConfPath]
     other = "Chemin du fichier de configuration local."
     [meta_conf.PermitConfAlterInRuntime]
-    other = "Paramètre permettant la modification de la configuration pendant l'exécution."
+    other = "Paramètre autorisant la modification de la configuration en cours d'exécution."
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "Paramètre permettant l'auto-modification de la configuration pendant l'exécution."
+    other = "Paramètre autorisant la modification automatique de la configuration en cours d'exécution."
     [meta_conf.PermitShellAlterInRuntime]
-    other = "Paramètre d'autorisation pour modifier la configuration via des commandes shell pendant l'exécution."
+    other = "Paramètre autorisant la modification de la configuration via des commandes saisies dans le shell en cours d'exécution."
     [meta_conf.PermitRemotePullInRuntime]
-    other = "Paramètre d'autorisation pour modifier la configuration en récupérant à distance pendant l'exécution."
+    other = "Paramètre autorisant la modification de la configuration par télémétrie en cours d'exécution."
 
 [main]
     [main.DatabaseConnectionError]
-    other = "Impossible de se connecter à la base de données {{.DatabaseStr}}. Erreur détectée : `{{.ErrInfo}}`."
+    other = "Impossible de se connecter à la base de données {{.DatabaseStr}}. Erreur détectée : <{{.ErrInfo}}>."
     [main.DatabaseEmptyError]
-    other = "Un opérateur de base de données vide a été obtenu avec la configuration donnée."
+    other = "Opérateur de base de données vide obtenu avec la configuration donnée."
     [main.DatabaseChangingWarn]
-    other = "En raison d'une erreur interne, la base de données actuellement utilisée ne sera pas remplacée."
+    other = "Erreur interne, la base de données actuellement utilisée n'est pas changée."
     [main.TerminationSignalWarn]
-    other = "Signal de fin d'exécution <{{.SignalStr}}> capturé pour le serveur b0gus."
+    other = "Signal d'arrêt du serveur b0gus capturé <{{.SignalStr}}>."
     [main.FailToApplyConfiguration]
     other = "Impossible d'appliquer le fichier de configuration donné à la configuration actuelle."
 
@@ -36,103 +36,113 @@
     [crypto_aux.PemFileFormatError]
     other = "Format de certificat de signature non pris en charge."
     [crypto_aux.InvalidLengthForEllipticCurveError]
-    other = "La longueur de clé publique fournie <{{.PemLen}}> n'est pas adaptée aux algorithmes de cryptographie à courbe elliptique connus."
+    other = "La longueur de la clé publique fournie <{{.PemLen}}> ne convient pas aux algorithmes de courbe elliptique connus."
     [crypto_aux.InvalidLengthForRSAError]
-    other = "La longueur de clé publique fournie <{{.PemLen}}> n'est pas adaptée à l'algorithme RSA."
+    other = "La longueur de la clé publique fournie <{{.PemLen}}> ne convient pas à l'algorithme RSA."
     [crypto_aux.SSHPrivateKeyGenFailure]
     other = "Impossible de générer une clé privée SSH avec l'algorithme donné en raison de l'erreur <{{.ErrInfo}}>."
     [crypto_aux.SSHPrivateKeySetFailure]
     other = "Impossible de définir la clé privée pour le service SSH en raison de l'erreur <{{.ErrInfo}}>."
     [crypto_aux.CreatePemToGivenPathError]
-    other = "Impossible de créer le certificat au chemin donné <{{.PemPath}}>."
+    other = "Impossible de créer le certificat dans le chemin donné <{{.PemPath}}>."
     [crypto_aux.Base64EncodeFailure]
     other = "Impossible d'encoder correctement le certificat en chaîne Base64."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Un certificat invalide ou non pris en charge est utilisé, détails : <{{.ErrInfo}}>. b0gus tentera d'en générer un selon la configuration."
+    other = "Certificat invalide ou non pris en charge utilisé, détails : <{{.ErrInfo}}>. b0gus tentera de générer un certificat selon la configuration."
     [crypto_aux.PemFileCreateFailure]
-    other = "Impossible de créer le certificat au chemin <{{.PemPath}}> en raison de l'erreur <{{.ErrInfo}}>, et le service b0gus ne démarrera pas."
+    other = "Impossible de créer le certificat dans le chemin <{{.PemPath}}> en raison de l'erreur <{{.ErrInfo}}>, et le service b0gus ne démarrera pas."
 
 [databases]
     [databases.DatabaseTypeError]
-    other = "Base de données non prise en charge détectée <{{.Database}}> !"
+    other = "Base de données non prise en charge découverte <{{.Database}}> !"
+    [databases.InvalidMongoDBclientErr]
+    other = "Client MongoDB invalide !"
 
 [configs]
     # Base de données
     [configs.InvalidDatabaseAddrError]
-    other = "Adresse de connexion à la base de données invalide <{{.DatabaseAddr}}> fournie dans le fichier de configuration !"
+    other = "Adresse de connexion à la base de données invalide fournie dans le fichier de configuration <{{.DatabaseAddr}}> !"
     [configs.UnsupportDatabaseTypeError]
-    other = "Type de base de données inconnu détecté. b0gus prend actuellement en charge PostgreSQL, SQLite et MongoDB, et vous avez sélectionné <{{.DatabaseType}}>."
+    other = "Type de base de données inconnu découvert. Actuellement, b0gus prend en charge PostgreSQL, SQLite et MongoDB, et vous avez choisi <{{.DatabaseType}}>."
     # Informations de configuration globale
     [configs.ReadingConfigurationFailure]
     other = "Impossible de lire la configuration. Raison de l'échec : <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
-    other = "Échec du rechargement du fichier de configuration ! La configuration actuelle ne sera pas remplacée. Raison de l'échec : <{{.ErrInfo}}>."
+    other = "Échec du rechargement du fichier de configuration ! La configuration actuelle ne sera pas changée. Raison de l'échec : <{{.ErrInfo}}>."
     [configs.UnmarshallingConfigurationFailure]
     other = "Impossible d'analyser le fichier de configuration. Raison de l'échec : <{{.ErrInfo}}>."
 
 [services]
     # abstract_tcpip
+    [services.absTCPIPPortErr]
+    other = "Port privilégié sélectionné"
     [services.absTCPIPUninitErr]
-    other = "ReentrantNetType non initialisé utilisé."
+    other = "ReentrantNetType non initialisé utilisé"
     [services.absTCPIPUnknownNetType]
     other = "Type de réseau inconnu utilisé."
     [services.absTCPIPUDPConnCastingErr]
-    other = "Échec de la conversion en net.UDPConn."
+    other = "Échec de la conversion de net.UDPConn."
     # SSH
     [services.SSHversionWarn]
     other = "Impossible de générer 3 octets aléatoires. Une valeur par défaut sera renvoyée pour la version SSH."
     [services.SSHWriteResponseError]
-    other = "Une erreur <{{.ErrInfo}}> est survenue lors de l'écriture de la réponse de commande."
+    other = "Erreur rencontrée lors de l'écriture du résultat de la commande <{{.ErrInfo}}>."
     [services.SSHsetTimeoutError]
-    other = "Impossible de définir le délai d'attente pour la connexion entrante en raison de l'erreur <{{.ErrInfo}}>."
+    other = "Impossible de définir le délai d'attente pour la connexion à venir en raison de l'erreur <{{.ErrInfo}}>."
     [services.SSHEstablishConnectionFailure]
     other = "Impossible d'établir la connexion SSH. (Adresse distante, version SSH actuelle, raison de l'échec) : (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
     [services.SSHchannelAcceptanceError]
-    other = "Impossible d'accepter le canal SSH actuellement proposé à l'adresse distante <{{.RemoteAddr}}> en raison de l'erreur <{{.ErrInfo}}>."
+    other = "Impossible d'accepter le canal SSH actuellement fourni à l'adresse distante <{{.RemoteAddr}}> en raison de l'erreur <{{.ErrInfo}}>."
     [services.SSHinvalidConfigurationWarn]
-    other = "Configuration SSH invalide, mise à jour ignorée."
+    other = "Configuration SSH invalide, mise à jour ignorée"
     [services.SSHSwitchListenerError]
-    other = "Impossible de basculer vers l'adresse donnée <{{.ListenAddr}}> pour réécouter. Le serveur SSH b0gus actuel ne sera pas modifié en conséquence."
+    other = "Impossible de basculer vers l'adresse donnée <{{.ListenAddr}}> pour réécouter. En conséquence, le serveur SSH b0gus actuel ne sera pas modifié."
     [services.SSHSetupListenerError]
     other = "Impossible de faire écouter le serveur SSH sur l'adresse donnée <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]
     other = "Impossible d'accepter la demande de connexion SSH externe en raison de l'erreur <{{.ErrInfo}}>."
     [services.SSHCanNotUseSigner]
-    other = "Impossible d'utiliser le certificat donné <{{.Signer}}> pour signer lors des interactions du protocole SSH."
+    other = "Impossible d'utiliser le certificat donné <{{.Signer}}> pour signer pendant l'échange du protocole SSH."
     [services.SSHQuitInfo]
-    other = "Service SSH arrêté."
+    other = "Le service SSH s'est arrêté."
+    [services.SSHConfigLoadingFailure]
+    other = "Impossible de sélectionner la configuration à fournir à SSH à partir de la structure de configuration donnée."
+    [services.SSHEmptyGlobConfigFailure]
+    other = "Configuration globale vide fournie."
+    [services.SSHRequireSignerAsOnlyArgErr]
+    other = "Au moins un ssh.Signer est requis comme paramètre d'entrée."
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "Le serveur NTP a reçu une requête de temps de longueur <{{.Len}}> provenant de <{{.IP}}>."
     [services.NTPQuitInfo]
-    other = "Service NTP arrêté."
+    other = "Le service NTP s'est arrêté."
     [services.NTPNullConfErr]
-    other = "Configuration NTP vide fournie."
+    other = "Configuration NTP vide fournie"
     # DNS
     [services.DNSQuitInfo]
-    other = "Service DNS arrêté."
+    other = "Le service DNS s'est arrêté."
     [services.DNSNullConfErr]
-    other = "Configuration DNS vide fournie."
+    other = "Configuration DNS vide fournie"
     [services.DNSWrongParamNumErr]
-    other = "Nombre incorrect de paramètres transmis. {{.Expect}} attendu(s), {{.Actual}} reçu(s)."
+    other = "Nombre incorrect de paramètres transmis. Attendu {{.Expect}}, reçu {{.Actual}}."
     [services.DNSConfLoadErr]
     other = "Impossible d'extraire la sous-configuration DNS de la configuration !"
     # SMTP
     [services.SMTPQuitInfo]
-    other = "Service SMTP arrêté."
+    other = "Le service SMTP s'est arrêté"
     [services.SMTPWrongParamNumErr]
-    other = "Nombre incorrect de paramètres transmis. {{.Expect}} attendu(s), {{.Actual}} reçu(s)."
+    other = "Nombre incorrect de paramètres transmis. Attendu {{.Expect}}, reçu {{.Actual}}."
     [services.SMTPNullConfErr]
-    other = "Configuration SMTP vide fournie."
+    other = "Configuration SMTP vide fournie"
     # HTTP
     [services.HTTPQuitInfo]
-    other = "Service HTTP arrêté."
+    other = "Le service HTTP s'est arrêté"
     [services.HTTPNullConfErr]
-    other = "Configuration HTTP vide fournie."
+    other = "Configuration HTTP vide fournie"
     [services.HTTPWrongParamNumErr]
-    other = "Nombre incorrect de paramètres transmis. {{.Expect}} attendu(s), {{.Actual}} reçu(s)."
+    other = "Nombre incorrect de paramètres transmis. Attendu {{.Expect}}, reçu {{.Actual}}."
     [services.HTTPConfLoadErr]
-    other = "Impossible de charger la configuration HTTP."
+    other = "Impossible de charger la configuration HTTP"
     # ICMP
     [services.ICMPwindowsUnsupportWarn]
-    other = "Le système Windows ne prend pas en charge l'hébergement d'un serveur ICMP."
+    other = "Le système Windows ne prend pas en charge la mise en place d'un serveur ICMP"

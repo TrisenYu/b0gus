@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var seed = []struct {
+var hashAlgCases = []struct {
 	Payload string
 	State   bool
 }{
@@ -32,7 +32,7 @@ var seed = []struct {
 }
 
 func TestHash(t *testing.T) {
-	for _, s := range seed {
+	for _, s := range hashAlgCases {
 		res := crypto_aux.OnceHashByChoice(s.Payload)(nil, nil)
 		assert.True(t, len(res) > 0)
 		res = crypto_aux.OnceHashByChoice(s.Payload)([]byte(s.Payload), nil)
@@ -43,7 +43,7 @@ func TestHash(t *testing.T) {
 }
 
 func FuzzHash(f *testing.F) {
-	for _, seed := range seed {
+	for _, seed := range hashAlgCases {
 		f.Add(seed.Payload)
 	}
 	f.Fuzz(func(t *testing.T, data string) {

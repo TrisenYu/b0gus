@@ -14,7 +14,7 @@
 
 [main]
     [main.DatabaseConnectionError]
-    other = "无法连接到数据库{{.DatabaseStr}}。检出错误：`{{.ErrInfo}}`。"
+    other = "无法连接到数据库{{.DatabaseStr}}。检出错误：<{{.ErrInfo}}>。"
     [main.DatabaseEmptyError]
     other = "按给定配置获取到了空的数据库操作符。"
     [main.DatabaseChangingWarn]
@@ -55,6 +55,8 @@
 [databases]
     [databases.DatabaseTypeError]
     other = "发现了不受支持的数据库<{{.Database}}>！"
+	[databases.InvalidMongoDBclientErr]
+	other = "无效的MongoDB客户端！"
 
 [configs]
     # 数据库
@@ -72,6 +74,8 @@
 
 [services]
 	# abstract_tcpip
+	[services.absTCPIPPortErr]
+	other = "选用了特权端口"
 	[services.absTCPIPUninitErr]
 	other = "使用了没有初始化的ReentrantNetType"
 	[services.absTCPIPUnknownNetType]
@@ -101,6 +105,12 @@
     other = "无法使用给定的证书<{{.Signer}}>用于SSH协议交互期间实施签名。"
     [services.SSHQuitInfo]
     other = "SSH服务已退出。"
+	[services.SSHConfigLoadingFailure]
+	other = "无法从给定的配置结构体中选出提供给SSH的配置。"
+	[services.SSHEmptyGlobConfigFailure]
+	other = "提供了空的全局配置。"
+	[services.SSHRequireSignerAsOnlyArgErr]
+	other = "至少需要一个ssh.Signer作为传入参数。"
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTP服务器接收到来自<{{.IP}}>发来的长度为<{{.Len}}>的时间查询请求。"

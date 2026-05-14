@@ -1,7 +1,8 @@
 // Package configs
 package configs
 
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+/// Last modified at 2026/05/09 星期六 23:39:42
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"os"
@@ -31,7 +32,8 @@ func init() {
 	LoggerCore := zapcore.NewCore(loggerEncoder, writeSyncer, choice)
 	Logger = zap.New(
 		LoggerCore,
-		zap.AddCaller(), zap.AddCallerSkip(1),
+		zap.AddCaller(),
+		zap.AddCallerSkip(1),
 	)
 	zap.ReplaceGlobals(Logger)
 	// TODO: gain from global configuration and decide writing to which log file.

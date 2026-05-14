@@ -17,7 +17,7 @@ $ sudo -u postgres psql
 | `DROP TABLE IF EXISTS "<tabName>" CASCADE;` |    删除表    |
 |         `select * from "AddrInfo";`         |  查看表中内容 |
 
-运维有一次性按照批处理的方式交给PostgreSQL执行的命令。不过这个得看持有权限的程度。
+运维有一次性按照批处理的方式交给PostgreSQL执行的命令。不过这由持有权限的程度所决定。
 
 ```shell
 $ sudo -u postgres psql << EOS

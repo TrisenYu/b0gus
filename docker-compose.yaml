@@ -1,0 +1,84 @@
+# SPDX-LICENSE-IDENTIFIER: BSD 3-Clause
+# Last modified at 2026/05/10 星期日 23:51:10
+# TODO: yet to be tested
+#       do not apply in production environment!
+version: "0.1.2" # TODO: should be determined by makefile
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: buildImg.Dockerfile
+    container_name: b0gus-in-nutshell
+    # TODO: modify the copied config.toml. And do not require service-restart
+    ports:
+      - "2022:22"      # ssh
+      - "1234:123/udp" # ntp
+      - "2025:25"      # smtp
+      - "8081:80"      # http
+      - "4435:443"     # https, but I am not sure
+      - "5533:53"      # dns
+      - "31415:31415"  # extend port for remote verified rpc
+      - "27181:27181"  # extend port for local cli
+    volumes:
+      - ./configs:/app/configs:ro
+    environment:
+      # here PostgreSQL will set as default SQL backend
+      # and the user and password might be **set by yourself**
+      - DB_TYPE=postgresql
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=b0gus
+      # TODO: change the password plaintext or use configuration center instead
+      - POSTGRES_PASSWORD=StrongDBPass#2025
+      - POSTGRES_DB=db_for_b0gus
+      ## mongoDB is also optional
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=b0gus
+      # change here
+      - MONGO_PASSWORD=StrongMongoPass#2025
+      - MONGO_DB=db_for_b0gus
+    depends_on:
+      - postgres
+      - mongodb
+    networks:
+      - b0gus-network
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres-for-b0gus
+    restart: always
+    environment:
+      - POSTGRES_USER=b0gus
+      - POSTGRES_PASSWORD=StrongDBPass#2025
+      - POSTGRES_DB=db_for_b0gus
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # data persistence
+    networks:
+      - b0gus-network
+
+
+  mongodb:
+    image: mongo:8.0.3
+    container_name: mongodb-for-b0gus
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=b0gus
+      - MONGO_INITDB_ROOT_PASSWORD=XPlayMongo#2025
+      - MONGO_INITDB_DATABASE=db_for_b0gus
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - b0gus-network
+
+
+# persistence
+volumes:
+  postgres_data:
+  mongo_data:
+
+# isolated network
+networks:
+  b0gus-network:
+    driver: bridge

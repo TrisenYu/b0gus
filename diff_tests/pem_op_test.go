@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -25,7 +26,7 @@ func TestPemHelper(t *testing.T) {
 			assert.Equal(t, nil, err, "Unable to delete test.pem")
 		}
 	)
-	// TODO: Too noisy
+	configs.Logger = zap.NewNop()
 	whatWeHave := crypto_aux.LoadOrCreateSSHpem(pemPath, "ed25519", 0)
 	assert.NotEqual(t, nil, whatWeHave, "Still got an nil after creating")
 	delPem()

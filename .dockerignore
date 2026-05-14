@@ -5,7 +5,16 @@
 .venv/
 .vscode/
 diff_tests/
+assets/log
 docs/
+
 b0gus
 b0gus.exe
 b0gus-*
+
+configs/*
+# temporarily obey KISS principle
+!configs/example.toml
+!configs/example.json
+!configs/example-llm-conf.toml
+!configs/*.go

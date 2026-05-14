@@ -1,5 +1,6 @@
-services as plugins.
+services and dependencies as plugins.
 
-references: 
+references:
 1. https://github.com/thetrueartist/HoneyNet/blob/main/honeynet.py
 2. https://github.com/supriyo-biswas/honeypot/blob/master/src/utils.py
+3. (written in Chinese) https://yuy0ung.github.io/blog/免杀/小记go加载器免杀+lnk文件钓鱼思路

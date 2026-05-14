@@ -1,3 +1,4 @@
+# this test_dir uses to store the temporarily generated files
 *.cert
 *.key
 *.pem

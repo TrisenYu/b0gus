@@ -1,10 +1,11 @@
 package services
 
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"b0gus/configs"
 	"b0gus/crypto_aux"
+
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -39,11 +41,11 @@ type AbsServNetAux interface {
 // ReentrantNetType is used for directly setup network listener without caring
 // how to update monitoring port or its corresponding type.
 type ReentrantNetType struct {
-	servFd        io.Closer     // servFd temporarily stores the listener and is guarded by fdGuard
-	clientLimiter atomic.Uint32 // clientLimiter is as a filter to limit the max number of alive connections.
-	ShutdownFlag  atomic.Bool
 	fdGuard       sync.RWMutex
 	callBack      AbsServNetAux
+	clientLimiter atomic.Uint32 // clientLimiter is as a filter to limit the max number of alive connections.
+	ShutdownFlag  atomic.Bool
+	servFd        io.Closer        // servFd temporarily stores the listener and is guarded by fdGuard
 	servTag       configs.ServEnum // servTag holds the service ID.
 }
 
@@ -92,7 +94,7 @@ func (nt *ReentrantNetType) AlterNetFd(
 		// because there is no notion named port in ICMP.
 		// for windows, skip this function calling.
 		if runtime.GOOS == "windows" {
-			configs.Logger.Warn("windows does not support ICMP")
+			configs.Logger.Warn("windows does not support to startup an ICMP server")
 			return
 		}
 		if nt.servFd != nil {
@@ -119,9 +121,20 @@ func (nt *ReentrantNetType) errHandler(err error) {
 	configs.Logger.Warn(sb.String())
 }
 
+func (nt *ReentrantNetType) portFailCheck(port uint16) bool {
+	if port > 1024 {
+		return false
+	}
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(int(port)))
+	sb.WriteString(" - selected privilege port for serving is less than 1024")
+	nt.errHandler(errors.New(sb.String()))
+	return true
+}
+
 func (nt *ReentrantNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 	port := ConfObj.Load().SelectPort(nt.servTag)
-	if port <= 1024 {
+	if nt.portFailCheck(port) {
 		return
 	}
 	var (
@@ -216,7 +229,7 @@ func (nt *ReentrantNetType) CloseServFd() {
 
 func (nt *ReentrantNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 	port := ConfObj.Load().SelectPort(nt.servTag)
-	if port < 1024 {
+	if nt.portFailCheck(port) {
 		return
 	}
 	udpListener, err := net.ListenUDP(
@@ -317,10 +330,10 @@ func (nt *ReentrantNetType) icmp() {
 
 func (nt *ReentrantNetType) http(confObj *atomic.Pointer[configs.LocalConfig]) {
 	port := confObj.Load().SelectPort(nt.servTag)
-	if port < 1024 {
+	if nt.portFailCheck(port) {
 		return
-	}
-	if nt.callBack == nil { // in this case, show as a try for meaningless HTTP listening
+	} else if nt.callBack == nil {
+		// in this case, show as a try for meaningless HTTP listening
 		return
 	}
 	certPath, keyPath, _ := confObj.Load().SelectTLSpairWithRemoteHost(nt.servTag)

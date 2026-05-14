@@ -1,7 +1,7 @@
 // Package crypto_aux
 package crypto_aux
 
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"crypto"
@@ -232,7 +232,6 @@ func LoadOrCreateSSHpem(
 	if err == nil {
 		return pemObj
 	}
-	// UnsupportedOrInvalidPemWarn
 	res, err := createPriKey(pemPath, pemType, pemLen)
 	if err == nil {
 		// successfully generate one

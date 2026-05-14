@@ -1,5 +1,5 @@
 // Package configs
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 package configs
 
 import (
@@ -35,11 +35,10 @@ func LoadDefaultConfig(confPath string) *LocalConfig {
 		return nil
 	}
 
-	// TODO: abstract a configuration layer for pushing updates by different sources.
-	// 	don't really have to stick with one default changeable toml file.
-	// 	Shell command can choose to disable the synchronous pulling
-	//  otherwise implementation for a confirm mechanism is necessary
-
+	// [TODO]: abstract a configuration layer for pushing updates by different sources.
+	//    don't really have to stick with one default changeable toml file.
+	//    Shell command can choose to disable the synchronous pulling
+	//    otherwise implementation for a confirm mechanism is necessary
 	err = viper.Unmarshal(&currConfig)
 	if err != nil {
 		payload := GetLocalizedMsg(
@@ -53,6 +52,8 @@ func LoadDefaultConfig(confPath string) *LocalConfig {
 }
 
 // AlterLocalConf will be invoked by monitorGivenLocalConf if the global configuration is enabled
+//
+//nolint:unused
 func AlterLocalConf() {
 	err := viper.Unmarshal(&tmpHotConf)
 	if err != nil {
@@ -115,13 +116,4 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 			// TODO: updates from networking-end and cli-shell end.
 		}
 	}
-}
-
-// network updates should enable augmented authentication
-//
-//nolint:unused
-func DetectConfigUpdates(ctx context.Context, filepath string) {
-	// crying stack
-	go monitorGivenLocalConf(ctx, filepath)
-
 }

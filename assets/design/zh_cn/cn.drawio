@@ -1,0 +1,142 @@
+<mxfile host="65bd71144e" scale="6" border="0">
+    <diagram id="nKktuWTehy49I5IG6JZ6" name="第 1 页">
+        <mxGraphModel dx="743" dy="1146" grid="1" gridSize="20" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1920" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="49" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#66B2FF;strokeColor=#0066CC;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="540" y="220" width="120" height="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="48" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="260" width="100" height="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="2" value="&lt;font&gt;&lt;span&gt;SSH&lt;/span&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontFamily=jetbrains mono;fontStyle=0" parent="1" vertex="1">
+                    <mxGeometry x="560" y="250" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="&lt;font style=&quot;font-style: normal;&quot;&gt;SMTP&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=2;fillColor=#e1d5e7;strokeColor=#9673a6;fontFamily=jetbrains mono;" parent="1" vertex="1">
+                    <mxGeometry x="560" y="320" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="&lt;font face=&quot;jetbrains mono&quot; style=&quot;font-style: normal; color: rgb(255, 255, 255);&quot;&gt;HTTP&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=2;fontFamily=jetbrains mono;fillColor=#FA6800;strokeColor=#D47F08;" parent="1" vertex="1">
+                    <mxGeometry x="560" y="380" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="&lt;font face=&quot;jetbrains mono&quot; style=&quot;font-style: normal; color: rgb(3, 3, 3);&quot;&gt;DNS&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=2;fillColor=#ffe6cc;strokeColor=#d79b00;fontFamily=jetbrains mono;" parent="1" vertex="1">
+                    <mxGeometry x="560" y="440" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="&lt;font face=&quot;jetbrains mono&quot; style=&quot;font-style: normal;&quot;&gt;NTP&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=2;fillColor=#ffe6cc;strokeColor=#d79b00;" parent="1" vertex="1">
+                    <mxGeometry x="560" y="510" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="&lt;font style=&quot;color: rgb(0, 0, 0);&quot; face=&quot;Fira Code&quot;&gt;本地配置&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="300" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="&lt;font face=&quot;Fira Code&quot;&gt;cli&lt;br&gt;(未实现)&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="380" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="&lt;font face=&quot;Fira Code&quot;&gt;分布式推送源(未实现)&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="460" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="&lt;font face=&quot;Fira Code&quot;&gt;b0gus&lt;/font&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; font-family: &amp;quot;Fira Code&amp;quot;;&quot;&gt;全局服务&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; font-family: &amp;quot;Fira Code&amp;quot;;&quot;&gt;控制器&lt;/span&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="395" y="370" width="65" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="&lt;font face=&quot;Fira Code&quot;&gt;shell&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="760" y="250" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="24" value="&lt;font face=&quot;Fira Code&quot;&gt;容器服务&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Fira Code&quot;&gt;(未实现)&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="760" y="320" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="29" value="" style="endArrow=block;startArrow=block;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;dashPattern=1 1;startFill=1;endFill=1;" parent="1" source="3" target="23" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="610" y="250" as="sourcePoint"/>
+                        <mxPoint x="650" y="200" as="targetPoint"/>
+                        <Array as="points"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="30" value="" style="endArrow=block;startArrow=block;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;dashed=1;dashPattern=1 1;endFill=1;startFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="2" target="23" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="610" y="330" as="sourcePoint"/>
+                        <mxPoint x="640" y="240" as="targetPoint"/>
+                        <Array as="points"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="31" value="" style="endArrow=block;startArrow=block;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;dashed=1;dashPattern=1 1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;startFill=1;endFill=1;" parent="1" source="2" target="24" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="610" y="250" as="sourcePoint"/>
+                        <mxPoint x="650" y="200" as="targetPoint"/>
+                        <Array as="points"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="32" value="" style="endArrow=block;startArrow=block;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;dashed=1;dashPattern=1 1;startFill=1;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="3" target="24" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="610" y="250" as="sourcePoint"/>
+                        <mxPoint x="640" y="320" as="targetPoint"/>
+                        <Array as="points"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="39" value="servMan" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Fira Code;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="330" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="40" value="&lt;font face=&quot;Fira Code&quot;&gt;命令行参数&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Fira Code&quot;&gt;作为元配置&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="300" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="41" value="" style="endArrow=block;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;endFill=1;startArrow=block;startFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" target="7" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="160" y="319.58" as="sourcePoint"/>
+                        <mxPoint x="220" y="320" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="42" value="自举" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="41" vertex="1" connectable="0">
+                    <mxGeometry x="-0.134" y="1" relative="1" as="geometry">
+                        <mxPoint x="2" y="1" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="37" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;dashed=1;dashPattern=1 1;" parent="1" vertex="1">
+                    <mxGeometry x="680" y="380" width="160" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#ffe6cc;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="690" y="400" width="30" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#e1d5e7;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="690" y="440" width="30" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="36" value="&lt;div style=&quot;text-align: center;&quot;&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;交互流程较复杂&lt;/span&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="730" y="440" width="90" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="43" value="" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;strokeColor=default;fillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="690" y="523" width="30" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="44" value="&lt;div style=&quot;text-align: center;&quot;&gt;属性暂无额外说明&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="730" y="523" width="110" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="45" value="&lt;div style=&quot;text-align: center;&quot;&gt;报文语义丰富&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="730" y="400" width="90" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="46" value="&lt;font style=&quot;color: rgb(0, 0, 0);&quot;&gt;配置层&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="240" y="260" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="47" value="插件式服务层" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="550" y="220" width="100" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="50" value="" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#fa6800;strokeColor=#C73500;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="690" y="480" width="30" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="51" value="存在主动攻击能力&lt;div style=&quot;text-align: center;&quot;&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="730" y="480" width="110" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="52" value="调用" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="675" y="230" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="53" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;shadow=0;linecap=round;linejoin=miter-clip;allowArrows=0;rotation=-180;size=0.125;" parent="1" vertex="1">
+                    <mxGeometry x="310" y="300" width="80" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="56" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;shadow=0;linecap=round;linejoin=miter-clip;allowArrows=1;rotation=0;size=0.2;" parent="1" vertex="1">
+                    <mxGeometry x="460" y="250" width="100" height="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="读并发" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="480" y="380" width="60" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="写并发" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="385" width="60" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

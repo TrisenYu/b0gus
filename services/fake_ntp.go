@@ -1,8 +1,9 @@
 package services
 
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
+	"b0gus/databases"
 	"errors"
 	"net"
 	"net/http"
@@ -94,7 +95,6 @@ func validFormat(req []byte) bool {
 		ModeQuery = 3
 		ModeCtrl  = 6
 	)
-	// configs.Logger.Info(req[0])
 	var (
 		/* 00_011_011 */
 		l = (req[0] >> 6) & 0b11
@@ -168,17 +168,17 @@ func NTPServe(req []byte) ([]byte, error) {
 	case 6:
 		/*
 			TODO: record mode according to RFC 9327
-				1: read status
-				2: read variable
-				3: write variable
-				6: Set Trap Address/Port
-				7: Trap Response
-				9: Save Configuration
-				10: Read MRU
-				11: Read ordered list
-				12: Request Nonce
-				31: Unset Trap
-				13-31: Reserved
+			1: read status
+			2: read variable
+			3: write variable
+			6: Set Trap Address/Port
+			7: Trap Response
+			9: Save Configuration
+			10: Read MRU
+			11: Read ordered list
+			12: Request Nonce
+			31: Unset Trap
+			13-31: Reserved
 			6/7 ~ [a mechanism for positively notifying events that happened in current NTP server]
 		*/
 		return nil, errors.New("unsupported NTP operation")
@@ -199,7 +199,7 @@ func (n *NTPServConf) InvokeForUDPtask(remoteIP net.Addr, dataBuf []byte) []byte
 	configs.Logger.Info(payload)
 	resp, err := NTPServe(dataBuf)
 	if err != nil {
-		// ntp error packet
+		// invalid ntp packet
 		return dataBuf
 	}
 	return resp
@@ -207,7 +207,7 @@ func (n *NTPServConf) InvokeForUDPtask(remoteIP net.Addr, dataBuf []byte) []byte
 
 type NTPServConf struct {
 	/* database handler for writing data */
-	DbFd        *configs.RuntimeDB
+	DbFd        databases.DBhandler
 	ConfOptions *atomic.Pointer[configs.LocalConfig]
 }
 
@@ -215,7 +215,7 @@ type NTPServConf struct {
 func (n *NTPServConf) Run(
 	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB,
+	db databases.DBhandler,
 	args ...any,
 ) {
 	defer func() {
@@ -237,6 +237,7 @@ func (n *NTPServConf) Run(
 		return
 	}
 	var clientAux = ReentrantNetType{}
+	n.DbFd = db
 	clientAux.Init(configs.NTPEnum, n)
 	go clientAux.EventMonitor(confObj, scc)
 	clientAux.AlterNetFd(UDPEnum, confObj)

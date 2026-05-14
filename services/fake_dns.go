@@ -22,9 +22,9 @@ import (
 // Answers dns queries with a random ip address.
 // Responds to version bind queries with an old and unpatched version.
 
-type DNSserverConf struct {
+type DNSservConf struct {
 	/* database handler for writing data */
-	DBFd *configs.RuntimeDB
+	DBFd databases.DBhandler
 	/* fields below need concurrent control to follow the configuration */
 	ConfOptions *configs.DNSconfig
 }
@@ -125,7 +125,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 }
 
 // analyze Query will record
-func (d *DNSserverConf) analyzeQuery(req dns.RR, m *dns.Msg) {
+func (d *DNSservConf) analyzeQuery(req dns.RR, m *dns.Msg) {
 	headerName := req.Header().Name
 	payload := databases.DnsQuery{
 		DomainName: headerName,
@@ -142,7 +142,7 @@ func (d *DNSserverConf) analyzeQuery(req dns.RR, m *dns.Msg) {
 }
 
 // ServeDNS is implemented for the interface defined in miekg/dns
-func (d *DNSserverConf) ServeDNS(
+func (d *DNSservConf) ServeDNS(
 	ctx context.Context,
 	respWriter dns.ResponseWriter, r *dns.Msg,
 ) {
@@ -153,7 +153,7 @@ func (d *DNSserverConf) ServeDNS(
 	if err == nil {
 		p, err := strconv.Atoi(port)
 		if err == nil {
-			_ = d.DBFd.CreateOrUpdateItemsInSeq([]configs.DBstruct{
+			_ = d.DBFd.CreateOrUpdateItemsInSeq([]databases.DBstruct{
 				&databases.AddrInfo{Ip: addr},
 				&databases.PortInfo{Port: int64(p)},
 			}...)
@@ -176,10 +176,11 @@ func (d *DNSserverConf) ServeDNS(
 
 // Run will start up fake DNS server with recording
 // every query requests
-func (d *DNSserverConf) Run(
+func (d *DNSservConf) Run(
 	ConfObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB, args ...any,
+	db databases.DBhandler,
+	args ...any,
 ) {
 	defer func() {
 		configs.Logger.Info(configs.GetLocalizedMsg("services.DNSQuitInfo", nil))

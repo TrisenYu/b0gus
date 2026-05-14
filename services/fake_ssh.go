@@ -1,8 +1,9 @@
 // Package services
 package services
 
-// Last modified at 2026/02/11 星期三 22:20:29
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+/// Last modified at 2026/05/10 星期日 15:15:51
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
+
 import (
 	"crypto/rand"
 	"encoding/binary"
@@ -18,7 +19,7 @@ import (
 	"b0gus/configs"
 	"b0gus/crypto_aux"
 	"b0gus/databases"
-	"b0gus/misc_utils"
+	"b0gus/internal/misc_utils"
 	"b0gus/terminal"
 )
 
@@ -77,16 +78,16 @@ type SSHServConf struct {
 	// hostSigner holds the ssh key of host
 	hostSigner ssh.Signer
 	// DbFd is an object for interacting with database
-	DbFd *configs.RuntimeDB
+	DbFd databases.DBhandler
 	// ConfOptions is a dangling copy of global configuration
 	ConfOptions *atomic.Pointer[configs.LocalConfig]
 }
 
-// Run is the function for invoking
+// Run is the function for invoking the fake ssh service
 func (s *SSHServConf) Run(
 	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB, args ...any,
+	db databases.DBhandler, args ...any,
 ) {
 	defer func() {
 		payload := configs.GetLocalizedMsg(
@@ -97,15 +98,27 @@ func (s *SSHServConf) Run(
 	}()
 
 	if len(args) != 1 {
-		// [TODO]: add an description for this.
+		// [TODO]: add a description for this.
+		payload := configs.GetLocalizedMsg(
+			"services.SSHRequireSignerAsOnlyArgErr", nil,
+		)
+		configs.Logger.Error(payload)
 		return
 	} else if confObj == nil {
-		configs.Logger.Error("empty configuration is provided")
+		payload := configs.GetLocalizedMsg(
+			"services.SSHEmptyGlobConfigFailure",
+			nil,
+		)
+		configs.Logger.Error(payload)
 		return
 	}
 	_, ok := confObj.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
 	if !ok {
-		configs.Logger.Error("can not select ssh config from ConfObj")
+		payload := configs.GetLocalizedMsg(
+			"services.SSHConfigLoadingFailure",
+			nil,
+		)
+		configs.Logger.Error(payload)
 		return
 	}
 	hostKey, ok := args[0].(ssh.Signer)
@@ -121,8 +134,7 @@ func (s *SSHServConf) Run(
 	err := db.CreateTable(
 		&databases.AddrInfo{}, &databases.PortInfo{},
 		&databases.UsernameInfo{}, &databases.PasswordInfo{},
-		&databases.PublickeyInfo{}, &databases.SshVersionInfo{},
-		&databases.CommandInfo{},
+		&databases.PublickeyInfo{}, &databases.SshVersionInfo{}, &databases.CommandInfo{},
 		// extended relations
 		&databases.RemoteUsernameRelation{}, &databases.RemotePasswordRelation{},
 		&databases.RemotePublickeyRelation{}, &databases.RemoteSshverRelation{},
@@ -295,28 +307,7 @@ func (s *SSHServConf) mockShellForRemote(
 		case "env":
 			fallthrough
 		case "window-change":
-			var sb strings.Builder
-			sb.WriteString(req.Type)
-			sb.WriteString(" [")
-			for i, p := range req.Payload {
-				sb.WriteString("0x")
-				div, mod := p>>4, p&15
-				if div > 10 {
-					sb.WriteByte(div - 10 + 'a')
-				} else {
-					sb.WriteByte(div + '0')
-				}
-				if mod > 10 {
-					sb.WriteByte(mod - 10 + 'a')
-				} else {
-					sb.WriteByte(mod + '0')
-				}
-				if i < len(req.Payload)-1 {
-					sb.WriteRune(',')
-				}
-			}
-			sb.WriteRune(']')
-			configs.Logger.Debug(sb.String())
+			sshWinInfoDebug(req)
 			fallthrough
 		default:
 			/*
@@ -340,14 +331,43 @@ func (s *SSHServConf) mockShellForRemote(
 	}
 }
 
+// sshWinInfoDebug is used for checking the altering windows information during the
+// SSH protocol processing.
+func sshWinInfoDebug(req *ssh.Request) {
+	var sb strings.Builder
+	digitBrancher := func(x byte) {
+		if x >= 10 {
+			sb.WriteByte(x - 10 + 'a')
+			return
+		}
+		sb.WriteByte(x + '0')
+	}
+	sb.WriteString(req.Type)
+	sb.WriteString(" [")
+	for i, p := range req.Payload {
+		digitBrancher(p >> 4) // div
+		digitBrancher(p & 15) // mod
+		if i < len(req.Payload)-1 {
+			sb.WriteByte(',')
+		}
+	}
+	sb.WriteByte(']')
+	configs.Logger.Debug(sb.String())
+}
+
 // cmdForwarding will create a mock shell for interaction
 func (s *SSHServConf) cmdForwarding(
 	sessionId int64, sshChan ssh.Channel,
 ) {
 	term := terminal.NewShell(
-		sshChan, sshChan, true,
-		"$ ", "> ",
-		false, false,
+		sshChan, sshChan,
+		terminal.ShellRules{
+			DefaultPrompts: "$ ",
+			PendingPrompts: "> ",
+			NeedHijackCmd:  true,
+			LFisCRLF:       false,
+			FullCRLF:       false,
+		},
 	)
 	var shouldCease atomic.Bool
 	shouldCease.Store(false)
@@ -375,6 +395,7 @@ func (s *SSHServConf) cmdForwarding(
 	for !shouldCease.Load() {
 		currPayload := term.GetCurrCmd()
 		if currPayload == nil || len(currPayload.Payload) == 0 {
+			// no more available commands can be extracted from this current session
 			break
 		}
 		/*
@@ -403,9 +424,30 @@ func (s *SSHServConf) cmdForwarding(
 				go term.SetCurrResp(currPayload)
 			}
 		}
-		cmdText := &databases.CommandInfo{Cmd: currPayload.Payload}
-		_ = s.DbFd.CreateOrUpdateItem(cmdText, cmdText)
-		tmp := &databases.RemoteCommandRelation{SessionId: sessionId, Cid: cmdText.CommandId}
-		_ = s.DbFd.CreateOrUpdateItem(tmp, tmp)
+		go s.evalAndstoreUntrustCmd(sessionId, currPayload.Payload)
 	}
+}
+
+func (s *SSHServConf) evalAndstoreUntrustCmd(
+	sessionID int64,
+	x string,
+) {
+	// [TODO]: filter the malform, meaningless commands
+	//       alleviate the DB I/O pressure.
+	//       consider the overhead of TTL, implementation below might be better to
+	//       wrap with another go routine.
+	//       concurrent control is required.
+
+	// check if we can use LLM as the judger
+	// else use default syntax AST parser to check if the command is executable
+
+	// if cmdNeedFilterOut(currPayload.Payload) { continue }
+
+	cmdText := &databases.CommandInfo{Cmd: x}
+	_ = s.DbFd.CreateOrUpdateItem(cmdText, cmdText)
+	tmp := &databases.RemoteCommandRelation{
+		SessionId: sessionID,
+		Cid:       cmdText.CommandId,
+	}
+	_ = s.DbFd.CreateOrUpdateItem(tmp, tmp)
 }

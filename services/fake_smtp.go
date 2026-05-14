@@ -1,7 +1,7 @@
 package services
 
 /*
-	SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+	SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 an SMTP server runs at port 25, SMTPS server is at 465
 references:
@@ -92,13 +92,15 @@ type SMTPClientCtx struct {
 
 // SendResp will send response of one command as input.
 // Note that When requiring sending multiple response for one command, the context should set normal for the
-// first one, while the others have to be kept as nil. Otherwise, the whole service will be stuck by the full channel.
+// first one, while the others have to be kept as nil.
+// Otherwise, the whole service will be stuck by the full channel.
 func (s *SMTPClientCtx) SendResp(
 	ctx context.Context,
 	code SMTPRespStatus, resp string,
 ) {
 	payload := fmt.Sprintf("%d %s", code, resp)
-	// unexpected output behavior
+	// TODO: unexpected output behavior:
+	// 	response from write-end will be faster than setCurrResp-end.
 	if ctx == nil {
 		_, _ = s.term.GetWriter().Write(append([]byte(payload), []byte("\r\n")...))
 	} else {
@@ -129,11 +131,31 @@ func (s *SMTPClientCtx) mailHandler() {
 	// new-break-line
 	// [content]
 	// [.]
+
+	// if currSMTPconf.AuthRequired && !s.Authorized {
+	// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
+	// 	return SMTPAuthErr
+	// }
+	// if s.CmdStatus != SMTPOtherRequired {
+	// 	s.CmdStatus = SMTPOtherRequired
+	// 	_ = s.SendResp(SMTPBadSequence, "Invalid operation, reset ")
+	// 	return SMTPBadSequence
+	// }
+	// // look like regex match will be better for such a situation
+	// currTest := MailCmdToBeMatched.FindStringSubmatch(line)
+	// if len(currTest) != 2 {
+	// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid `mail from`")
+	// 	return SMTPBadSequence
+	// }
+	// // currTest[1] // as source email, but have to validate
+	// // temporarily drop here.
+	// s.CmdStatus = SMTPMailRequired
+	// _ = s.SendResp(SMTPOk, "Ok")
 }
 
 func (s *SMTPClientCtx) LoginHandler(
 	ctx context.Context,
-	db *configs.RuntimeDB, input string,
+	db databases.DBhandler, input string,
 ) bool {
 	switch s.LoginStatus {
 	case SMTPLoginNameRequired:
@@ -173,7 +195,8 @@ func (s *SMTPClientCtx) LoginHandler(
 
 func (s *SMTPClientCtx) PlainHandler(
 	ctx context.Context,
-	db *configs.RuntimeDB, input string,
+	db databases.DBhandler,
+	input string,
 ) bool {
 	original, err := crypto_aux.Base64Recover(input)
 	if err != nil {
@@ -186,7 +209,7 @@ func (s *SMTPClientCtx) PlainHandler(
 		return false
 	}
 	s.Authorized = true
-	_ = db.CreateOrUpdateItemsInSeq([]configs.DBstruct{
+	_ = db.CreateOrUpdateItemsInSeq([]databases.DBstruct{
 		&databases.UsernameInfo{Name: string(parts[1])},
 		&databases.PasswordInfo{Password: string(parts[2])},
 	}...)
@@ -198,7 +221,6 @@ func (s *SMTPClientCtx) upgradeToTLS(
 	currSMTPconf configs.SMTPconfig,
 	conn net.Conn,
 ) (*tls.Conn, error) {
-
 	cert, err := tls.LoadX509KeyPair(
 		currSMTPconf.LocalTLSCertPath,
 		currSMTPconf.LocalTLSKeyPath,
@@ -220,7 +242,7 @@ func (s *SMTPClientCtx) upgradeToTLS(
 		_ = tlsConn.Close()
 		return nil, fmt.Errorf("handshake failure: %v", err)
 	}
-	// [TODO]: shall we record? And how shall we record?
+	// [TODO]: shall we record this state? And how shall we effectively record them?
 	// state := tlsConn.ConnectionState()
 	// tls.CipherSuiteName(state.CipherSuite)
 	// tls.VersionName(state.Version)
@@ -235,7 +257,7 @@ func (s *SMTPClientCtx) upgradeToTLS(
 func (s *SMTPClientCtx) CommandDispatcher(
 	ctx context.Context,
 	confObj *atomic.Pointer[configs.LocalConfig],
-	db *configs.RuntimeDB, line string,
+	db databases.DBhandler, line string,
 ) any {
 	assembleCmd := strings.SplitN(line, " ", 3)
 	if len(assembleCmd) < 1 {
@@ -265,60 +287,12 @@ func (s *SMTPClientCtx) CommandDispatcher(
 		}
 		s.SendResp(ctx, SMTPOk, "queueing started")
 	case "auth":
-		if len(assembleCmd) < 3 {
-			s.SendResp(ctx,
-				SMTPCmdSyntaxErr,
-				"invalid AUTH command. required format: AUTH <METHOD> CORRESPONDING-INPUT",
-			)
-			return SMTPCmdSyntaxErr
-		}
-		var calcFn func(context.Context, *configs.RuntimeDB, string) bool
-		// [TODO]: buggy implementation
-		switch strings.ToLower(assembleCmd[1]) {
-		case "plain": // AUTH PLAIN <base64(\0Username\0Password)>
-			calcFn = s.PlainHandler
-		case "login":
-			calcFn = s.LoginHandler
-		default:
-			s.SendResp(ctx, SMTPCmdNotImpl, "invalid command")
-			return SMTPCmdNotImpl
-		}
-		if s.Authorized {
-			// such situation is like resetting current account
-			s.Authorized = false
-			s.LoginStatus = SMTPLoginNameRequired
-			s.CmdStatus = SMTPOtherRequired
-		}
-		success := calcFn(ctx, db, assembleCmd[2])
-		if success {
-			s.SendResp(ctx, SMTPOk, "authentication successful")
-			s.Authorized = true
-			return SMTPOk
-		}
-		return SMTPCantVerify
+		return s.authHandler(assembleCmd, ctx, db)
 	case "starttls":
-		if s.AlreadyTLS {
-			s.SendResp(ctx, SMTPApplyParamFail, "already TLS enabled")
-			return SMTPApplyParamFail
+		ret := s.tlsHandler(ctx, currSMTPconf)
+		if ret != nil {
+			return ret
 		}
-		if len(currSMTPconf.LocalTLSCertPath) == 0 || len(currSMTPconf.LocalTLSKeyPath) == 0 {
-			s.SendResp(ctx, SMTPApplyParamFail, "unable to set up TLS connection at present")
-			return SMTPApplyParamFail
-		}
-		s.SendResp(ctx, SMTPServReady, "Ready to start TLS")
-		conn, ok := s.term.GetWriter().(net.Conn) // writer is raw without wrapping.
-		if !ok {
-			return errors.New("unable to cast to net.Conn")
-		}
-		tlsConn, err := s.upgradeToTLS(currSMTPconf, conn)
-		if err != nil || tlsConn == nil {
-			s.SendResp(ctx, SMTPServUnavail, "unable to upgrade to TLS")
-			return err
-		}
-		s.term.AlterIOsrc(tlsConn, tlsConn)
-		// s.Writer = bufio.NewWriter(tlsConn)
-		// s.Reader = textproto.NewReader(bufio.NewReader(tlsConn))
-		s.AlreadyTLS = true
 	case "rset":
 		s.Authorized = false
 		s.LoginStatus = SMTPLoginNameRequired
@@ -336,59 +310,13 @@ func (s *SMTPClientCtx) CommandDispatcher(
 		s.SendResp(nil, SMTPHelpMsg, "rset    - reset current connection")
 		s.SendResp(nil, SMTPHelpMsg, "quit    - quit")
 	case "mail":
-		// if currSMTPconf.AuthRequired && !s.Authorized {
-		// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
-		// 	return SMTPAuthErr
-		// }
-		// if s.CmdStatus != SMTPOtherRequired {
-		// 	s.CmdStatus = SMTPOtherRequired
-		// 	_ = s.SendResp(SMTPBadSequence, "Invalid operation, reset ")
-		// 	return SMTPBadSequence
-		// }
-		// // look like regex match will be better for such a situation
-		// currTest := MailCmdToBeMatched.FindStringSubmatch(line)
-		// if len(currTest) != 2 {
-		// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid `mail from`")
-		// 	return SMTPBadSequence
-		// }
-		// // currTest[1] // as source email, but have to validate
-		// // temporarily drop here.
-		// s.CmdStatus = SMTPMailRequired
-		// _ = s.SendResp(SMTPOk, "Ok")
+		s.mailHandler()
 		fallthrough
 	case "rcpt":
-		// if currSMTPconf.AuthRequired && !s.Authorized {
-		// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
-		// 	return SMTPAuthErr
-		// }
-		// if s.CmdStatus != SMTPMailRequired && s.CmdStatus != SMTPRcptRequired {
-		// 	_ = s.SendResp(SMTPBadSequence, "Yet not to set `mail from`, abort")
-		// 	return SMTPBadSequence
-		// }
-		// // so does the rcpt command. must match the word `to`
-		// currTest := RcptCmdToBeMatched.FindStringSubmatch(line)
-		// if len(currTest) != 2 {
-		// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid `rcpt to`")
-		// 	return SMTPCmdSyntaxErr
-		// }
-		// s.CmdStatus = SMTPRcptRequired
-		// _ = s.SendResp(SMTPOk, "Ok")
-		// // currTest[1] // as remote receiver's email
-		// // one mail can have multiple receivers
+		s.rcptHandler()
 		fallthrough
 	case "data":
-		// if currSMTPconf.AuthRequired && !s.Authorized {
-		// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
-		// 	return SMTPAuthErr
-		// }
-		// if s.CmdStatus != SMTPRcptRequired {
-		// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid DATA before MAIL FROM and RCPT TO")
-		// 	return SMTPCmdSyntaxErr
-		// }
-		// _ = s.SendResp(SMTPStartMailInp, "End data with <CR><LF>.<CR><LF>")
-		// // read until "." or network connection becomes broken
-		// s.DataHandler()
-		// s.CmdStatus = SMTPOtherRequired
+		s.dataHandler()
 		fallthrough
 	case "vrfy":
 		// VRFY {root, bin, admin, ...}
@@ -403,8 +331,109 @@ func (s *SMTPClientCtx) CommandDispatcher(
 	return SMTPOk
 }
 
+func (s *SMTPClientCtx) authHandler(
+	assembleCmd []string,
+	ctx context.Context,
+	db databases.DBhandler,
+) SMTPRespStatus {
+	if len(assembleCmd) < 3 {
+		s.SendResp(
+			ctx, SMTPCmdSyntaxErr,
+			"invalid AUTH command. required format: AUTH <METHOD> CORRESPONDING-INPUT",
+		)
+		return SMTPCmdSyntaxErr
+	}
+	var calcFn func(context.Context, databases.DBhandler, string) bool
+	// [TODO]: buggy implementation
+	switch strings.ToLower(assembleCmd[1]) {
+	case "plain": // AUTH PLAIN <base64(\0Username\0Password)>
+		calcFn = s.PlainHandler
+	case "login":
+		calcFn = s.LoginHandler
+	default:
+		s.SendResp(ctx, SMTPCmdNotImpl, "invalid command")
+		return SMTPCmdNotImpl
+	}
+	if s.Authorized {
+		// such situation is like resetting current account
+		s.Authorized = false
+		s.LoginStatus = SMTPLoginNameRequired
+		s.CmdStatus = SMTPOtherRequired
+	}
+	success := calcFn(ctx, db, assembleCmd[2])
+	if success {
+		s.SendResp(ctx, SMTPOk, "authentication successful")
+		s.Authorized = true
+		return SMTPOk
+	}
+	return SMTPCantVerify
+}
+
+func (s *SMTPClientCtx) tlsHandler(
+	ctx context.Context,
+	currSMTPconf configs.SMTPconfig,
+) any {
+	if s.AlreadyTLS {
+		s.SendResp(ctx, SMTPApplyParamFail, "already TLS enabled")
+		return SMTPApplyParamFail
+	}
+	if len(currSMTPconf.LocalTLSCertPath) == 0 || len(currSMTPconf.LocalTLSKeyPath) == 0 {
+		s.SendResp(ctx, SMTPApplyParamFail, "unable to set up TLS connection at present")
+		return SMTPApplyParamFail
+	}
+	s.SendResp(ctx, SMTPServReady, "Ready to start TLS")
+	conn, ok := s.term.GetWriter().(net.Conn) // writer is raw without wrapping.
+	if !ok {
+		return errors.New("unable to cast to net.Conn")
+	}
+	tlsConn, err := s.upgradeToTLS(currSMTPconf, conn)
+	if err != nil || tlsConn == nil {
+		s.SendResp(ctx, SMTPServUnavail, "unable to upgrade to TLS")
+		return err
+	}
+	s.term.AlterIOsrc(tlsConn, tlsConn)
+	s.AlreadyTLS = true
+	return nil
+}
+
+func (s *SMTPClientCtx) rcptHandler() {
+	// if currSMTPconf.AuthRequired && !s.Authorized {
+	// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
+	// 	return SMTPAuthErr
+	// }
+	// if s.CmdStatus != SMTPMailRequired && s.CmdStatus != SMTPRcptRequired {
+	// 	_ = s.SendResp(SMTPBadSequence, "Yet not to set `mail from`, abort")
+	// 	return SMTPBadSequence
+	// }
+	// // so does the rcpt command. must match the word `to`
+	// currTest := RcptCmdToBeMatched.FindStringSubmatch(line)
+	// if len(currTest) != 2 {
+	// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid `rcpt to`")
+	// 	return SMTPCmdSyntaxErr
+	// }
+	// s.CmdStatus = SMTPRcptRequired
+	// _ = s.SendResp(SMTPOk, "Ok")
+	// // currTest[1] // as remote receiver's email
+	// // one mail can have multiple receivers
+}
+
+func (s *SMTPClientCtx) dataHandler() {
+	// if currSMTPconf.AuthRequired && !s.Authorized {
+	// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
+	// 	return SMTPAuthErr
+	// }
+	// if s.CmdStatus != SMTPRcptRequired {
+	// 	_ = s.SendResp(SMTPCmdSyntaxErr, "Invalid DATA before MAIL FROM and RCPT TO")
+	// 	return SMTPCmdSyntaxErr
+	// }
+	// _ = s.SendResp(SMTPStartMailInp, "End data with <CR><LF>.<CR><LF>")
+	// // read until "." or network connection becomes broken
+	// s.DataHandler()
+	// s.CmdStatus = SMTPOtherRequired
+}
+
 type SMTPServConf struct {
-	DbFd        *configs.RuntimeDB // database handler for writing data.
+	DbFd        databases.DBhandler // database handler for writing data.
 	ConfOptions *atomic.Pointer[configs.LocalConfig]
 	term        *terminal.Shell
 }
@@ -416,9 +445,14 @@ func (s *SMTPServConf) InvokeForTCPtask(conn net.Conn) {
 	// somehow, it is acceptable to send the response to AI.
 	defer func() { _ = conn.Close() }()
 	s.term = terminal.NewShell(
-		conn, conn, true,
-		"> ", "",
-		true, false,
+		conn, conn,
+		terminal.ShellRules{
+			DefaultPrompts: "> ",
+			PendingPrompts: "",
+			NeedHijackCmd:  true,
+			LFisCRLF:       true,
+			FullCRLF:       false,
+		},
 	)
 	var shouldCease atomic.Bool
 	shouldCease.Store(false)
@@ -481,7 +515,7 @@ func (s *SMTPServConf) InvokeForICMPtask(net.Addr, []byte) {}
 func (s *SMTPServConf) Run(
 	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB,
+	db databases.DBhandler,
 	args ...any,
 ) {
 	defer func() {
@@ -493,8 +527,7 @@ func (s *SMTPServConf) Run(
 		payload := configs.GetLocalizedMsg(
 			"services.SMTPWrongParamNumErr",
 			map[string]any{
-				"Expect": 1,
-				"Actual": len(args),
+				"Expect": 1, "Actual": len(args),
 			},
 		)
 		configs.Logger.Info(payload)

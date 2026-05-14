@@ -1,8 +1,5 @@
 package diff_tests
 
-// correct program will not crash or be exploited
-// good program will not waste
-
 import (
 	"b0gus/terminal"
 	"bytes"
@@ -13,8 +10,15 @@ import (
 	"testing"
 )
 
-var seeds = []string{
+var CmdSeeds = []string{
+	// command line payload
 	"",
+	"/usr/bin/whoami",
+	"ls -liah",
+	`
+wget https://download.nvidia.com/XFree86/Linux-x86_64/580.105.08/NVIDIA-Linux-x86_64-580.105.08.run
+`,
+	"./NVIDIA-Linux-x86_64-580.105.08.run",
 	"\x01\x02\x03\x04",
 	"\uf800",
 	"\u1234\u2345\u6789\u789a",
@@ -29,29 +33,40 @@ var seeds = []string{
 	"abc \\\\\\\a\b\f\n\r\t\v\\",
 	"صَبَاحُ الْخَيْرِ",
 	"早安！",
+	"ehlo",
+	"help",
+	"exit",
 	"\x1b[",
 	"\x1b[1",
 	"\x1b[1;",
 	"\x1b[1;bm",
 	"\x1b\x12",
 	"\u001Bb\u001Bb\u001Bb\u001Bb\u001Bb\u001Bb\u001Bf\u001Bf\u001Bf\u001Bf\u001Bf\u001Bf",
+	// NTP payload
+	"l\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
 }
 
 func TestShell(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	for _, payload := range seeds {
+	for _, payload := range CmdSeeds {
 		buf.WriteString(payload)
 		buf.WriteByte('\n')
 	}
 	term := terminal.NewShell(
-		buf, &bytes.Buffer{}, true,
-		"$ ", "> ",
-		false, false,
+		buf, &bytes.Buffer{},
+		terminal.ShellRules{
+			DefaultPrompts: "$ ",
+			PendingPrompts: "> ",
+			NeedHijackCmd:  true,
+			LFisCRLF:       false,
+			FullCRLF:       false,
+		},
 	)
 	go func() {
 		_ = term.Run()
 	}()
-	for range seeds {
+	for range CmdSeeds {
 		curr := term.GetCurrCmd()
 		if curr == nil {
 			break
@@ -62,17 +77,19 @@ func TestShell(t *testing.T) {
 }
 
 func FuzzShell(f *testing.F) {
-	for _, seed := range seeds {
+	for _, seed := range CmdSeeds {
 		f.Add(seed)
 	}
 	var sb strings.Builder
-	for range 2048 {
-		sb.WriteRune('a')
+	for range 512 {
+		sb.WriteRune('\x1b')
+		sb.WriteRune('[')
+		sb.WriteRune('C')
 	}
 	f.Add(sb.String())
 	sb.Reset()
 	for i := range 0x10000 {
-		sb.WriteRune(i)
+		sb.WriteRune(rune(i))
 	}
 	f.Add(sb.String())
 	sb.Reset()
@@ -90,9 +107,14 @@ func FuzzShell(f *testing.F) {
 func localFuzz(t *testing.T, input string, LFasCRLF, fullCRLF bool) {
 	inBuf := bytes.NewBufferString(input)
 	term := terminal.NewShell(
-		inBuf, &bytes.Buffer{}, false,
-		"$ ", "> ",
-		LFasCRLF, fullCRLF,
+		inBuf, &bytes.Buffer{},
+		terminal.ShellRules{
+			DefaultPrompts: "$ ",
+			PendingPrompts: "> ",
+			NeedHijackCmd:  false,
+			LFisCRLF:       false,
+			FullCRLF:       false,
+		},
 	)
 	err := term.Run()
 	if err != nil && !errors.Is(err, io.EOF) {
@@ -103,9 +125,14 @@ func localFuzz(t *testing.T, input string, LFasCRLF, fullCRLF bool) {
 func respPassing(t *testing.T, input string, LFasCRLF, fullCRLF bool) {
 	inBuf := bytes.NewBufferString(input)
 	term := terminal.NewShell(
-		inBuf, &bytes.Buffer{}, true,
-		"$ ", "> ",
-		LFasCRLF, fullCRLF,
+		inBuf, &bytes.Buffer{},
+		terminal.ShellRules{
+			DefaultPrompts: "$ ",
+			PendingPrompts: "> ",
+			NeedHijackCmd:  true,
+			LFisCRLF:       LFasCRLF,
+			FullCRLF:       fullCRLF,
+		},
 	)
 	var quitFlag atomic.Bool
 	quitFlag.Store(false)

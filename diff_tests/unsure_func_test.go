@@ -1,8 +1,9 @@
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 package diff_tests
 
 import (
 	"b0gus/crypto_aux"
+	misc_utils2 "b0gus/internal/misc_utils"
 	"crypto/x509/pkix"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"testing"
 
 	"b0gus/configs"
-	"b0gus/misc_utils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,15 +32,15 @@ func TestReflection(t *testing.T) {
 	examConfPath := "../configs/example.toml"
 	testConfPath, _ := filepath.Abs(examConfPath)
 	localConf := configs.LoadDefaultConfig(testConfPath)
-	resMap := misc_utils.TurnStruct2Map(localConf.ServerConfig)
+	resMap := misc_utils2.TurnStruct2Map(localConf.ServerConfig)
 	assert.NotEqual(t, resMap, nil)
-	sshName := misc_utils.GetTypeNameViaType(localConf.ServerConfig.SSHconfig)
+	sshName := misc_utils2.GetTypeNameViaType(localConf.ServerConfig.SSHconfig)
 	assert.Equal(t, "SSHconfig", sshName)
-	misc_utils.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
+	misc_utils2.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
 	_, ok := resMap[sshName]
 	assert.Equal(t, true, ok)
-	resMap = misc_utils.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
-	curr, err := misc_utils.GetFieldValueByName(localConf.ServerConfig, sshName)
+	resMap = misc_utils2.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
+	curr, err := misc_utils2.GetFieldValueByName(localConf.ServerConfig, sshName)
 	assert.Equal(t, nil, err)
 	_, ok = curr.(*configs.SSHconfig)
 	assert.Equal(t, false, ok)
@@ -50,16 +50,16 @@ func TestReflection(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.IsType(t, &configs.SSHconfig{}, &recur)
 
-	curr, err = misc_utils.GetFieldValueByName(
+	curr, err = misc_utils2.GetFieldValueByName(
 		localConf.ServerConfig,
-		misc_utils.GetTypeNameViaType(localConf.ServerConfig.SMTPconfig),
+		misc_utils2.GetTypeNameViaType(localConf.ServerConfig.SMTPconfig),
 	)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, localConf.ServerConfig.SMTPconfig, curr)
 	_, ok = curr.(configs.SMTPconfig)
 	assert.Equal(t, true, ok)
 
-	curr, err = misc_utils.GetFieldValueByName(
+	curr, err = misc_utils2.GetFieldValueByName(
 		map[string]map[string]any{
 			"ok": nil, "nok": {
 				"hello": "world",
@@ -97,40 +97,40 @@ func TestAnyType(t *testing.T) {
 			tmp string
 		}
 	)
-	curr, err := misc_utils.GetFieldValueByName(a, "")
+	curr, err := misc_utils2.GetFieldValueByName(a, "")
 	assert.Equal(t, nil, err)
 	t.Logf("%v", curr)
 	var aa any
 	assert.IsNotType(t, struct{}{}, nil)
 	assert.IsNotType(t, struct{}{}, aa)
 
-	bName := misc_utils.GetTypeNameViaType(b)
+	bName := misc_utils2.GetTypeNameViaType(b)
 	assert.NotEqual(t, "", bName)
 
-	cName := misc_utils.GetTypeNameViaType(c.HellYeah)
+	cName := misc_utils2.GetTypeNameViaType(c.HellYeah)
 	assert.NotEqual(t, "", cName)
-	cName = misc_utils.GetTypeNameViaType(c.WhatCanIsay)
-	assert.NotEqual(t, "", cName)
-
-	cName = misc_utils.GetTypeNameViaType(c.JustTestIt)
+	cName = misc_utils2.GetTypeNameViaType(c.WhatCanIsay)
 	assert.NotEqual(t, "", cName)
 
-	cName = misc_utils.GetTypeNameViaType(c.AnOpenFunc)
+	cName = misc_utils2.GetTypeNameViaType(c.JustTestIt)
 	assert.NotEqual(t, "", cName)
 
-	cName = misc_utils.GetTypeNameViaType(c.ManHaha)
+	cName = misc_utils2.GetTypeNameViaType(c.AnOpenFunc)
 	assert.NotEqual(t, "", cName)
 
-	cName = misc_utils.GetTypeNameViaType(c)
+	cName = misc_utils2.GetTypeNameViaType(c.ManHaha)
 	assert.NotEqual(t, "", cName)
 
-	dName := misc_utils.GetTypeNameViaType(d)
+	cName = misc_utils2.GetTypeNameViaType(c)
+	assert.NotEqual(t, "", cName)
+
+	dName := misc_utils2.GetTypeNameViaType(d)
 	assert.NotEqual(t, "", dName)
 
-	eName := misc_utils.GetTypeNameViaType(e)
+	eName := misc_utils2.GetTypeNameViaType(e)
 	assert.NotEqual(t, "", eName)
 
-	fName := misc_utils.GetTypeNameViaType(f)
+	fName := misc_utils2.GetTypeNameViaType(f)
 	assert.NotEqual(t, "", fName)
 }
 
@@ -251,7 +251,7 @@ func TestIPvXparser(t *testing.T) {
 	}
 	for idx, tt := range tests {
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			str, num := misc_utils.IPAddrSplit(tt.input)
+			str, num := misc_utils2.IPAddrSplit(tt.input)
 			assert.Equal(t, tt.expected.Addr, str, "wrong addr")
 			assert.Equal(t, tt.expected.Port, num, "wrong port")
 		})

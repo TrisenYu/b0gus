@@ -124,11 +124,11 @@ language = "en"
     # Some database can be deemed as a distributed cluster,
     # so an IP address is require.
     addr = "localhost"
-    port = 5432         # the port for mongoDB is 27017
-
+    port = 5432  # the port for mongoDB is 27017
+	timeout = 10 # second
     # Some database requires an admin to operate.
     admin_name = "postgres"
-    admin_password = "YouPassw0rdShouldBeStrongAndInvisible2Others"
+    admin_password = "YouP@ssw0rdShouldBeStrongAndInvisibleToOthers"
 
     # This redundant field is used for different SQLs like SQLite
     # Unlike PostgreSQL, SQLite stores data in a `db` file whose path is

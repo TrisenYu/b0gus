@@ -1,6 +1,7 @@
 package services
 
-// SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
+/// Last modified at 2026/05/09 星期六 15:18:24
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"context"
@@ -10,20 +11,31 @@ import (
 
 	"b0gus/configs"
 	"b0gus/crypto_aux"
+	"b0gus/databases"
 )
 
 type servRunner func(
 	globConf *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db *configs.RuntimeDB,
+	db databases.DBhandler,
 	args ...any,
 )
 
-// Brancher manages every available services of b0gus
+var (
+	tagMapsToServ = map[configs.ServEnum]servRunner{
+		configs.SSHEnum:  (&SSHServConf{}).Run,
+		configs.NTPEnum:  (&NTPServConf{}).Run,
+		configs.DNSEnum:  (&DNSservConf{}).Run,
+		configs.SMTPEnum: (&SMTPServConf{}).Run,
+		configs.HTTPEnum: (&HTTPservConf{}).Run,
+	}
+)
+
+// Brancher distributes and initiates every available services of b0gus
 func Brancher(
 	terminator <-chan struct{},
 	serverConf *atomic.Pointer[configs.LocalConfig],
-	db *configs.RuntimeDB,
+	db *databases.RuntimeDB,
 ) {
 	var (
 		wg           sync.WaitGroup
@@ -47,19 +59,20 @@ func Brancher(
 		for ex := range servAliveMap {
 			servAliveMap[ex] = false
 		}
-		// [FEAT]: temporary do not require for services updates
+		// [FEAT]: temporarily do not require for services updates
 		//         due to the engineering complexity .
 	}()
 
 	for k := range chSlots {
-		decision := setSpecConfViaTag(k)
-		if decision == nil {
+		decision, ok := tagMapsToServ[k]
+		if !ok || decision == nil {
 			continue
 		}
 		servAliveMap[k] = true
-		// [TODO]: RPC. it can mitigate the intensive pressure on current host
-		// 		when its computing capacity is not robust.
-		// 		any configuration upon RPC has to be inspected here.
+		// [TODO]: implement probe mechanism for RPC.
+		//      it can mitigate the intensive pressure on current host
+		// 		when the computing capacity of host is not adequate and robust.
+		// 		Any configuration upon RPC has to be inspected here.
 		wg.Go(func() {
 			decision(
 				serverConf, &configs.ServConcurrentCtrl{
@@ -70,28 +83,6 @@ func Brancher(
 		})
 	}
 	wg.Wait()
-}
-
-// setSpecConfViaTag is thus used as a bizarre generic function
-// in the scope of golang programming.
-func setSpecConfViaTag(tag configs.ServEnum) servRunner {
-	switch tag {
-	case configs.SSHEnum:
-		return (&SSHServConf{}).Run
-	case configs.NTPEnum:
-		return (&NTPServConf{}).Run
-	case configs.DNSEnum:
-		return (&DNSserverConf{}).Run
-	case configs.SMTPEnum:
-		return (&SMTPServConf{}).Run
-	case configs.HTTPEnum:
-		return (&HTTPservConf{}).Run
-	case configs.SIPEnum:
-		// yet to complete
-		return nil
-	default: // unknown tag
-		return nil
-	}
 }
 
 // genericArgs adjusts arguments required for different services

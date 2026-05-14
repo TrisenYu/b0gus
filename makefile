@@ -1,9 +1,10 @@
-# SPDX-LICENSE-IDENTIFIER: 3-Clauses-BSD
-# Last modified at 2026/04/22 星期三 13:06:19
+# SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
+# Last modified at 2026/05/13 星期三 21:17:43
 b0gus_name=b0gus
-b0gus_ver=0.1.1
+b0gus_ver=0.1.2
 
 phony=
+
 Arch=
 osType=
 
@@ -20,26 +21,38 @@ endef
 	b0gus_name+=.exe
 	build_username:=$(shell cmd /c "echo %USERNAME%")
 	gen_script:= powershell gen.ps1
-	dock_check := $(shell where docker >nul 2>&1)
-	nerd_check := $(shell where nerdctl --version >nul 2>&1)
+	# compiler toolchain
 	clang_check := $(shell where clang >nul 2>&1)
 	clangxx_check := $(shell where clang++ >nul 2>&1)
 	strip_check := $(shell where llvm-strip >nul 2>&1)
+	# docker
+	dock_check := $(shell where docker >nul 2>&1)
+	nerd_check := $(shell where nerdctl --version >nul 2>&1)
+	# python
+	uv_check := $(shell where uv >nul 2>&1)
+	pyenv_check := $(shell dir .venv 2>nul)
+	activate_pyenv := .venv/Lib/activate
 else # linux/darwin
 define build_time_payload
 	command date +"%Y-%m-%d %H:%M:%S.%3N"
 endef
 	build_username:=$(shell echo $$USER)
 	gen_script:=bash gen.sh
-	dock_check := $(shell command -v docker &>/dev/null)
-	nerd_check := $(shell command -v nerdctl --version &>/dev/null)
+	# compiler toolchain
 	clang_check := $(shell command -v clang &>/dev/null)
 	clangxx_check := $(shell command -v clang++ &>/dev/null)
 	strip_check := $(shell command -v llvm-strip &>/dev/null)
+	# docker
+	dock_check := $(shell command -v docker &>/dev/null)
+	nerd_check := $(shell command -v nerdctl --version &>/dev/null)
+	# python
+	uv_check := $(shell command -v uv --version &>/dev/null)
+	pyenv_check := $(shell ls .venv 2>/dev/null)
+	activate_pyenv := . .venv/bin/activate
 endif # OS check
 
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- try to change compiler
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- compiler toolchain check
 ifneq ($(clang_check),) # check clang
 	cc:=clang
 endif
@@ -50,8 +63,9 @@ ifneq ($(strip_check),) # check llvm-strip
 	striper=llvm-strip
 endif
 
-ifeq ($(strip $(dock_check)),)
-ifeq ($(strip $(nerd_check)),)
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker-cli check
+ifeq ($(strip $(dock_check)),) # first nested check for docker-cli
+ifeq ($(strip $(nerd_check)),) # second nested check for available docker-cli
 	$(warning can not build by docker since docker has not be installed.)
 else
 	dock=nerdctl
@@ -60,12 +74,11 @@ else
 	dock=docker
 endif # dock_check
 
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- set up compiler settings
 build_time_str=$(shell $(build_time_payload))
-# docker-built will be uncalculatable because we exclude the .git directory in .dockerignore
+# docker-built will use uncalculatable because we exclude the .git directory in .dockerignore
 b0gus_hash=$(shell git describe --long --tags --always --abbrev=40 --dirty || echo "uncalculatable")
 
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- set up compiler settings
 passing_params=CGO_ENABLED=0 CC=$(cc) CXX=$(cxx)
 ifneq ($(osType),)
 	passing_params+="GOOS=$(osType)"
@@ -74,7 +87,7 @@ ifneq ($(Arch),)
 	passing_params+="GOARCH=$(Arch)"
 endif
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- set up link flags
+### set up link flags
 # well, $(b0gus_name) has to be precompiled so that the shell pipeline command below can work.
 ## go tool nm $(b0gus_name) | grep -in "versionStr" | awk '{print $NF}'
 must_set_flag=-X 'main.versionStr=$(b0gus_ver)' 		\
@@ -82,39 +95,52 @@ must_set_flag=-X 'main.versionStr=$(b0gus_ver)' 		\
               -X 'main.hashValStr=$(b0gus_hash)'		\
 			  -X 'main.builtByStr=$(build_username)'
 
+help:
+	@echo "[makefile] usages:\n"                                        \
+	"    help      - (default) print this help\n\n"                     \
+	"    debug     - compile b0gus for debugging\n" 		            \
+	"    release   - compile b0gus for releasing\n\n" 		            \
+	"    mock      - generate internal/mock structure for diff_tests\n" \
+	"    test      - test testcases under ./diff_tests/\n" 	            \
+	"    dry-run   - trial\n" 								            \
+	"    perf      - performance evaluation\n" 				            \
+	"    clean     - clean build files and registered files\n"          \
+	"    fuzz      - go fuzz available testcases\n\n"                   \
+	"docker-build  - build b0gus by docker\n\n"                         \
+	"uv-fresh-dep  - update the dependencies in requirements.txt\n"     \
+	"    pylint    - lint for python scripts or codes"
+phony += help
 
-#### entries
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- debug setting for address/thread sanitizer.
 # add `-x` flag to audit how go generates b0gus
 # -asan for checking latent memory accessing error
 # -race for checking race condition whether exists or not
 # 	go: may not use -race and -asan simultaneously
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- debug setting for buggy implementation sanitization.
-debug_lflags=-gcflags="-l -m" \
+debug_link_opts=-gcflags="-l -m" \
 			 -ldflags="$(must_set_flag) -X 'b0gus/configs.BuildTypeStr=debug'"
 debug: deps
-	$(passing_params) go build $(debug_lflags) -o $(b0gus_name)
+	$(passing_params) go build $(debug_link_opts) -o $(b0gus_name)
 phony += debug
 
-
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- release setting for production environment.
-release_lflags=-gcflags=-l 									 	 \
+release_link_opts=-gcflags=-l 									 \
 			   -ldflags="-a -s -w $(must_set_flag) 				 \
 			             -X 'b0gus/configs.BuildTypeStr=release' \
 						 -compressdwarf=false -buildid="         \
 						 -installsuffix cgo 					 \
 			   -trimpath -buildmode=exe -pgo off
 release: deps
-	@$(passing_params) go build $(release_lflags) -o $(b0gus_name)
+	@$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
+# yes, strip the symbols
 	$(striper) -s $(b0gus_name)
 phony += release
 
-
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- misc opts
 # better not execute if there happens to be any error
 invoke_protoc=protoc --go_out=. http_aux.proto; \
 			  protoc --go_out=. services.proto
 deps: clean
+	@go mod tidy
 	$(passing_params) go mod download
 	@-cd databases/rdt-parser && $(gen_script) || echo 			  \
 	"\033[1;33mantlr4 failed. If having not yet installed antlr4 (version >= 4.13), \
@@ -132,19 +158,6 @@ test:
 	-cd diff_tests && go test -race
 phony += test
 
-help:
-	@echo "makefile usages:\n" 								   \
-	"    help     -- print this help\n" 					   \
-	"    debug    -- compile b0gus for debugging\n" 		   \
-	"    release  -- compile b0gus for releasing\n" 		   \
-	"    test     -- test testcases under ./diff_tests/\n" 	   \
-	"    dry-run  -- trial\n" 								   \
-	"    perf     -- performance evaluation\n" 				   \
-	"    clean    -- clean build files and registered files\n" \
-	"    fuzz     -- go fuzz available testcases\n"            \
-	"docker-build -- build b0gus by docker\n"                  \
-	"uv-dep-fresh -- modify dependencies in requirements.txt"
-phony += help
 
 clean:
 	@-rm $(b0gus_name)
@@ -156,26 +169,70 @@ perf: # debug
 	@exit 1
 phony += perf
 
-fuzz:
+fuzz: test
 # fuzz in 2 minutes
-# that is weird... we can not run go fuzzing test in sequence
-	cd diff_tests && go test -v -fuzz=FuzzShell -fuzztime=120s -parallel=2 -run=^$$ && \
+# that is weird... we can not run go fuzzing test sequentially
+	cd diff_tests &&                                                  \
+	go test -v -fuzz=FuzzShell -fuzztime=120s -parallel=2 -run=^$$ && \
 	go test -v -fuzz=FuzzHash -fuzztime=120s -parallel=4 -run=^$$
 phony += fuzz
 
+mock:
+# TODO: correct the alias for mockgen
+	~/go/bin/mockgen                                \
+		-source=services/abstract_tcpip.go          \
+		-destination=internal/mock/mock_net_serv.go \
+		-package=mock
+	~/go/bin/mockgen                          \
+		-source=databases/db_aux.go           \
+		-destination=internal/mock/mock_db.go \
+		-package=mock
+
+phony += mock
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related
 docker-build:
-	@$(dock) build -t b0gus-img -f buildImg.Dockerfile .
-	@$(dock) run --rm --entrypoint /bin/cat b0gus-img /app/b0gus > $(b0gus_name)
 # other cli:
 # 	nerdctl build -t b0gus-image .
 # 	nerdctl run --rm --entrypoint /bin/cat b0gus-image /app/b0gus > ./b0gus-exe
+	@$(dock) build -t b0gus-img -f buildImg.Dockerfile .
+	@$(dock) run --rm --entrypoint /bin/cat b0gus-img /app/b0gus > $(b0gus_name)
 phony += docker-build
 
-uv-dep-fresh:
+__docker-comp:
+# [TODO]: test the correctness and the effectiveness of current `docker-compose.yaml`.
+	@$(dock) compose -d --build -f ./docker-compose.yaml up
+phony += __docker-comp
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- python related
+__uv-check:
+ifeq ($(strip $(uv_check)),)
+	$(error require uv to manage your local environment for python)
+endif
+phony += __uv-check
+
+__pyenv-check: __uv-check
+ifeq ($(strip $(pyenv_check)),)
+	@uv venv && uv sync && $(activate_pyenv)
+else
+	@$(activate_pyenv)
+endif
+phony += __pyenv-check
+
+uv-fresh-dep: __pyenv-check
 # this option is not strictly necessary...
 # must `source .venv/bin/activate` or `.venv\bin\activate` first.
+# other useful command:
+# 	@uv venv # create venv in your directory
+#   @uv sync # to fetch proper dependencies
+# 	@uv sync --upgrade # upgrade the dependencies
 	@uv pip freeze > requirements.txt
 	@uv add -r requirements.txt
-phony += uv-dep-fresh
+phony += uv-fresh-dep
+
+pylint: __pyenv-check
+# check and try the basic fix by ruff
+	@$(activate_pyenv) && ruff check --fix
+phony += pylint
 
 .PHONY: $(phony)

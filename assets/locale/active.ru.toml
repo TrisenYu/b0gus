@@ -1,138 +1,148 @@
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "Каталог для статических ресурсов."
+    other = "Задать каталог статических ресурсов."
     [meta_conf.ConfPath]
-    other = "Путь к локальному файлу конфигурации."
+    other = "Путь к локальному конфигурационному файлу."
     [meta_conf.PermitConfAlterInRuntime]
-    other = "Настройка, разрешающая изменение конфигурации во время выполнения."
+    other = "Настройка разрешения изменений конфигурации во время выполнения."
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "Настройка, разрешающая самопроизвольное изменение конфигурации во время выполнения."
+    other = "Настройка разрешения самоизменения конфигурации во время выполнения."
     [meta_conf.PermitShellAlterInRuntime]
-    other = "Настройка прав, разрешающая изменение конфигурации через ввод команд в оболочку во время выполнения."
+    other = "Настройка разрешения изменения конфигурации через ввод команд в оболочку во время выполнения."
     [meta_conf.PermitRemotePullInRuntime]
-    other = "Настройка прав, разрешающая изменение конфигурации путём загрузки с удалённого источника во время выполнения."
+    other = "Настройка разрешения изменения конфигурации путём удалённого извлечения во время выполнения."
 
 [main]
     [main.DatabaseConnectionError]
-    other = "Не удалось подключиться к базе данных {{.DatabaseStr}}. Проверьте ошибку: `{{.ErrInfo}}`."
+    other = "Не удалось подключиться к базе данных {{.DatabaseStr}}. Ошибка: <{{.ErrInfo}}>."
     [main.DatabaseEmptyError]
-    other = "Получен пустой оператор базы данных согласно заданной конфигурации."
+    other = "В соответствии с заданной конфигурацией получен пустой оператор базы данных."
     [main.DatabaseChangingWarn]
-    other = "Из-за внутренней ошибки текущая используемая база данных не будет заменена."
+    other = "Из-за внутренней ошибки текущая используемая база данных не заменяется."
     [main.TerminationSignalWarn]
-    other = "Получен сигнал <{{.SignalStr}}> для завершения работы сервера b0gus."
-    [main.FailToApplyConfiguration]
-    other = "Не удалось применить заданный файл конфигурации к текущей конфигурации."
+    other = "Перехвачен сигнал завершения работы сервера b0gus <{{.SignalStr}}>."
+	[main.FailToApplyConfiguration]
+	other = "Не удалось применить заданный конфигурационный файл к текущей конфигурации."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "Не удалось открыть PEM-файл <{{.PemPath}}> для настройки локального SSH-ключа!"
+    other = "Не удалось открыть PEM-файл <{{.PemPath}}> для настройки локального открытого ключа SSH!"
     [crypto_aux.PemFileReadFailure]
-    other = "Не удалось прочитать указанный PEM-файл!"
+    other = "Не удалось прочитать заданный PEM-файл!"
     [crypto_aux.PemFileDecodeFailure]
-    other = "Не удалось корректно декодировать PEM-файл!"
+    other = "Не удалось правильно декодировать PEM-файл!"
     [crypto_aux.PemFileUnsupportedTypeError]
-    other = "Неподдерживаемый тип PEM-файла!"
+    other = "Неподдерживаемый PEM-файл!"
     [crypto_aux.PemFileFormatError]
-    other = "Формат данного сертификата подписи не поддерживается."
+    other = "Неподдерживаемый формат сертификата подписи"
     [crypto_aux.InvalidLengthForEllipticCurveError]
-    other = "Предоставленная длина открытого ключа <{{.PemLen}}> не подходит для известных алгоритмов эллиптических кривых."
+    other = "Предоставленная длина открытого ключа <{{.PemLen}}> не подходит для известных алгоритмов эллиптической криптографии."
     [crypto_aux.InvalidLengthForRSAError]
-    other = "Предоставленная длина открытого ключа <{{.PemLen}}> не подходит для алгоритма RSA."
+    other = "Предоставленная длина открытого ключа <{{.PemLen}}> не подходит для алгоритма шифрования RSA."
     [crypto_aux.SSHPrivateKeyGenFailure]
-    other = "Не удалось сгенерировать SSH-закрытый ключ по заданному алгоритму из-за ошибки <{{.ErrInfo}}>."
+    other = "Из-за ошибки <{{.ErrInfo}}> не удалось сгенерировать закрытый ключ SSH по заданному алгоритму."
     [crypto_aux.SSHPrivateKeySetFailure]
-    other = "Не удалось установить закрытый ключ для SSH-службы из-за ошибки <{{.ErrInfo}}>."
+    other = "Из-за ошибки <{{.ErrInfo}}> не удалось установить закрытый ключ для службы SSH."
     [crypto_aux.CreatePemToGivenPathError]
-    other = "Не удалось создать сертификат по указанному пути <{{.PemPath}}>."
+    other = "Не удалось создать сертификат по заданному пути <{{.PemPath}}>."
     [crypto_aux.Base64EncodeFailure]
-    other = "Не удалось корректно закодировать сертификат в строку Base64."
+    other = "Не удалось правильно закодировать сертификат в строку Base64."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Использован недействительный или неподдерживаемый сертификат, детали: <{{.ErrInfo}}>. b0gus попытается сгенерировать сертификат в соответствии с конфигурацией."
+    other = "Использован недействительный или неподдерживаемый сертификат, подробности: <{{.ErrInfo}}>. b0gus попытается сгенерировать сертификат в соответствии с конфигурацией."
     [crypto_aux.PemFileCreateFailure]
-    other = "Не удалось создать сертификат по пути <{{.PemPath}}> из-за ошибки <{{.ErrInfo}}>, и служба b0gus не будет запущена."
+    other = "Из-за ошибки <{{.ErrInfo}}> не удалось создать сертификат по пути <{{.PemPath}}>, и служба b0gus не будет запущена."
 
 [databases]
     [databases.DatabaseTypeError]
     other = "Обнаружена неподдерживаемая база данных <{{.Database}}>!"
+	[databases.InvalidMongoDBclientErr]
+	other = "Недействительный клиент MongoDB!"
 
 [configs]
     # База данных
     [configs.InvalidDatabaseAddrError]
-    other = "В файле конфигурации указан недействительный адрес подключения к базе данных <{{.DatabaseAddr}}>!"
+    other = "В конфигурационном файле указан недействительный адрес подключения к базе данных <{{.DatabaseAddr}}>!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Обнаружен неизвестный тип базы данных. Текущая версия b0gus поддерживает PostgreSQL, SQLite и MongoDB, а выбран <{{.DatabaseType}}>."
+    other = "Обнаружен неизвестный тип базы данных. В настоящее время b0gus поддерживает PostgreSQL, SQLite и MongoDB, а вы выбрали <{{.DatabaseType}}>."
     # Глобальная конфигурация
     [configs.ReadingConfigurationFailure]
-    other = "Не удалось прочитать конфигурацию. Причина: <{{.ErrInfo}}>."
+    other = "Не удалось прочитать конфигурацию. Причина сбоя: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
-    other = "Не удалось перезагрузить файл конфигурации! Текущая конфигурация не будет изменена. Причина: <{{.ErrInfo}}>."
+    other = "Не удалось перезагрузить конфигурационный файл! Текущая конфигурация не будет заменена. Причина сбоя: <{{.ErrInfo}}>."
     [configs.UnmarshallingConfigurationFailure]
-    other = "Не удалось разобрать файл конфигурации. Причина: <{{.ErrInfo}}>."
+    other = "Не удалось разобрать конфигурационный файл. Причина сбоя: <{{.ErrInfo}}>."
 
 [services]
-    # abstract_tcpip
-    [services.absTCPIPUninitErr]
-    other = "Использован неинициализированный ReentrantNetType."
-    [services.absTCPIPUnknownNetType]
-    other = "Использован неизвестный тип сети."
-    [services.absTCPIPUDPConnCastingErr]
-    other = "Не удалось преобразовать net.UDPConn."
+	# abstract_tcpip
+	[services.absTCPIPPortErr]
+	other = "Выбран привилегированный порт"
+	[services.absTCPIPUninitErr]
+	other = "Использован неинициализированный ReentrantNetType"
+	[services.absTCPIPUnknownNetType]
+	other = "Использован неизвестный тип сети."
+	[services.absTCPIPUDPConnCastingErr]
+	other = "Не удалось преобразовать net.UDPConn."
     # SSH
     [services.SSHversionWarn]
-    other = "Не удалось сгенерировать 3 случайных байта. Будет возвращено значение по умолчанию для версии SSH."
+    other = "Не удалось сгенерировать 3 случайных байта. Для версии SSH будет возвращено значение по умолчанию."
     [services.SSHWriteResponseError]
-    other = "При записи результата команды произошла ошибка <{{.ErrInfo}}>."
+    other = "При записи результата команды возникла ошибка <{{.ErrInfo}}>."
     [services.SSHsetTimeoutError]
-    other = "Не удалось установить время ожидания для входящего соединения из-за ошибки <{{.ErrInfo}}>."
+    other = "Из-за ошибки <{{.ErrInfo}}> не удалось установить время ожидания для предстоящего подключения."
     [services.SSHEstablishConnectionFailure]
-    other = "Не удалось установить SSH-соединение. (Удалённый адрес, текущая версия SSH, причина): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    other = "Не удалось установить SSH-соединение. (Удалённый адрес, текущая версия SSH, причина сбоя): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
     [services.SSHchannelAcceptanceError]
-    other = "Не удалось принять SSH-канал, предоставленный удалённому адресу <{{.RemoteAddr}}>, из-за ошибки <{{.ErrInfo}}>."
+    other = "Из-за ошибки <{{.ErrInfo}}> не удалось принять SSH-канал, предоставленный удалённому адресу <{{.RemoteAddr}}>."
     [services.SSHinvalidConfigurationWarn]
-    other = "Недействительная конфигурация SSH, пропуск обновления."
+    other = "Недействительная конфигурация SSH, обновление пропущено"
     [services.SSHSwitchListenerError]
-    other = "Не удалось переключиться на указанный адрес <{{.ListenAddr}}> для повторного прослушивания. Текущий SSH-сервер b0gus не будет изменён."
+    other = "Не удалось переключиться на заданный адрес <{{.ListenAddr}}> для повторного прослушивания. Текущий SSH-сервер b0gus не будет изменён."
     [services.SSHSetupListenerError]
-    other = "Не удалось запустить прослушивание SSH-сервером на указанном адресе <{{.ListenAddr}}>."
+    other = "Не удалось запустить прослушивание SSH-сервера по заданному адресу <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]
-    other = "Не удалось принять внешний SSH-запрос на соединение из-за ошибки <{{.ErrInfo}}>."
+    other = "Из-за ошибки <{{.ErrInfo}}> не удалось принять внешний запрос SSH-соединения."
     [services.SSHCanNotUseSigner]
-    other = "Не удалось использовать указанный сертификат <{{.Signer}}> для подписи во время взаимодействия по протоколу SSH."
+    other = "Не удалось использовать заданный сертификат <{{.Signer}}> для подписи при взаимодействии по протоколу SSH."
     [services.SSHQuitInfo]
     other = "Служба SSH завершена."
+	[services.SSHConfigLoadingFailure]
+	other = "Не удалось извлечь конфигурацию SSH из заданной структуры конфигурации."
+	[services.SSHEmptyGlobConfigFailure]
+	other = "Предоставлена пустая глобальная конфигурация."
+	[services.SSHRequireSignerAsOnlyArgErr]
+	other = "Требуется хотя бы один ssh.Signer в качестве входного параметра."
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
-    other = "NTP-сервер получил запрос на синхронизацию времени длиной <{{.Len}}> от <{{.IP}}>."
+    other = "NTP-сервер получил запрос времени длиной <{{.Len}}> от <{{.IP}}>."
     [services.NTPQuitInfo]
     other = "Служба NTP завершена."
-    [services.NTPNullConfErr]
-    other = "Предоставлена пустая конфигурация NTP."
+	[services.NTPNullConfErr]
+	other = "Предоставлена пустая конфигурация NTP"
     # DNS
-    [services.DNSQuitInfo]
-    other = "Служба DNS завершена."
-    [services.DNSNullConfErr]
-    other = "Предоставлена пустая конфигурация DNS."
-    [services.DNSWrongParamNumErr]
-    other = "Передано неверное количество параметров. Ожидалось {{.Expect}}, получено {{.Actual}}."
-    [services.DNSConfLoadErr]
-    other = "Не удалось извлечь подконфигурацию DNS из конфигурации!"
+	[services.DNSQuitInfo]
+	other = "Служба DNS завершена."
+	[services.DNSNullConfErr]
+	other = "Предоставлена пустая конфигурация DNS"
+	[services.DNSWrongParamNumErr]
+	other = "Передано неверное количество параметров. Ожидалось {{.Expect}}, фактически передано {{.Actual}}."
+	[services.DNSConfLoadErr]
+	other = "Не удалось извлечь подконфигурацию DNS из конфигурации!"
     # SMTP
-    [services.SMTPQuitInfo]
-    other = "Служба SMTP завершена."
-    [services.SMTPWrongParamNumErr]
-    other = "Передано неверное количество параметров. Ожидалось {{.Expect}}, получено {{.Actual}}."
-    [services.SMTPNullConfErr]
-    other = "Предоставлена пустая конфигурация SMTP."
-    # HTTP
-    [services.HTTPQuitInfo]
-    other = "Служба HTTP завершена."
-    [services.HTTPNullConfErr]
-    other = "Предоставлена пустая конфигурация HTTP."
-    [services.HTTPWrongParamNumErr]
-    other = "Передано неверное количество параметров. Ожидалось {{.Expect}}, получено {{.Actual}}."
-    [services.HTTPConfLoadErr]
-    other = "Не удалось загрузить конфигурацию HTTP."
+	[services.SMTPQuitInfo]
+	other = "Служба SMTP завершена"
+	[services.SMTPWrongParamNumErr]
+	other = "Передано неверное количество параметров. Ожидалось {{.Expect}}, фактически передано {{.Actual}}."
+	[services.SMTPNullConfErr]
+	other = "Предоставлена пустая конфигурация SMTP"
+	# HTTP
+	[services.HTTPQuitInfo]
+	other = "Служба HTTP завершена"
+	[services.HTTPNullConfErr]
+	other = "Предоставлена пустая конфигурация HTTP"
+	[services.HTTPWrongParamNumErr]
+	other = "Передано неверное количество параметров. Ожидалось {{.Expect}}, фактически передано {{.Actual}}."
+	[services.HTTPConfLoadErr]
+	other = "Не удалось загрузить конфигурацию HTTP"
     # ICMP
-    [services.ICMPwindowsUnsupportWarn]
-    other = "Система Windows не поддерживает развёртывание ICMP-сервера."
+	[services.ICMPwindowsUnsupportWarn]
+	other = "Система Windows не поддерживает создание ICMP-сервера"

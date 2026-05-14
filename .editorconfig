@@ -1,13 +1,18 @@
+# See here for more information about the format and editor support:
+# https://editorconfig.org/
 root = true
 
 [*]
+charset = utf-8
+end_of_line = lf
 indent_style = tab
 indent_size = 4
-end_of_line = lf
-charset = utf-8
-trim_trailing_whitespace = true
 insert_final_newline = true
 max_line_length = 110
+trim_trailing_whitespace = true
+
+[*.{py,c,cc,h,hh,cxx}]
+indent_style = space
 
 [*.md]
 trim_trailing_whitespace = false
