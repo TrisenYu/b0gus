@@ -10,7 +10,7 @@ b0gus supports to deploy _SSH_, _HTTP_, _SMTP_, and _NTP_ as a functional honeyp
 'Functional' here means that you can assign non-privilege port number, 
 fetch records (etc. `attackers' IP,`, `user name`, `passwords`, `public keys`, 
 `ssh versions`, `accessing time`, `attacking pattern`) 
-from interactions and reload the configuration of ssh service in real time.
+from interactions ~~and reload the configuration of services in real time~~.
 
 In the future, b0gus will:
 - Subsequent additions will include automated configuration for port traffic forwarding.

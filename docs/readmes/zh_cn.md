@@ -142,9 +142,7 @@ void retry(
 ### 关于许可证
 b0gus按三条款BSD许可证分发。中译文具体如下。
 
-版权所有© 2025年，<kisfg@hotmail.com>与<jajune257@gmail.com>以及其余b0gus的贡献者。
-
-保留所有权利。
+版权所有© 2025年，<kisfg@hotmail.com>与<jajune257@gmail.com>以及其余对b0gus产出贡献的可敬贡献者。
 
 允许以源代码和二进制形式再分发和使用，无论是否修改，但须满足以下条件
 

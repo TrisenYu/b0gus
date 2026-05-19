@@ -10,6 +10,7 @@ ARG sourcePath="/etc/apt/sources.list.d/debian.sources"
 # for other country/region, set region to the faster mirror source in command line by
 # passing arguments like: --build-arg region="us"
 ARG region="cn"
+# variable `arch` and `osType` will further pass to makefile for (cross-) compilation.
 ARG arch="amd64"
 ARG osType="linux"
 
@@ -32,7 +33,7 @@ RUN chmod -R +x /b0gus-builder && cp $sourcePath $sourcePath.bak &&             
     echo "\$antlr4Dir/antlr4-maven-plugin/target/antlr4-maven-plugin-$antlr4Tag.jar:\\" >> $antlr4Path &&  \
     echo "\$antlr4Dir/runtime/Java/target/antlr4-runtime-$antlr4Tag.jar:\"" >> $antlr4Path &&              \
     echo "exec java -cp \$classPath org.antlr.v4.Tool \"\$@\"" >> $antlr4Path && chmod a+rx $antlr4Path && \
-	make release Arch=$arch osType=$osType
+	Arch=$arch osType=$osType make release 
 
 FROM alpine:latest AS builder
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< stage-2
