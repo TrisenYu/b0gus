@@ -58,3 +58,7 @@ ignore=["E731"]
 
 [tool.ruff.lint.pylint]
 max-nested-blocks = 4
+
+# setup for pytest
+[tool.pytest.ini_options]
+pythonpath = "."

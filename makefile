@@ -1,5 +1,5 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/13 星期三 21:17:43
+# Last modified at 2026/05/19 星期二 17:02:58
 b0gus_name=b0gus
 b0gus_ver=0.1.2
 
@@ -66,7 +66,7 @@ endif
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker-cli check
 ifeq ($(strip $(dock_check)),) # first nested check for docker-cli
 ifeq ($(strip $(nerd_check)),) # second nested check for available docker-cli
-	$(warning can not build by docker since docker has not be installed.)
+$(warning can not build by docker since docker has not be installed.)
 else
 	dock=nerdctl
 endif # nerd_check
@@ -79,7 +79,7 @@ build_time_str=$(shell $(build_time_payload))
 # docker-built will use uncalculatable because we exclude the .git directory in .dockerignore
 b0gus_hash=$(shell git describe --long --tags --always --abbrev=40 --dirty || echo "uncalculatable")
 
-passing_params=CGO_ENABLED=0 CC=$(cc) CXX=$(cxx)
+passing_params=CC=$(cc) CXX=$(cxx) CGO_ENABLED=0
 ifneq ($(osType),)
 	passing_params+="GOOS=$(osType)"
 endif
@@ -103,12 +103,13 @@ help:
 	"    mock      - generate internal/mock structure for diff_tests\n" \
 	"    test      - test testcases under ./diff_tests/\n" 	            \
 	"    dry-run   - trial\n" 								            \
-	"    perf      - performance evaluation\n" 				            \
+	"    perf      - evaluate performance\n"                            \
 	"    clean     - clean build files and registered files\n"          \
-	"    fuzz      - go fuzz available testcases\n\n"                   \
+	"    fuzz      - use {go fuzz} to fuzz available testcases\n\n"     \
 	"docker-build  - build b0gus by docker\n\n"                         \
 	"uv-fresh-dep  - update the dependencies in requirements.txt\n"     \
-	"    pylint    - lint for python scripts or codes"
+	"    pylint    - lint for python scripts or codes\n"                \
+	"    pytest    - test for python scripts or codes"
 phony += help
 
 
@@ -120,20 +121,23 @@ phony += help
 debug_link_opts=-gcflags="-l -m" \
 			 -ldflags="$(must_set_flag) -X 'b0gus/configs.BuildTypeStr=debug'"
 debug: deps
-	$(passing_params) go build $(debug_link_opts) -o $(b0gus_name)
+	-$(passing_params) go build $(debug_link_opts) -o $(b0gus_name)
 phony += debug
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- release setting for production environment.
-release_link_opts=-gcflags=-l 									 \
-			   -ldflags="-a -s -w $(must_set_flag) 				 \
-			             -X 'b0gus/configs.BuildTypeStr=release' \
-						 -compressdwarf=false -buildid="         \
-						 -installsuffix cgo 					 \
-			   -trimpath -buildmode=exe -pgo off
+# influenced by .gopclntab
+release_link_opts=-trimpath -pgo=off            \
+	-buildvcs=false -buildmode=pie              \
+	-gcflags="-l -linkshared -smallframes"      \
+	-ldflags="-s -w $(must_set_flag)            \
+        -X 'b0gus/configs.BuildTypeStr=release' \
+        -buildid= "
+
+
 release: deps
-	@$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
+	-$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
 # yes, strip the symbols
-	$(striper) -s $(b0gus_name)
+	-$(striper) --strip-all $(b0gus_name)
 phony += release
 
 # better not execute if there happens to be any error
@@ -155,7 +159,7 @@ dry-run: release
 phony += dry-run
 
 test:
-	-cd diff_tests && go test -race
+	-cd diff_tests && go test -race -v
 phony += test
 
 
@@ -165,8 +169,7 @@ phony += clean
 
 perf: # debug
 # -go tool pprof -http=:8880 assets/cpu.prof
-	@echo 'yet to implement'
-	@exit 1
+	@$(error yet to implement)
 phony += perf
 
 fuzz: test
@@ -191,11 +194,8 @@ mock:
 phony += mock
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related
+
 docker-build:
-# other cli:
-# 	nerdctl build -t b0gus-image .
-# 	nerdctl run --rm --entrypoint /bin/cat b0gus-image /app/b0gus > ./b0gus-exe
-	@$(dock) build -t b0gus-img -f buildImg.Dockerfile .
 	@$(dock) run --rm --entrypoint /bin/cat b0gus-img /app/b0gus > $(b0gus_name)
 phony += docker-build
 
@@ -220,11 +220,7 @@ endif
 phony += __pyenv-check
 
 uv-fresh-dep: __pyenv-check
-# this option is not strictly necessary...
-# must `source .venv/bin/activate` or `.venv\bin\activate` first.
 # other useful command:
-# 	@uv venv # create venv in your directory
-#   @uv sync # to fetch proper dependencies
 # 	@uv sync --upgrade # upgrade the dependencies
 	@uv pip freeze > requirements.txt
 	@uv add -r requirements.txt
@@ -234,5 +230,9 @@ pylint: __pyenv-check
 # check and try the basic fix by ruff
 	@$(activate_pyenv) && ruff check --fix
 phony += pylint
+
+pytest: __pyenv-check
+	@uv run pytest
+phony += pytest
 
 .PHONY: $(phony)

@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	codeberg.org/miekg/dns v0.6.65
+	github.com/BurntSushi/toml v1.6.0
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/brianvoe/gofakeit/v7 v7.14.1
 	github.com/deckarep/golang-set v1.8.0

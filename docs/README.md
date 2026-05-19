@@ -16,7 +16,7 @@ b0gus supports to deploy _SSH_, _HTTP_, _SMTP_, and _NTP_ as a functional honeyp
 'Functional' here means that you can assign non-privilege port number,
 fetch records (etc. `attackers' IP,`, `user name`, `passwords`, `public keys`,
 `ssh versions`, `accessing time`, `attacking pattern`)
-from interactions and reload the configuration of ssh service in real time.
+from interactions ~~and reload the configuration of services in real time~~.
 
 ### Build & Deployment
 The main external dependencies required for building are
@@ -54,7 +54,7 @@ Local installation and configuration as a user-level service are not supported f
    or you have added corresponding unit tests under diff\_tests and
    all tests for your new feature pass completely, you may submit a Pull Request from your branch.
    After code review and further evaluation, your branch will be merged,
-   and you will be become a contributor to b0gus.
+   and you will become a contributor to b0gus.
 
 #### Code Quality Guidelines
 
