@@ -135,7 +135,6 @@ release_link_opts=-trimpath -pgo=off            \
 
 
 release: deps
-	$(info $(link_check) $(linker))
 	-$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
 # yes, strip the symbols
 	-$(striper) --strip-all $(b0gus_name)
@@ -196,8 +195,7 @@ phony += mock
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related
 
-docker-build: __dock_cli_check
-	@$(dock) build -t b0gus-img -f buildImg.Dockerfile .
+docker-build:
 	@$(dock) run --rm --entrypoint /bin/cat b0gus-img /app/b0gus > $(b0gus_name)
 phony += docker-build
 

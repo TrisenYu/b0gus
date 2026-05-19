@@ -64,7 +64,7 @@ Local installation and configuration as a user-level service are not supported f
    or you have added corresponding unit tests under diff\_tests and 
    all tests for your new feature pass completely, you may submit a Pull Request from your branch.
    After code review and further evaluation, your branch will be merged, 
-   and you will be become a contributor to b0gus.
+   and you will become a contributor to b0gus.
 
 #### Code Quality Guidelines
 
