@@ -1,3 +1,4 @@
+# Last modified at 2026/05/22 星期五 17:24:46
 on:
   push:
   pull_request:
@@ -21,11 +22,13 @@ jobs:
           check-latest: false
 
       - name: install other dependencies
-        run: sudo apt install make
+        run: |
+          sudo apt install make
+          curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: test
         run: |
-          make test
+          make test-all
           if [ $? -ne 0 ]; then
             echo "UnitTest Failed!"
             exit 1
