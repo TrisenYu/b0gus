@@ -10,7 +10,6 @@ import (
 //
 //	return "", 0 if there is any error
 func IPAddrSplit(ipPort string) (string, uint16) {
-	var resIp = ""
 	resIp, strPort, err := net.SplitHostPort(ipPort)
 	if err == nil {
 		resPort, err := strconv.ParseUint(strPort, 10, 16)

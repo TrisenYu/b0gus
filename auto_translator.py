@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/13 星期三 19:48:54
+# Last modified at 2026/05/17 星期日 22:03:58
 """
 [auto_translator] will read configuration from given/default source file
 and generate translated files by calling API to interact with LLM
@@ -66,7 +66,8 @@ def init_argv() -> argparse.Namespace:
     _argv_parser.add_argument(
         '-pti', '--path-to-i18n4toml',
         type=str, default=str(Path(__file__).parent / "assets" / "prompts" / "i18n4toml.txt"),
-        help="`path to i18n4toml.txt` is the backup directory when there is no role_prompt define in llm-conf"
+        help="`path to i18n4toml.txt` is the backup directory "+
+        "when there is no `role_prompt` define in llm-conf"
     )
     _argv_parser.add_argument(
         '-lcp', '--llm-conf-path',
@@ -151,7 +152,7 @@ def seize_err_if_any(logger_enable: bool=True):
 def die_if_err(fn):
     """
     if fn encountered any error,then the whole process
-	will terminate as quickly as possible.
+    will terminate as quickly as possible.
     """
     def error_dumper(*args, **kwargs) -> Union[NoReturn, Any]:
         try:
@@ -211,9 +212,9 @@ class TranslatorConf(BaseModel):
         """
         :param lang_tag: the target language tag
         :param dst_pattern:
-                since the source reference file has its pattern to the directory,
-                the destination file will adapt the pattern and attempt to generate
-				the corresponding translated file as well.
+            since the source reference file has its pattern to the directory,
+            the destination file will adapt the pattern and attempt to generate
+            the corresponding translated file as well.
         :return: None
         """
         logger.info(lang_tag)

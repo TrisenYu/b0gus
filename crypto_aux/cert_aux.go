@@ -2,6 +2,7 @@
 package crypto_aux
 
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
+/// Last modified at 2026/05/16 星期六 12:12:32
 
 import (
 	"crypto"
@@ -15,7 +16,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -41,7 +41,7 @@ func loadSSHhostPem(pemPath string) (ssh.Signer, error) {
 			map[string]any{"PemPath": pemPath},
 		)
 		// "Failed to read PEM file for SSH host key!"
-		configs.Logger.Error(openPemFailure)
+		configs.Logger().Error(openPemFailure)
 		return nil, err
 	}
 	defer func() { _ = pemFd.Close() }()
@@ -51,7 +51,7 @@ func loadSSHhostPem(pemPath string) (ssh.Signer, error) {
 			"crypto_aux.PemFileReadFailure", nil,
 		)
 		// "Failed to read PEM file for SSH host key!"
-		configs.Logger.Error(readPemFailure)
+		configs.Logger().Error(readPemFailure)
 		return nil, err
 	}
 	pemBlock, _ := pem.Decode(pemBytes)
@@ -59,7 +59,7 @@ func loadSSHhostPem(pemPath string) (ssh.Signer, error) {
 		pemDecodeFailure := configs.GetLocalizedMsg(
 			"crypto_aux.PemFileDecodeFailure", nil,
 		)
-		configs.Logger.Error(pemDecodeFailure)
+		configs.Logger().Error(pemDecodeFailure)
 		return nil, err
 	}
 	switch pemBlock.Type {
@@ -159,8 +159,8 @@ func createPriObj(pemType string, pemLen uint64) (crypto.PrivateKey, error) {
 		errInfo := configs.GetLocalizedMsg(
 			"crypto_aux.PemFileUnsupportedTypeError", nil,
 		)
-		configs.Logger.Error(errInfo)
-		return nil, errors.New(errInfo) // fmt.Errorf("invalid pem type:<%v>", pem_type)
+		configs.Logger().Error(errInfo)
+		return nil, errors.New(errInfo)
 	}
 	return hostPem, err
 }
@@ -177,7 +177,7 @@ func createPriKey(
 			"crypto_aux.SSHPrivateKeyGenFailure",
 			map[string]any{"ErrInfo": err},
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return nil, errors.New(payload)
 	}
 	hostKey, err := ssh.NewSignerFromKey(hostPem)
@@ -186,7 +186,7 @@ func createPriKey(
 			"crypto_aux.SSHPrivateKeySetFailure",
 			map[string]any{"ErrInfo": err},
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return nil, errors.New(payload)
 	}
 	pemFile, err := os.Create(pemPath)
@@ -195,7 +195,7 @@ func createPriKey(
 			"crypto_aux.CreatePemToGivenPath",
 			map[string]any{"PemPath": pemPath},
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return nil, errors.New(payload)
 	}
 	defer func() { _ = pemFile.Close() }()
@@ -204,7 +204,7 @@ func createPriKey(
 		payload := configs.GetLocalizedMsg(
 			"crypto_aux.PemFileDecodeFailure", nil,
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return nil, errors.New(payload)
 	}
 	hostPemBlock := pem.Block{
@@ -216,7 +216,7 @@ func createPriKey(
 		payload := configs.GetLocalizedMsg(
 			"crypto_aux.Base64EncodeFailure", nil,
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return nil, errors.New(payload)
 	}
 	return hostKey, err
@@ -244,7 +244,7 @@ func LoadOrCreateSSHpem(
 			"ErrInfo": err,
 		},
 	)
-	configs.Logger.Error(payload)
+	configs.Logger().Error(payload)
 	return nil
 }
 
@@ -344,7 +344,7 @@ func LoadCA(caCertPath, caKeyPath string) (*CAInfo, error) {
 	}
 	caKeyBlock, _ := pem.Decode(caKeyData)
 	if caKeyBlock == nil {
-		return nil, fmt.Errorf("invalid CA private key")
+		return nil, errors.New("invalid CA private key")
 	}
 	var (
 		privateKey crypto.PrivateKey
@@ -398,7 +398,7 @@ func IntranetSignCert(
 	}
 
 	// TODO: maintain the serialNumber
-	// it will be much more easier to maintain a increasing sequence of serialNumber
+	// it will be much easier to maintain a increasing sequence of serialNumber
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
@@ -540,9 +540,9 @@ func LoadLocalCertAsTLSServ(
 	}
 }
 
-// NormalLoadCertAsTLSServ will load a signed (cert, key)-file for server,
+// LoadNormalCertAsTLSServ will load a signed (cert, key)-file for server,
 // which is acknowledged by real-world CA.
-func NormalLoadCertAsTLSServ(
+func LoadNormalCertAsTLSServ(
 	SignedCertFile, SignedKeyFile string,
 ) *tls.Config {
 	cert, err := tls.LoadX509KeyPair(SignedCertFile, SignedKeyFile)
@@ -561,9 +561,9 @@ func NormalLoadCertAsTLSServ(
 	}
 }
 
-// NormalLoadCertAsTLSClient will load signed (cert, key)-file for client,
+// LoadNormalCertAsTLSClient will load signed (cert, key)-file for client,
 // which is acknowledged by real-world CA.
-func NormalLoadCertAsTLSClient(
+func LoadNormalCertAsTLSClient(
 	SignedCertFile, SignedKeyFile, serverName string,
 ) *tls.Config {
 	cert, err := tls.LoadX509KeyPair(SignedCertFile, SignedKeyFile)

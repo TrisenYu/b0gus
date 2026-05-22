@@ -12,9 +12,4 @@ type ShellRules struct {
 	LFisCRLF, FullCRLF bool
 }
 
-// [TODO]
-type shellOptions struct {
-	PromptAlter   func(ty int) string
-	CmdHook       func(string) (string, error)
-	KeystrokeHook func(...rune)
-}
+// [TODO] shellOpts

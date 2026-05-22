@@ -1,9 +1,14 @@
 # select by yourself
 api_key=""
 # base site-url for further invocation
+## kimi: https://api.moonshot.cn/v1
 base_url="https://api.deepseek.com"
 # get balance:
+## kimi: /users/me/balance
+## OpenAI: https://api.openai.com/dashboard/billing/credit_grants
+## Claude: /v1/organizations/cost_report
 balance_api="/user/balance"
+
 # only for deepseek API
 model_name="deepseek-chat"
 
@@ -27,7 +32,7 @@ role_prompt="""
 以日语为例，你需要减少用片假名翻译舶来词，应按照日语内等价且固有的表示，通过合理组合搭配而简洁清晰地生成出中小学生也能看懂的译文。
 """
 
-## Translation:
+## Mainly used by auto_translator.py. The translation is:
 # You are tasked with translation work for an automated program across multiple languages.
 # Subsequent data packets will follow the format "language ID\ntext to be translated\n".
 # The returned result should not be wrapped in a Markdown TOML code block or include any explanation.

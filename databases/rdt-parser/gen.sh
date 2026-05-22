@@ -47,5 +47,20 @@ if [[ "$Lang" = "Go" ]]; then
 	fi
 fi
 
+targets=(rdt*.go)
+mark_string='//go:build tools
+// +build tools
+'
+for target in "${targets[@]}"; do
+	[ -f "$target" ] || continue
+	$grep_check -qxF '//go:build tools' "$target" && {
+		continue
+	}
+	echo "$mark_string" > "$target.tmp"
+	cat "$target" >> "$target.tmp"
+	mv "$target.tmp" "$target"
+done
+
+
 go generate
 rm ./*.interp ./*.tokens

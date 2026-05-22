@@ -1,7 +1,7 @@
 package terminal
 
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-/// Last modified at 2026/05/08 星期五 19:55:35
+/// Last modified at 2026/05/15 星期五 13:29:56
 
 import (
 	"bufio"
@@ -359,7 +359,7 @@ func moveWithAuxFn(
 	act func(*int),
 ) {
 	if pos == nil || check == nil || act == nil {
-		// won't move at all if such condition is satisfied
+		// won't move at all if these conditions are satisfied
 		return
 	}
 	defer func() {
@@ -580,7 +580,7 @@ func (l *LineEditor) checkCtrlSeq(r byte) ([]rune, error) {
 		fallthrough
 	case r == 0x07: // ctrl + g
 		fallthrough
-	case r == 0x0c: // ctrl + l, delete from cursor to the end of line
+	case r == 0x0c: // ctrl + l
 		fallthrough
 	case (0x0e <= r && r <= 0x10) || (0x12 <= r && r <= 0x14):
 		// ctrl + {n, o, p, r, s, t}
@@ -634,7 +634,6 @@ func (l *LineEditor) handleMultiBytes4CtrlSeq(
 		l.jmpToStOfPrevWord()
 	case flag6ctrlR:
 		l.jmpToEdOfNextWord()
-
 	case typeUp || typeDown:
 		// last or next command
 	case typeRight:

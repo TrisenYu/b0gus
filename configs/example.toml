@@ -33,7 +33,7 @@ language = "en"
     # another new line for every command.
     response_type = "repeater"
     # when selecting `llm` for [response_type], then these fields are required.
-    llm_type = ""
+    llm_conf_path = ""
 
     # banner for displaying after successfully logining into system
     login_banner = ''''''
@@ -119,7 +119,7 @@ language = "en"
 
     # PostgreSQL, SQLite, MongoDB
     type = "PostgreSQL" # mongodb, MONGODB, MongoDB
-    name = "postgres"
+    db_name = "postgres"
 
     # Some database can be deemed as a distributed cluster,
     # so an IP address is require.

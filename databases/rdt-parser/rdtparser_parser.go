@@ -1,3 +1,6 @@
+//go:build tools
+// +build tools
+
 // Code generated from RDTparser.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package main // RDTparser

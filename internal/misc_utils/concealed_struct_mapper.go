@@ -1,10 +1,11 @@
+/// Last modified at 2026/05/16 星期六 12:27:54
 package misc_utils
 
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"errors"
-	"fmt"
+	"strings"
 	"reflect"
 )
 
@@ -81,10 +82,12 @@ func GetFieldValueByName(obj any, fieldName string) (any, error) {
 	field := v.FieldByName(fieldName)
 
 	if !field.IsValid() {
-		return struct{}{}, fmt.Errorf(
-			"field '%s' not found in struct %T",
-			fieldName, obj,
-		)
+		var sb strings.Builder
+		sb.WriteString("field '")
+		sb.WriteString(fieldName)
+		sb.WriteString("' not found in struct ")
+		sb.WriteString(reflect.TypeOf(obj).Name())
+		return struct{}{}, errors.New(sb.String())
 	}
 	if !field.CanAddr() {
 		return field.Interface(), nil

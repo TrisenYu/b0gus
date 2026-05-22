@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" scale="6" border="0">
     <diagram id="nKktuWTehy49I5IG6JZ6" name="第 1 页">
-        <mxGraphModel dx="743" dy="1146" grid="1" gridSize="20" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1920" math="0" shadow="0">
+        <mxGraphModel dx="924" dy="1146" grid="1" gridSize="20" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1920" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -83,7 +83,7 @@
                         <mxPoint x="220" y="320" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="42" value="自举" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="41" vertex="1" connectable="0">
+                <mxCell id="42" value="自举" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;" parent="41" vertex="1" connectable="0">
                     <mxGeometry x="-0.134" y="1" relative="1" as="geometry">
                         <mxPoint x="2" y="1" as="offset"/>
                     </mxGeometry>

@@ -60,7 +60,7 @@ Local installation and configuration as a user-level service are not supported f
 
 This repository enforces restrictive rules for all code written herein:
 1. Within a single function, **indentation shall not exceed $4$ levels** in principle,
-   the line count shall not exceed $100$ lines, and the character count per column shall not exceed $100$.
+   the line count shall not exceed $100$ lines, and the character count per column shall not exceed $110$.
 	1. If indentation inevitably exceeds $4$ levels but is no more than $5$ levels,
 	   the total lines (including comments) within that scope shall not exceed $10$ lines.
 	2. reject to review or accept the pull request once the indentation level $\ge 6$. 

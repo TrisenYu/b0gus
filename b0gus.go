@@ -1,18 +1,18 @@
 package main
 
-/// Last modified at 2026/04/26 星期日 21:46:42
+/// Last modified at 2026/05/16 星期六 12:48:34
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
-	"b0gus/databases"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"b0gus/configs"
+	"b0gus/databases"
 	"b0gus/services"
 )
 
@@ -49,23 +49,26 @@ func initConfFlags() {
 
 	flag.Parse()
 	if *showVersion {
-		payload :=
-			`b0gus Version: %s-%s
-Build Time:    %s
-Build Hash:    %s
-Builder Name:  %s
-Current ISA:   %s
-Current OS:    %s
-`
-		fmt.Printf(
-			payload, versionStr, configs.BuildTypeStr,
-			buildTimeStr, hashValStr, builtByStr,
-			runtime.GOARCH, runtime.GOOS,
-		)
+		var sb strings.Builder
+		sb.WriteString("b0gus Version: ")
+		sb.WriteString(versionStr)
+		sb.WriteRune('-')
+		sb.WriteString(configs.BuildTypeStr)
+		sb.WriteString("\nBuild Time:    ")
+		sb.WriteString(buildTimeStr)
+		sb.WriteString("\nBuild Hash:    ")
+		sb.WriteString(hashValStr)
+		sb.WriteString("\nBuild Name:    ")
+		sb.WriteString(builtByStr)
+		sb.WriteString("\nCurrent ISA:   ")
+		sb.WriteString(runtime.GOARCH)
+		sb.WriteString("\nCurrent OS:    ")
+		sb.WriteString(runtime.GOOS)
+		println(sb.String())
 		os.Exit(0)
 	} else if configs.GlobConf.Load() == nil {
 		payload := configs.GetLocalizedMsg("main.FailToApplyConfiguration", nil)
-		configs.Logger.Fatal(payload)
+		configs.Logger().Fatal(payload)
 	}
 }
 
@@ -96,12 +99,12 @@ Current OS:    %s
 // configuration in `./configs/` should be properly set up before executing
 func main() {
 	initConfFlags()
-	defer func() { _ = configs.Logger.Sync() }()
+	defer func() { _ = configs.Logger().Sync() }()
 	db, dbStr, err := databases.SelectDatabaseBackend(
 		&configs.GlobConf.Load().ServerConfig.RecDBConfig,
 	)
 	if err != nil {
-		configs.Logger.Error(configs.GetLocalizedMsg(
+		configs.Logger().Error(configs.GetLocalizedMsg(
 			"main.DatabaseConnectionError",
 			map[string]any{
 				"DatabaseStr": dbStr,
@@ -110,7 +113,7 @@ func main() {
 		))
 		return
 	} else if db == nil {
-		configs.Logger.Error(configs.GetLocalizedMsg(
+		configs.Logger().Error(configs.GetLocalizedMsg(
 			"main.DatabaseEmptyError", nil,
 		))
 		return
@@ -121,13 +124,15 @@ func main() {
 		terminator   = make(chan struct{}, 1)
 		signalChan   = make(chan os.Signal, 1)
 	)
+	// [TODO]: different services should may have their different DB
+	//         or use message queue for load-balance and dispatching
 	globRecordDb.AlterDatabaseHandler(db)
 
 	// signal notification to terminate the whole server
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-signalChan
-		configs.Logger.Warn(configs.GetLocalizedMsg(
+		configs.Logger().Warn(configs.GetLocalizedMsg(
 			"main.TerminationSignalWarn",
 			map[string]any{"SignalStr": sig.String()},
 		))

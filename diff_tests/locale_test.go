@@ -1,7 +1,6 @@
 package diff_tests
 
-// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-
+/// Last modified at 2026/05/15 星期五 10:25:50
 import (
 	"bytes"
 	"net"
@@ -25,8 +24,7 @@ func TestDumpToml(t *testing.T) {
 func localeExam(
 	t *testing.T,
 	currConf *configs.LocalConfig,
-	langTag string,
-	ErrDescriptor string,
+	langTag, ErrDescriptor string,
 	msgPayload map[string]any,
 ) {
 	currConf.ServerConfig.Language = langTag
@@ -40,25 +38,21 @@ func localeExam(
 
 	for msg, vv := range msgPayload {
 		var strVal string
-		switch vv.(type) {
+		switch v := vv.(type) {
 		case string:
-			strVal = vv.(string)
+			strVal = v
 		case int:
-			strVal = strconv.Itoa(vv.(int))
+			strVal = strconv.Itoa(v)
 		default:
-			t.Errorf("Unexpected type for %s: %T", msg, vv)
+			t.Errorf("Unexpected type for %s: %T", msg, v)
 			t.FailNow()
 		}
 		ds = string(bytes.ReplaceAll([]byte(ds), []byte("{{."+msg+"}}"), []byte(strVal)))
 	}
-
 	assert.Equal(t, ds, payload)
 }
 
-func dumpToml(
-	langTag string,
-	localeTag string,
-) (any, error) {
+func dumpToml(langTag, localeTag string) (any, error) {
 	var (
 		sb     strings.Builder
 		config map[string]any
@@ -66,6 +60,7 @@ func dumpToml(
 	sb.WriteString("../assets/locale/active.")
 	sb.WriteString(langTag)
 	sb.WriteString(".toml")
+
 	_, err := toml.DecodeFile(sb.String(), &config)
 	if err != nil {
 		return "", err
@@ -89,36 +84,42 @@ func getTomlValue(data map[string]any, path string) any {
 	return val
 }
 
-func TestLocale(t *testing.T) {
-	currConf := configs.LoadDefaultConfig("../configs/config.toml")
-	localeExam(t, currConf, "zh_cn", "main.DatabaseEmptyError", nil)
-	localeExam(t, currConf, "en", "main.DatabaseChangingWarn", nil)
-	localeExam(
-		t, currConf, "de",
-		"crypto_aux.PemFileOpenFailure",
-		map[string]any{
-			"PemPath": "/etc/hosts.deny",
-		},
-	)
-	localeExam(
-		t, currConf, "JA",
-		"services.SSHEstablishConnectionFailure",
+type localeCasesStruct struct {
+	langTag    string
+	Descriptor string
+	msgPayload map[string]any
+}
+
+var localeCases = []localeCasesStruct{
+	{"zh_cn", "main.DatabaseEmptyError", nil},
+	{"en", "main.DatabaseChangingWarn", nil},
+	{
+		"de", "crypto_aux.PemFileOpenFailure",
+		map[string]any{"PemPath": "/etc/hosts.deny"},
+	},
+	{
+		"JA", "services.SSHEstablishConnectionFailure",
 		map[string]any{
 			"RemoteAddr": "192.168.0.2",
 			"CurrSSHver": "SSH-2.0-OpenSSH_11.1p2_3.4.5 Debian-67",
 			"ErrInfo":    "Broken network",
 		},
-	)
-	localeExam(
-		t, currConf, "ko",
-		"databases.DatabaseTypeError",
+	},
+	{
+		"ko", "databases.DatabaseTypeError",
 		map[string]any{"Database": "MySQL"},
-	)
-	localeExam(
-		t, currConf, "fr",
-		"services.SSHSwitchListenerError",
+	},
+	{
+		"fr", "services.SSHSwitchListenerError",
 		map[string]any{"ListenAddr": net.IPv4(127, 0, 0, 1).String()},
-	)
+	},
+}
+
+func TestLocale(t *testing.T) {
+	currConf := configs.LoadDefaultConfig("../configs/config.toml")
+	for _, l := range localeCases {
+		localeExam(t, currConf, l.langTag, l.Descriptor, l.msgPayload)
+	}
 	currConf.ServerConfig.Language = "en"
 	configs.GlobConf.Store(currConf)
 }

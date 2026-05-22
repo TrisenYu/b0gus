@@ -26,7 +26,7 @@ func TestPemHelper(t *testing.T) {
 			assert.Equal(t, nil, err, "Unable to delete test.pem")
 		}
 	)
-	configs.Logger = zap.NewNop()
+	configs.SetLogger(zap.NewNop())
 	whatWeHave := crypto_aux.LoadOrCreateSSHpem(pemPath, "ed25519", 0)
 	assert.NotEqual(t, nil, whatWeHave, "Still got an nil after creating")
 	delPem()
@@ -71,7 +71,6 @@ func TestPemHelper(t *testing.T) {
 
 	whatWeHave = crypto_aux.LoadOrCreateSSHpem(pemPath, "ed25519", 123456)
 	assert.NotEqual(t, nil, whatWeHave, "unexpected nil pem")
-	whatWeHave = nil
 	whatWeHave = crypto_aux.LoadOrCreateSSHpem(pemPath, "ed25519", 123456)
 	assert.NotEqual(t, nil, whatWeHave, "unexpected nil pem")
 	delPem()
