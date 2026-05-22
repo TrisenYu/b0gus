@@ -21,7 +21,9 @@ jobs:
           check-latest: false
 
       - name: install other dependencies
-        run: sudo apt install make
+        run: |
+          sudo apt install make
+          curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: test
         run: |
