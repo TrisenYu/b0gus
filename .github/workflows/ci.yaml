@@ -11,8 +11,8 @@ jobs:
     steps:
       - name: checkout dev
         uses: actions/checkout@v5
-        with:
-          ref: dev
+        # with:
+        #   ref: dev
 
       - name: setup go
         uses: actions/setup-go@v5
@@ -24,4 +24,9 @@ jobs:
         run: sudo apt install make
 
       - name: test
-        run: make test
+        run: |
+          make test
+          if [ $? -ne 0 ]; then
+            echo "UnitTest Failed!"
+            exit 1
+          fi
