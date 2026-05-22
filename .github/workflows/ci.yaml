@@ -21,7 +21,7 @@ jobs:
           check-latest: false
 
       - name: install other dependencies
-        uses: sudo apt install make
+        run: sudo apt install make
 
       - name: test
         run: make test
