@@ -1,19 +1,20 @@
 package diff_tests
 
+/// Last modified at 2026/05/18 星期一 10:16:57
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
-	"b0gus/crypto_aux"
-	"b0gus/internal/misc_utils"
 	"crypto/x509/pkix"
 	"fmt"
 	"io"
 	"path/filepath"
 	"testing"
 
-	"b0gus/configs"
-
 	"github.com/stretchr/testify/assert"
+
+	"b0gus/configs"
+	"b0gus/crypto_aux"
+	"b0gus/internal/misc_utils"
 )
 
 func TestBase64(t *testing.T) {
@@ -41,6 +42,7 @@ func TestReflection(t *testing.T) {
 	_, ok := resMap[sshName]
 	assert.Equal(t, true, ok)
 	resMap = misc_utils.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
+	assert.NotEqual(t, resMap, nil)
 	curr, err := misc_utils.GetFieldValueByName(localConf.ServerConfig, sshName)
 	assert.Equal(t, nil, err)
 	_, ok = curr.(*configs.SSHconfig)
@@ -59,8 +61,7 @@ func TestReflection(t *testing.T) {
 	assert.Equal(t, localConf.ServerConfig.SMTPconfig, curr)
 	_, ok = curr.(configs.SMTPconfig)
 	assert.Equal(t, true, ok)
-
-	curr, err = misc_utils.GetFieldValueByName(
+	_, err = misc_utils.GetFieldValueByName(
 		map[string]map[string]any{
 			"ok": nil, "nok": {
 				"hello": "world",
@@ -166,7 +167,7 @@ func TestIPvXparser(t *testing.T) {
 			ipPort{"", 0},
 		},
 		{
-			"what the hell of such testcase:123",
+			"What the hell is wrong with this test case:123",
 			ipPort{"", 0},
 		},
 		{

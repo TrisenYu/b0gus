@@ -60,7 +60,7 @@ Local installation and configuration as a user-level service are not supported f
    to clearly indicate feature additions or code removals. Also specify the main modified files and 
    a brief description of your changes in the commit message.
 4. Once you confirm your implementation is logically correct and runs stably in your local environment
-   (i.e. free of logical bugs, memory leaks, out-of-bounds access and other abnormal behaviors), 
+   (i.e. free of logical bugs, race conditions, memory leaks, out-of-bounds access and other abnormal behaviors), 
    or you have added corresponding unit tests under diff\_tests and 
    all tests for your new feature pass completely, you may submit a Pull Request from your branch.
    After code review and further evaluation, your branch will be merged, 
@@ -83,7 +83,8 @@ This repository enforces restrictive rules for all code written herein:
    please automatically format your implementation code using local lint or 
    code formatting tools before creating a branch pull request.
 5. Except for automatically generated code implementations and unit test code, 
-   it is recommended that the number of code lines in each file does not exceed 2000.
+   it is recommended that the number of code lines in each file does not exceed $2000$.
+6. If necessary, you can create a documentation explaining for your code.
 
 ```python
 from typing import NoReturn

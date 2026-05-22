@@ -1,0 +1,27 @@
+on:
+  push:
+  pull_request:
+    branches:
+      - dev
+
+name: UnitTest
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout dev
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+
+      - name: setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          check-latest: false
+
+      - name: install other dependencies
+        uses: sudo apt install make
+
+      - name: test
+        run: make test

@@ -1,20 +1,19 @@
 package services
 
 import (
-	"b0gus/configs"
-	"b0gus/databases"
 	"bytes"
 	"io"
 	"net"
 	"net/http"
-	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+
+	"b0gus/configs"
+	"b0gus/databases"
 )
 
 type HTTPservConf struct {
@@ -39,7 +38,7 @@ func (hs *HTTPservConf) httpHook(c *gin.Context) {
 	defer c.Next()
 	serialized, err := proto.Marshal(pbObj)
 	if err != nil {
-		configs.Logger.Error(err.Error())
+		configs.Logger().Error(err.Error())
 		return
 	}
 	c.Request.UserAgent()
@@ -68,12 +67,12 @@ func (hs *HTTPservConf) Run(
 	args ...any,
 ) {
 	defer func() {
-		configs.Logger.Info(configs.GetLocalizedMsg(
+		configs.Logger().Info(configs.GetLocalizedMsg(
 			"services.HTTPQuitInfo", nil,
 		))
 	}()
 	if ConfObj == nil {
-		configs.Logger.Error(configs.GetLocalizedMsg(
+		configs.Logger().Error(configs.GetLocalizedMsg(
 			"services.HTTPNullConfErr", nil,
 		))
 		return
@@ -85,22 +84,18 @@ func (hs *HTTPservConf) Run(
 				"Actual": len(args),
 			},
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return
 	}
-	metaConf, ok := ConfObj.Load().
-		SelectTerm(configs.HTTPEnum).(configs.HTTPconfig)
+	_, ok := ConfObj.Load().SelectTerm(configs.HTTPEnum).(configs.HTTPconfig)
 	if !ok {
-		configs.Logger.Error(configs.GetLocalizedMsg(
+		configs.Logger().Error(configs.GetLocalizedMsg(
 			"services.HTTPConfLoadErr", nil,
 		))
 		return
 	}
 	hs.db = db
 	_ = hs.db.CreateTable(&databases.HttpInfo{})
-	var sb strings.Builder
-	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(metaConf.ListenPort)))
 
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = io.Discard
@@ -110,6 +105,7 @@ func (hs *HTTPservConf) Run(
 		ginLogger(),
 		// abort ginRecovery
 	)
+	// [TODO]: parse from given file register to the configuration
 	r.GET("/robots.txt", func(c *gin.Context) {
 		c.String(
 			http.StatusOK,
@@ -149,7 +145,7 @@ func httpLogger(c *gin.Context) {
 	query := c.Request.URL.RawQuery
 	c.Next()
 	cost := time.Since(start)
-	configs.Logger.Info(path,
+	configs.Logger().Info(path,
 		zap.Int("code", c.Writer.Status()),
 		zap.String("meth", c.Request.Method),
 		zap.String("path", path),

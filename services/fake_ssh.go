@@ -1,15 +1,16 @@
 // Package services
 package services
 
-/// Last modified at 2026/05/10 星期日 15:15:51
+/// Last modified at 2026/05/16 星期六 12:46:24
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,7 +51,7 @@ func getRandomSSHVersion() string {
 		payload := configs.GetLocalizedMsg(
 			"services.SSHversionWarn", nil,
 		)
-		configs.Logger.Warn(payload)
+		configs.Logger().Warn(payload)
 		return "SSH-2.0-OpenSSH_10.0p2_3.5.4 Debian-7"
 	}
 	for i := range 3 {
@@ -58,16 +59,19 @@ func getRandomSSHVersion() string {
 	}
 	buf[3] %= uint8(len(sshSoftwareArr))
 	buf[4] %= uint8(len(sshOSCommentArr))
-	var (
-		header     = "SSH-2.0-%s_%d.%d.%d %s"
-		sshVersion = fmt.Sprintf(
-			header,
-			sshSoftwareArr[buf[3]],
-			buf[0], buf[1], buf[2],
-			sshOSCommentArr[buf[4]],
-		)
-	)
-	return sshVersion
+	var sb strings.Builder
+	sb.WriteString("SSH-2.0-")
+	sb.WriteString(sshSoftwareArr[buf[3]])
+	sb.WriteRune('_')
+	sb.WriteString(strconv.Itoa(int(buf[0])))
+	sb.WriteRune('.')
+	sb.WriteString(strconv.Itoa(int(buf[1])))
+	sb.WriteRune('.')
+	sb.WriteString(strconv.Itoa(int(buf[2])))
+	sb.WriteRune(' ')
+	sb.WriteString(sshOSCommentArr[buf[4]])
+	// "SSH-2.0-%s_%d.%d.%d %s"
+	return sb.String()
 }
 
 // SSHServConf is designed for executing the fake ssh service.
@@ -94,7 +98,7 @@ func (s *SSHServConf) Run(
 			"services.SSHQuitInfo",
 			nil,
 		)
-		configs.Logger.Info(payload)
+		configs.Logger().Info(payload)
 	}()
 
 	if len(args) != 1 {
@@ -102,14 +106,14 @@ func (s *SSHServConf) Run(
 		payload := configs.GetLocalizedMsg(
 			"services.SSHRequireSignerAsOnlyArgErr", nil,
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return
 	} else if confObj == nil {
 		payload := configs.GetLocalizedMsg(
 			"services.SSHEmptyGlobConfigFailure",
 			nil,
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return
 	}
 	_, ok := confObj.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
@@ -118,7 +122,7 @@ func (s *SSHServConf) Run(
 			"services.SSHConfigLoadingFailure",
 			nil,
 		)
-		configs.Logger.Error(payload)
+		configs.Logger().Error(payload)
 		return
 	}
 	hostKey, ok := args[0].(ssh.Signer)
@@ -127,7 +131,7 @@ func (s *SSHServConf) Run(
 			"services.SSHCanNotUseSigner",
 			map[string]any{"Signer": hostKey},
 		)
-		configs.Logger.Warn(payload)
+		configs.Logger().Warn(payload)
 		return
 	}
 	s.hostSigner = hostKey
@@ -141,7 +145,7 @@ func (s *SSHServConf) Run(
 		&databases.RemoteCommandRelation{},
 	)
 	if err != nil {
-		configs.Logger.Error(err.Error())
+		configs.Logger().Error(err.Error())
 		return
 	}
 	var clientAux ReentrantNetType
@@ -203,7 +207,7 @@ func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 			&databases.RemotePublickeyRelation{SessionId: sessionID, Pid: pubkeyRecord.PubId},
 			&databases.RemoteSshverRelation{SessionId: sessionID, Sid: clientSshVersion.Id},
 		)
-		return nil, fmt.Errorf("public key authentication is not allowed")
+		return nil, errors.New("public key authentication is not allowed")
 	}
 
 	sshConfig := &ssh.ServerConfig{
@@ -225,7 +229,7 @@ func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 				"ErrInfo":    err,
 			},
 		)
-		configs.Logger.Error(errInfo)
+		configs.Logger().Error(errInfo)
 		return
 	}
 	defer func() { _ = sshConn.Close() }()
@@ -250,7 +254,7 @@ func (s *SSHServConf) handleNewSSHchan(
 ) {
 	defer func() { _ = sshConn.Close() }()
 	if newChan.ChannelType() != "session" {
-		configs.Logger.Debug(newChan.ChannelType())
+		configs.Logger().Debug(newChan.ChannelType())
 		_ = newChan.Reject(
 			ssh.UnknownChannelType,
 			"Unsupported channel type",
@@ -271,7 +275,7 @@ func (s *SSHServConf) handleNewSSHchan(
 			"ErrInfo":    err,
 		},
 	)
-	configs.Logger.Error(payload)
+	configs.Logger().Error(payload)
 }
 
 func (s *SSHServConf) mockShellForRemote(
@@ -295,12 +299,14 @@ func (s *SSHServConf) mockShellForRemote(
 			if !ok {
 				continue
 			}
-			welcomeMsg := fmt.Sprintf(
-				strings.ReplaceAll(snapshot.LoginBanner, "\n", "\r\n")+
-					"Last login: %s from %s\r\n",
-				time.Now().Format(time.ANSIC), sshConn.RemoteAddr().String(),
-			)
-			_, _ = sshChan.Write([]byte(welcomeMsg))
+			var sb strings.Builder
+			sb.WriteString(strings.ReplaceAll(snapshot.LoginBanner, "\n", "\r\n"))
+			sb.WriteString("Last login: ")
+			sb.WriteString(time.Now().Format(time.ANSIC))
+			sb.WriteString("from ")
+			sb.WriteString(sshConn.RemoteAddr().String())
+			sb.WriteString("\r\n")
+			_, _ = sshChan.Write([]byte(sb.String()))
 			go s.cmdForwarding(sessionId, sshChan)
 		case "pty-req":
 			fallthrough
@@ -352,7 +358,7 @@ func sshWinInfoDebug(req *ssh.Request) {
 		}
 	}
 	sb.WriteByte(']')
-	configs.Logger.Debug(sb.String())
+	configs.Logger().Debug(sb.String())
 }
 
 // cmdForwarding will create a mock shell for interaction
@@ -389,7 +395,7 @@ func (s *SSHServConf) cmdForwarding(
 			"services.SSHwriteResponseError",
 			map[string]any{"ErrInfo": err},
 		)
-		configs.Logger.Info(logInfo)
+		configs.Logger().Info(logInfo)
 	}()
 
 	for !shouldCease.Load() {
@@ -440,6 +446,7 @@ func (s *SSHServConf) evalAndstoreUntrustCmd(
 
 	// check if we can use LLM as the judger
 	// else use default syntax AST parser to check if the command is executable
+	// otherwise, the malform commands will stress the database ops
 
 	// if cmdNeedFilterOut(currPayload.Payload) { continue }
 

@@ -1,7 +1,6 @@
 package llm
 
 /// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-/// (C) All rights reserved. Author: <kisfg@hotmail.com> in 2026
 /// Last modified at 2026/05/12 星期二 12:29:13
 import (
 	"context"
@@ -15,7 +14,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
-	"github.com/tmc/langchaingo/llms/googleai"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
 
@@ -56,7 +54,24 @@ func (i InputForLLM) Wrap(
 	return sb.String()
 }
 
-func (l *LLMconfig) BalanceChecking(PtrOfRes any) error {
+type HttpHeaderSetAuthFn func(*http.Request, string)
+
+// WithBearerAuth will set http header with `Authorization: Bearer [APIKey]`
+// Typically will be utilized by Deepseek or Kimi.
+func WithBearerAuth(req *http.Request, key string) {
+	var sb strings.Builder
+	sb.WriteString("Bearer ")
+	sb.WriteString(key)
+	req.Header.Set("Authorization", sb.String())
+}
+
+// WithXapiAuth will set http header with `x-api-key: [APIKey]`
+// Typically will be utilized by Anthropic.
+func WithXapiAuth(req *http.Request, key string) {
+	req.Header.Set("x-api-key", key)
+}
+
+func (l *LLMconfig) CheckBalance(PtrOfRes any, headerOpt HttpHeaderSetAuthFn) error {
 	// [TODO]: define the structure of <PtrOfRes>
 	if len(l.BalanceAPI) == 0 || len(l.APIKey) == 0 {
 		return errors.New("balance api or api_key is empty")
@@ -68,10 +83,7 @@ func (l *LLMconfig) BalanceChecking(PtrOfRes any) error {
 	if err != nil {
 		return err
 	}
-	sb.Reset()
-	sb.WriteString("Bearer ")
-	sb.WriteString(l.APIKey)
-	req.Header.Set("Authorization", sb.String())
+	headerOpt(req, l.APIKey)
 	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return err
@@ -87,7 +99,7 @@ func (l *LLMconfig) AlterPrompt(taskType llmTaskType) {
 		sb.WriteString("unable to set prompt by current taskType<")
 		sb.WriteString(strconv.Itoa(int(taskType)))
 		sb.WriteRune('>')
-		configs.Logger.Warn(sb.String())
+		configs.Logger().Warn(sb.String())
 		return
 	}
 	l.RolePrompt = content
@@ -137,22 +149,6 @@ func (l *LLMconfig) initOllama() error {
 	return nil
 }
 
-func (l *LLMconfig) initGoogleAI() error {
-	if err := l.initCheck(); err != nil {
-		return err
-	}
-	opts := []googleai.Option{
-		googleai.WithDefaultModel(l.ModelName),
-		googleai.WithAPIKey(l.APIKey),
-	}
-	m, err := googleai.New(context.Background(), opts...)
-	if err != nil {
-		return err
-	}
-	l.model = m
-	return nil
-}
-
 func (l *LLMconfig) initAnthropic() error {
 	if err := l.initCheck(); err != nil {
 		return err
@@ -173,8 +169,8 @@ func (l *LLMconfig) initAnthropic() error {
 func (l *LLMconfig) SelectBackend(providerName string) error {
 	providerName = strings.ToLower(providerName)
 	switch providerName {
-	case "googleai":
-		return l.initGoogleAI()
+	// case "googleai":
+	//	return l.initGoogleAI()
 	case "ollama":
 		return l.initOllama()
 	case "anthropic":
@@ -199,6 +195,8 @@ func (l *LLMconfig) GenerateResponse( // GenerateResponse(SetMsg(...), nil)
 	streamFn func(context.Context, []byte) error,
 ) (string, error) {
 	// [TODO]: concurrent rate-limit and balance limit.
+	// it seems that Most LLM providers lack official public APIs for directly querying account balance and
+	// remaining credits.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	payload := []llms.CallOption{
@@ -206,6 +204,9 @@ func (l *LLMconfig) GenerateResponse( // GenerateResponse(SetMsg(...), nil)
 	}
 	if streamFn != nil {
 		payload = append(payload, llms.WithStreamingFunc(streamFn))
+	}
+	if l.model == nil {
+		return "", errors.New("model is empty")
 	}
 	resp, err := l.model.GenerateContent(
 		ctx, msg,
@@ -239,7 +240,7 @@ func (l *LLMconfig) LoadFromFile(path string) error {
 	return err
 }
 
-func (l *LLMconfig) ShellCmdValidation(x string) (string, error) {
+func (l *LLMconfig) ValidateShellCmd(x string) (string, error) {
 	err := l.LoadFromFile("[TODO]")
 	if err != nil {
 		// handle by other shell command checking functions.

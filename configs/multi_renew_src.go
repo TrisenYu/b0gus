@@ -31,7 +31,7 @@ func LoadDefaultConfig(confPath string) *LocalConfig {
 			"configs.ReadingConfigurationFailure",
 			map[string]any{"ErrInfo": err},
 		)
-		Logger.Fatal(payload)
+		Logger().Fatal(payload)
 		return nil
 	}
 
@@ -45,7 +45,7 @@ func LoadDefaultConfig(confPath string) *LocalConfig {
 			"configs.UnmarshallingConfigurationFailure",
 			map[string]any{"ErrInfo": err},
 		)
-		Logger.Fatal(payload)
+		Logger().Fatal(payload)
 		return nil
 	}
 	return &currConfig
@@ -61,7 +61,7 @@ func AlterLocalConf() {
 			"configs.ReloadingConfigurationFailure",
 			map[string]any{"ErrInfo": err},
 		)
-		Logger.Error(payload)
+		Logger().Error(payload)
 		return
 	}
 	// UpdateFlag <- tmpHotConf
@@ -74,13 +74,13 @@ func AlterLocalConf() {
 func monitorGivenLocalConf(ctx context.Context, path string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		Logger.Error("unable to create watcher for given file!")
+		Logger().Error("unable to create watcher for given file!")
 		return
 	}
 	defer func() { _ = watcher.Close() }()
 	fileName := filepath.Base(path)
 	if err := watcher.Add(filepath.Dir(path)); err != nil {
-		Logger.Error("unable to monitor the directory of given file!")
+		Logger().Error("unable to monitor the directory of given file!")
 		return
 	}
 	for {
@@ -99,7 +99,7 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 				// check and push current update
 				// AlterLocalConf()
 			case fsnotify.Remove:
-				Logger.Info("given file has been removed at time, won't reload!")
+				Logger().Info("given file has been removed at time, won't reload!")
 				fallthrough
 			default:
 				// do not concern rename event.
@@ -110,7 +110,7 @@ func monitorGivenLocalConf(ctx context.Context, path string) {
 				var sb strings.Builder
 				sb.WriteString("errors happened on file watcher! ErrInfo: ")
 				sb.WriteString(err.Error())
-				Logger.Error(sb.String())
+				Logger().Error(sb.String())
 			}
 			continue
 			// TODO: updates from networking-end and cli-shell end.

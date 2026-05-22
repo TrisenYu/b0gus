@@ -1,14 +1,11 @@
 package services
 
+/// Last modified at 2026/05/16 星期六 12:21:03
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
-	"b0gus/configs"
-	"b0gus/crypto_aux"
-
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -21,6 +18,9 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 	"golang.org/x/net/icmp"
+
+	"b0gus/configs"
+	"b0gus/crypto_aux"
 )
 
 // AbsServNetAux is a business-callback interface used by the ReentrantNetType.
@@ -41,12 +41,15 @@ type AbsServNetAux interface {
 // ReentrantNetType is used for directly setup network listener without caring
 // how to update monitoring port or its corresponding type.
 type ReentrantNetType struct {
-	fdGuard       sync.RWMutex
-	callBack      AbsServNetAux
-	clientLimiter atomic.Uint32 // clientLimiter is as a filter to limit the max number of alive connections.
+	fdGuard  sync.RWMutex
+	cbGuard  sync.RWMutex // cbGuard is used for promising the concurrent security of callBack
+	callBack AbsServNetAux
+	// clientLimiter is as a filter to limit the max number of alive connections.
+	clientLimiter atomic.Uint32
 	ShutdownFlag  atomic.Bool
-	servFd        io.Closer        // servFd temporarily stores the listener and is guarded by fdGuard
-	servTag       configs.ServEnum // servTag holds the service ID.
+	servFd        io.Closer // servFd temporarily stores the listener and is guarded by fdGuard
+	// servTag holds the service ID.
+	servTag configs.ServEnum
 }
 
 type NetTypeEnum int // maintain as tcp/ip suite
@@ -63,13 +66,14 @@ func (nt *ReentrantNetType) AlterNetFd(
 	netType NetTypeEnum,
 	confObj *atomic.Pointer[configs.LocalConfig],
 ) {
-	if nt.servTag < configs.RawEnum || nt.servTag >= configs.ENDofEnum {
-		configs.Logger.Error(
+	tag, _ := nt.getCallBackFnWithServTag()
+	if tag < configs.RawEnum || tag >= configs.ENDofEnum {
+		configs.Logger().Error(
 			configs.GetLocalizedMsg("services.absTCPIPUninitErr", nil),
 		)
 		return
 	} else if confObj == nil {
-		configs.Logger.Error(
+		configs.Logger().Error(
 			configs.GetLocalizedMsg("services.absTCPIPUnknownNetType", nil),
 		)
 		return
@@ -94,7 +98,7 @@ func (nt *ReentrantNetType) AlterNetFd(
 		// because there is no notion named port in ICMP.
 		// for windows, skip this function calling.
 		if runtime.GOOS == "windows" {
-			configs.Logger.Warn("windows does not support to startup an ICMP server")
+			configs.Logger().Warn("windows does not support to startup an ICMP server")
 			return
 		}
 		if nt.servFd != nil {
@@ -103,7 +107,7 @@ func (nt *ReentrantNetType) AlterNetFd(
 			nt.icmp()
 		}
 	default:
-		configs.Logger.Warn(
+		configs.Logger().Warn(
 			configs.GetLocalizedMsg("services.UnknownNetType", nil),
 		)
 		return
@@ -111,14 +115,15 @@ func (nt *ReentrantNetType) AlterNetFd(
 }
 
 func (nt *ReentrantNetType) errHandler(err error) {
-	choice, ok := configs.ServLUT[nt.servTag]
+	tag, _ := nt.getCallBackFnWithServTag()
+	choice, ok := configs.ServLUT[tag]
 	if !ok {
 		choice = "<unknown services>: "
 	}
 	var sb strings.Builder
 	sb.WriteString(choice)
 	sb.WriteString(err.Error())
-	configs.Logger.Warn(sb.String())
+	configs.Logger().Warn(sb.String())
 }
 
 func (nt *ReentrantNetType) portFailCheck(port uint16) bool {
@@ -133,38 +138,44 @@ func (nt *ReentrantNetType) portFailCheck(port uint16) bool {
 }
 
 func (nt *ReentrantNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
-	port := ConfObj.Load().SelectPort(nt.servTag)
+	tag, _ := nt.getCallBackFnWithServTag()
+	port := ConfObj.Load().SelectPort(tag)
 	if nt.portFailCheck(port) {
 		return
 	}
 	var (
 		listener net.Listener = nil
 		err      error
+		sb       strings.Builder
 	)
 	// [TODO]: extended definitions of self-signed-off certificate for intranet?
-	certPath, keyPath, RemoteServ := ConfObj.Load().SelectTLSpairWithRemoteHost(nt.servTag)
+	certPath, keyPath, RemoteServ := ConfObj.Load().SelectTLSpairWithRemoteHost(tag)
+	sb.WriteRune(':')
+	sb.WriteString(strconv.Itoa(int(port)))
 	if len(certPath) != 0 && len(keyPath) != 0 {
-		var tlsConf *tls.Config = nil
+		tlsConf := (*tls.Config)(nil)
 		if len(RemoteServ) == 0 {
-			tlsConf = crypto_aux.NormalLoadCertAsTLSServ(certPath, keyPath)
+			tlsConf = crypto_aux.LoadNormalCertAsTLSServ(certPath, keyPath)
 		} else {
-			tlsConf = crypto_aux.NormalLoadCertAsTLSClient(certPath, keyPath, RemoteServ)
+			tlsConf = crypto_aux.LoadNormalCertAsTLSClient(certPath, keyPath, RemoteServ)
 		}
 		if tlsConf != nil {
-			listener, err = tls.Listen("tcp", fmt.Sprintf(":%d", port), tlsConf)
+			listener, err = tls.Listen("tcp", sb.String(), tlsConf)
 		}
 	}
 	if listener == nil {
-		listener, err = net.Listen("tcp", fmt.Sprintf(":%d", port))
+		listener, err = net.Listen("tcp", sb.String())
 	}
 	if err != nil {
 		nt.errHandler(err)
 		return
 	}
 	defer func() { _ = listener.Close() }()
+
 	nt.fdGuard.Lock()
 	nt.servFd = listener
 	nt.fdGuard.Unlock()
+
 	nt.clientLimiter.Store(0)
 	defer nt.CloseServFd()
 	nt.ShutdownFlag.Store(false)
@@ -177,6 +188,7 @@ func (nt *ReentrantNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 		nt.fdGuard.RUnlock()
 		inConn, err := currListener.Accept()
 		if err != nil {
+			// FIXME: noisy for the same connection try
 			nt.errHandler(err)
 			continue
 		}
@@ -193,7 +205,8 @@ func (nt *ReentrantNetType) tcpClientHandler(
 	inConn net.Conn,
 	ConfObj *atomic.Pointer[configs.LocalConfig],
 ) {
-	if nt.clientLimiter.Load() >= ConfObj.Load().SelectMaxClient(nt.servTag) {
+	tag, _ := nt.getCallBackFnWithServTag()
+	if nt.clientLimiter.Load() >= ConfObj.Load().SelectMaxClient(tag) {
 		_ = inConn.Close()
 		return
 	}
@@ -202,7 +215,7 @@ func (nt *ReentrantNetType) tcpClientHandler(
 		_ = inConn.Close()
 		nt.clientLimiter.Add(^uint32(0))
 	}()
-	timeoutVal := ConfObj.Load().SelectTimeout(nt.servTag)
+	timeoutVal := ConfObj.Load().SelectTimeout(tag)
 	if timeoutVal != 0 {
 		currTimeout := time.Duration(timeoutVal) * time.Second
 		err := inConn.SetDeadline(time.Now().Add(currTimeout))
@@ -211,10 +224,11 @@ func (nt *ReentrantNetType) tcpClientHandler(
 			return
 		}
 	}
-	if nt.callBack == nil {
+	_, cb := nt.getCallBackFnWithServTag()
+	if cb == nil {
 		return
 	}
-	nt.callBack.InvokeForTCPtask(inConn)
+	cb.InvokeForTCPtask(inConn)
 }
 
 // CloseServFd attempt to close nt.servFd and set it to nil when finding it is not nil.
@@ -228,7 +242,8 @@ func (nt *ReentrantNetType) CloseServFd() {
 }
 
 func (nt *ReentrantNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
-	port := ConfObj.Load().SelectPort(nt.servTag)
+	tag, _ := nt.getCallBackFnWithServTag()
+	port := ConfObj.Load().SelectPort(tag)
 	if nt.portFailCheck(port) {
 		return
 	}
@@ -256,7 +271,7 @@ func (nt *ReentrantNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 		nt.fdGuard.RLock()
 		currListener, ok := nt.servFd.(*net.UDPConn)
 		if !ok {
-			configs.Logger.Warn(
+			configs.Logger().Warn(
 				configs.GetLocalizedMsg("services.UDPConnCastingErr", nil),
 			)
 			nt.fdGuard.RUnlock()
@@ -265,7 +280,8 @@ func (nt *ReentrantNetType) udp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 		nt.fdGuard.RUnlock()
 		// Don't set timeout for udp connection
 		dataBuf := make([]byte, 1024)
-		_, remoteConn, err := currListener.ReadFromUDP(dataBuf)
+		n, remoteConn, err := currListener.ReadFromUDP(dataBuf)
+		dataBuf = dataBuf[:n]
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
 			break
 		} else if err != nil {
@@ -283,10 +299,11 @@ func (nt *ReentrantNetType) udpResponse(addr *net.UDPAddr, dataBuf []byte) {
 		return
 	}
 	defer func() { _ = wConn.Close() }()
-	if nt.callBack == nil {
+	_, cb := nt.getCallBackFnWithServTag()
+	if cb == nil {
 		return
 	}
-	_, _ = wConn.Write(nt.callBack.InvokeForUDPtask(addr, dataBuf))
+	_, _ = wConn.Write(cb.InvokeForUDPtask(addr, dataBuf))
 }
 
 // icmp implements for Internet Control Message Protocol
@@ -312,7 +329,8 @@ func (nt *ReentrantNetType) icmp() {
 			nt.errHandler(err)
 			continue
 		}
-		if nt.callBack == nil {
+		_, cb := nt.getCallBackFnWithServTag()
+		if cb == nil {
 			continue
 		}
 		/*
@@ -322,26 +340,33 @@ func (nt *ReentrantNetType) icmp() {
 			sb.WriteString(srcIP.String())
 			sb.WriteString(">, length is ")
 			sb.WriteString(strconv.Itoa(len(remotePayload)))
-			configs.Logger.Info(sb.String())
+			configs.Logger().Info(sb.String())
 		*/
-		go nt.callBack.InvokeForICMPtask(remoteConn, dataBuf[:length])
+		go cb.InvokeForICMPtask(remoteConn, dataBuf[:length])
 	}
 }
 
 func (nt *ReentrantNetType) http(confObj *atomic.Pointer[configs.LocalConfig]) {
-	port := confObj.Load().SelectPort(nt.servTag)
+	tag, cb := nt.getCallBackFnWithServTag()
+	port := confObj.Load().SelectPort(tag)
 	if nt.portFailCheck(port) {
 		return
-	} else if nt.callBack == nil {
+	} else if cb == nil {
 		// in this case, show as a try for meaningless HTTP listening
 		return
 	}
-	certPath, keyPath, _ := confObj.Load().SelectTLSpairWithRemoteHost(nt.servTag)
-	var err error
+	certPath, keyPath, _ := confObj.Load().SelectTLSpairWithRemoteHost(tag)
+	var (
+		err error
+		sb  strings.Builder
+	)
+
+	sb.WriteRune(':')
+	sb.WriteString(strconv.Itoa(int(port)))
 	if len(certPath) == 0 || len(keyPath) == 0 {
 		listener := &http.Server{
-			Addr:    fmt.Sprintf(":%d", port),
-			Handler: nt.callBack,
+			Addr:    sb.String(),
+			Handler: cb,
 		}
 		nt.fdGuard.Lock()
 		nt.servFd = listener
@@ -350,8 +375,8 @@ func (nt *ReentrantNetType) http(confObj *atomic.Pointer[configs.LocalConfig]) {
 		err = listener.ListenAndServe()
 	} else {
 		listener := &http3.Server{
-			Addr:    fmt.Sprintf(":%d", port),
-			Handler: nt.callBack,
+			Addr:    sb.String(),
+			Handler: cb,
 		}
 		nt.fdGuard.Lock()
 		nt.servFd = listener
@@ -368,7 +393,15 @@ func (nt *ReentrantNetType) http(confObj *atomic.Pointer[configs.LocalConfig]) {
 // In order to identify with which service the ReentrantNetType is helping,
 // servTag is thereby required.
 func (nt *ReentrantNetType) Init(servTag configs.ServEnum, callBack AbsServNetAux) {
+	nt.cbGuard.Lock()
+	defer nt.cbGuard.Unlock()
 	nt.servTag, nt.callBack = servTag, callBack
+}
+
+func (nt *ReentrantNetType) getCallBackFnWithServTag() (configs.ServEnum, AbsServNetAux) {
+	nt.cbGuard.RLock()
+	defer nt.cbGuard.RUnlock()
+	return nt.servTag, nt.callBack
 }
 
 // EventMonitor will attempt to update or shutdown the networking port
@@ -376,7 +409,8 @@ func (nt *ReentrantNetType) EventMonitor(
 	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
 ) {
-	if nt.servTag < configs.RawEnum || nt.callBack == nil {
+	tag, cb := nt.getCallBackFnWithServTag()
+	if tag < configs.RawEnum || cb == nil {
 		return
 	}
 back:

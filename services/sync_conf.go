@@ -34,7 +34,7 @@ func PullUpdatesFromRemote(
 	// clientAux.AlterNetFd(TCPEnum)
 	tmpConf := crypto_aux.LoadLocalCertAsTLSServ(rootCaPath, signedCertPath, signedKeyPath)
 	if tmpConf == nil {
-		configs.Logger.Error("empty tlsConfig!")
+		configs.Logger().Error("empty tlsConfig!")
 		return
 	}
 	listener, err := tls.Listen(
@@ -42,11 +42,11 @@ func PullUpdatesFromRemote(
 		tmpConf,
 	)
 	if err != nil || listener == nil {
-		configs.Logger.Warn("can not listen on given tls port...")
+		configs.Logger().Warn("can not listen on given tls port...")
 		if err != nil {
-			configs.Logger.Error(err.Error())
+			configs.Logger().Error(err.Error())
 		} else {
-			configs.Logger.Error("listener is nil")
+			configs.Logger().Error("listener is nil")
 		}
 		return
 	}
@@ -80,11 +80,11 @@ func handleTrustUpdateClients(tlsConn net.Conn) {
 		buf := make([]byte, 1024)
 		_, err := tlsConn.Read(buf)
 		if err != nil {
-			configs.Logger.Warn(err.Error())
+			configs.Logger().Warn(err.Error())
 			return
 		}
 		// we have to deal with a private protocol
 		// otherwise we can only collect limited string at one time
-		configs.Logger.Info(string(bytes.Trim(buf, "\x00")))
+		configs.Logger().Info(string(bytes.Trim(buf, "\x00")))
 	}
 }

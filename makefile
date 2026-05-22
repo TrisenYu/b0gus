@@ -1,7 +1,7 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/19 星期二 17:02:58
+# Last modified at 2026/05/20 星期三 22:04:34
 b0gus_name=b0gus
-b0gus_ver=0.1.2
+b0gus_ver=0.2.0
 
 phony=
 
@@ -90,9 +90,9 @@ endif
 ### set up link flags
 # well, $(b0gus_name) has to be precompiled so that the shell pipeline command below can work.
 ## go tool nm $(b0gus_name) | grep -in "versionStr" | awk '{print $NF}'
-must_set_flag=-X 'main.versionStr=$(b0gus_ver)' 		\
-              -X 'main.buildTimeStr=$(build_time_str)' 	\
-              -X 'main.hashValStr=$(b0gus_hash)'		\
+must_set_flag=-X 'main.versionStr=$(b0gus_ver)'        \
+              -X 'main.buildTimeStr=$(build_time_str)' \
+              -X 'main.hashValStr=$(b0gus_hash)'       \
 			  -X 'main.builtByStr=$(build_username)'
 
 help:
@@ -105,11 +105,14 @@ help:
 	"    dry-run   - trial\n" 								            \
 	"    perf      - evaluate performance\n"                            \
 	"    clean     - clean build files and registered files\n"          \
-	"    fuzz      - use {go fuzz} to fuzz available testcases\n\n"     \
+	"    fuzz      - use {go fuzz} to fuzz available testcases\n"       \
+	"    golint    - use golint-cli to lint current codes\n\n"          \
 	"docker-build  - build b0gus by docker\n\n"                         \
 	"uv-fresh-dep  - update the dependencies in requirements.txt\n"     \
 	"    pylint    - lint for python scripts or codes\n"                \
-	"    pytest    - test for python scripts or codes"
+	"    pytest    - test for python scripts or codes\n\n"              \
+	"   test-all   - test all testcases\n"                              \
+	"   lint-all   - lint all available codes"
 phony += help
 
 
@@ -132,7 +135,6 @@ release_link_opts=-trimpath -pgo=off            \
 	-ldflags="-s -w $(must_set_flag)            \
         -X 'b0gus/configs.BuildTypeStr=release' \
         -buildid= "
-
 
 release: deps
 	-$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
@@ -159,7 +161,13 @@ dry-run: release
 phony += dry-run
 
 test:
-	-cd diff_tests && go test -race -v
+	-go test -race -v              \
+		-count=1 -failfast         \
+		-covermode=atomic          \
+		-coverprofile=coverage.out \
+		-coverpkg=./... ./... &&   \
+	go tool cover -func=coverage.out | grep -iI "total"
+
 phony += test
 
 
@@ -174,28 +182,30 @@ phony += perf
 
 fuzz: test
 # fuzz in 2 minutes
-# that is weird... we can not run go fuzzing test sequentially
+# [TODO]: that is weird... we can not run go fuzzing test sequentially
 	cd diff_tests &&                                                  \
 	go test -v -fuzz=FuzzShell -fuzztime=120s -parallel=2 -run=^$$ && \
 	go test -v -fuzz=FuzzHash -fuzztime=120s -parallel=4 -run=^$$
 phony += fuzz
 
 mock:
-# TODO: correct the alias for mockgen
-	~/go/bin/mockgen                                \
+	-$(shell go env GOPATH)/bin/mockgen             \
 		-source=services/abstract_tcpip.go          \
 		-destination=internal/mock/mock_net_serv.go \
 		-package=mock
-	~/go/bin/mockgen                          \
+	-$(shell go env GOPATH)/bin/mockgen       \
 		-source=databases/db_aux.go           \
 		-destination=internal/mock/mock_db.go \
 		-package=mock
-
 phony += mock
 
-#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related
+golint:
+	-$(shell go env GOPATH)/bin/golangci-lint run ./...
+phony += golint
 
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related
 docker-build:
+	@$(dock) build -t b0gus-img -f buildImg.Dockerfile .
 	@$(dock) run --rm --entrypoint /bin/cat b0gus-img /app/b0gus > $(b0gus_name)
 phony += docker-build
 
@@ -234,5 +244,12 @@ phony += pylint
 pytest: __pyenv-check
 	@uv run pytest
 phony += pytest
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- integrated formating or testing
+test-all: pytest fuzz
+phony += test-all
+
+lint-all: pylint golint
+phony += lint-all
 
 .PHONY: $(phony)

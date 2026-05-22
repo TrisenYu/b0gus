@@ -20,6 +20,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -123,8 +124,10 @@ func TestMockSSH(t *testing.T) {
 	assert.True(t, ok, "Expected to find SSH config")
 	val.TLSKeyPath = pemPath
 	val.PermitLogin = true
+	val.ListenPort = 3222
 	m.ReloadByAssignment(val)
-
+	restore := zap.ReplaceGlobals(zap.NewNop())
+	defer restore()
 	go (&services.SSHServConf{}).Run(
 		&m.FakeConf,
 		&configs.ServConcurrentCtrl{Ctx: m.Ctx},
@@ -180,6 +183,8 @@ func TestMockNTP(t *testing.T) {
 	m.ReloadByAssignment(val)
 
 	// [TODO]: Noisy and chaos logging actions
+	restore := zap.ReplaceGlobals(zap.NewNop())
+	defer restore()
 	go (&services.NTPServConf{}).Run(
 		&m.FakeConf,
 		&configs.ServConcurrentCtrl{Ctx: m.Ctx},
@@ -225,6 +230,8 @@ func TestMockDNS(t *testing.T) {
 	val.ListenPort = 5553
 	m.ReloadByAssignment(val)
 	defer m.Cancel()
+	restore := zap.ReplaceGlobals(zap.NewNop())
+	defer restore()
 	go (&services.DNSservConf{}).Run(
 		&m.FakeConf,
 		&configs.ServConcurrentCtrl{Ctx: m.Ctx},

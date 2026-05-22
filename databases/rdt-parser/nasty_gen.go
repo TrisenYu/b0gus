@@ -1,3 +1,6 @@
+//go:build tools
+// +build tools
+
 package main
 
 // Last modified at 2026/02/11 星期三 22:25:54

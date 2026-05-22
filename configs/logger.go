@@ -7,15 +7,29 @@ package configs
 import (
 	"os"
 	"strings"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 var (
-	Logger       *zap.Logger
+	_logger      atomic.Value
 	BuildTypeStr string
 )
+
+func SetLogger(l *zap.Logger) {
+	tmp, ok := _logger.Load().(*zap.Logger)
+	if ok && tmp != nil {
+		_ = tmp.Sync()
+	}
+	_logger.Store(l)
+}
+
+func Logger() *zap.Logger {
+	res, _ := _logger.Load().(*zap.Logger)
+	return res
+}
 
 func init() {
 	encoderConfig := zap.NewProductionEncoderConfig()
@@ -30,11 +44,12 @@ func init() {
 		choice = zap.DebugLevel
 	}
 	LoggerCore := zapcore.NewCore(loggerEncoder, writeSyncer, choice)
-	Logger = zap.New(
+	SetLogger(zap.New(
 		LoggerCore,
 		zap.AddCaller(),
 		zap.AddCallerSkip(1),
-	)
-	zap.ReplaceGlobals(Logger)
+	))
+
+	// zap.ReplaceGlobals(Logger)
 	// TODO: gain from global configuration and decide writing to which log file.
 }

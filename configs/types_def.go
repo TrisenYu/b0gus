@@ -11,16 +11,21 @@ import (
 
 // services structures' definitions
 
+// TLSFilesConf holds files' paths that are set to TLS pair(i.e. cert, key).
+type TLSFilesConf struct {
+	// path to Certificate signed-off by real CA for helping authenticate the communicating entity
+	TLSCertPath string `toml:"tls_cert_path" json:"tls_cert_path" mapstructure:"tls_cert_path"`
+	// path to private key of one certificate signed-off by real CA
+	TLSKeyPath string `toml:"tls_key_path" json:"tls_key_path" mapstructure:"tls_key_path"`
+}
+
 // GenericServConf defines:
 //   - port number for the service
 //   - the maximum client number
 //   - the connection timeout
 //   - TLS (key, cert) path.
 type GenericServConf struct {
-	// path to Certificate signed-off by real CA for helping authenticate the communicating entity
-	TLSCertPath string `toml:"tls_cert_path" json:"tls_cert_path" mapstructure:"tls_cert_path"`
-	// path to private key of one certificate signed-off by real CA
-	TLSKeyPath        string `toml:"tls_key_path" json:"tls_key_path" mapstructure:"tls_key_path"`
+	TLSFilesConf      `toml:",inline" json:",inline" mapstructure:",squash"`
 	MaxClientNum      uint32 `toml:"max_client_num" json:"max_client_num" mapstructure:"max_client_num"`
 	ClientConnTimeout uint32 `toml:"client_conn_timeout" json:"client_conn_timeout" mapstructure:"client_conn_timeout"`
 	ListenPort        uint16 `toml:"listen_port" json:"listen_port" mapstructure:"listen_port"`
@@ -64,19 +69,20 @@ type SMTPconfig struct {
 }
 
 type HTTPconfig struct {
-	GenericServConf `toml:",inline" mapstructure:",squash"`
+	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 type FakeDBconf struct {
-	GenericServConf `toml:",inline" mapstructure:",squash"`
+	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
 	ListenAddr      string `toml:"listen_addr" json:"listen_addr" mapstructure:"listen_addr"`
 }
 
 // RecDBConfig here means the recording database for attacker features
 // not as a bogus service.
 type RecDBConfig struct {
+	TLSFilesConf  `toml:",inline" json:",inline" mapstructure:",squash"`
 	Type          string `toml:"type" json:"type" mapstructure:"type"`
-	Name          string `toml:"name" json:"name" mapstructure:"name"`
+	DBName        string `toml:"db_name" json:"db_name" mapstructure:"db_name"`
 	Path          string `toml:"path" json:"path" mapstructure:"path"`
 	Addr          string `toml:"addr" json:"addr" mapstructure:"addr"`
 	AdminName     string `toml:"admin_name" json:"admin_name" mapstructure:"admin_name"`
@@ -305,7 +311,7 @@ func CheckSMTPconfig(smtpConf *SMTPconfig) bool {
 		return false
 	}
 	return len(smtpConf.ListenAddr) != 0 && smtpConf.ListenPort > 1024 &&
-		fPairChecking(smtpConf.TLSKeyPath, smtpConf.TLSCertPath)
+		CheckFilePair(smtpConf.TLSKeyPath, smtpConf.TLSCertPath)
 }
 
 func CheckHTTPconfig(httpConf *HTTPconfig) bool {
@@ -313,11 +319,11 @@ func CheckHTTPconfig(httpConf *HTTPconfig) bool {
 		return false
 	}
 	return httpConf.ListenPort > 1024 &&
-		fPairChecking(httpConf.TLSKeyPath, httpConf.TLSCertPath)
+		CheckFilePair(httpConf.TLSKeyPath, httpConf.TLSCertPath)
 }
 
-// fPairChecking will check if both file path (noted as fpath1, fpath2) exist at the same time or not.
-func fPairChecking(fpath1, fpath2 string) bool {
+// CheckFilePair will check if both file path (noted as fpath1, fpath2) exist at the same time or not.
+func CheckFilePair(fpath1, fpath2 string) bool {
 	_, err1 := os.Stat(fpath1)
 	_, err2 := os.Stat(fpath2)
 	return (os.IsNotExist(err1) && os.IsNotExist(err2) &&

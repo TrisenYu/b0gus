@@ -1,8 +1,8 @@
 package services
 
+/// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
+/// Last modified at 2026/05/16 星期六 12:36:17
 /*
-	SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-
 an SMTP server runs at port 25, SMTPS server is at 465
 references:
 	https://github.com/phin3has/mailoney
@@ -14,23 +14,22 @@ references:
 */
 
 import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"errors"
+	"math/rand/v2"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"time"
+
 	"b0gus/configs"
 	"b0gus/crypto_aux"
 	"b0gus/databases"
 	"b0gus/terminal"
-	"bytes"
-	"context"
-	//"bufio"
-	"crypto/tls"
-	"errors"
-	"fmt"
-	"math/rand/v2"
-	"net"
-	"net/http"
-	//"net/textproto"
-	"strings"
-	"sync/atomic"
-	"time"
 )
 
 type (
@@ -82,7 +81,6 @@ const (
 )
 
 type SMTPClientCtx struct {
-	ctx         context.Context
 	term        *terminal.Shell
 	LoginStatus SMTPLoginStatus
 	CmdStatus   SMTPCmdStatus
@@ -98,7 +96,11 @@ func (s *SMTPClientCtx) SendResp(
 	ctx context.Context,
 	code SMTPRespStatus, resp string,
 ) {
-	payload := fmt.Sprintf("%d %s", code, resp)
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(int(code)))
+	sb.WriteRune(' ')
+	sb.WriteString(resp)
+	payload := sb.String()
 	// TODO: unexpected output behavior:
 	// 	response from write-end will be faster than setCurrResp-end.
 	if ctx == nil {
@@ -227,9 +229,10 @@ func (s *SMTPClientCtx) upgradeToTLS(
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf(
-			"unable to load cert due to err: %v", err,
-		)
+		var sb strings.Builder
+		sb.WriteString("unable to load cert due to err: ")
+		sb.WriteString(err.Error())
+		return nil, errors.New(sb.String())
 	}
 	tlsConfig := &tls.Config{ // TLS here requires real CA-signed certificates
 		Certificates:           []tls.Certificate{cert},
@@ -240,7 +243,10 @@ func (s *SMTPClientCtx) upgradeToTLS(
 	tlsConn := tls.Server(conn, tlsConfig)
 	if err := tlsConn.Handshake(); err != nil {
 		_ = tlsConn.Close()
-		return nil, fmt.Errorf("handshake failure: %v", err)
+		var sb strings.Builder
+		sb.WriteString("handshake failure: ")
+		sb.WriteString(err.Error())
+		return nil, errors.New(sb.String())
 	}
 	// [TODO]: shall we record this state? And how shall we effectively record them?
 	// state := tlsConn.ConnectionState()
@@ -325,7 +331,10 @@ func (s *SMTPClientCtx) CommandDispatcher(
 		fallthrough
 	default:
 		// drop argument. Still beyond reproach
-		s.SendResp(ctx, SMTPCmdNotImpl, fmt.Sprintf("unrecognized command: %s", cmdPref))
+		var sb strings.Builder
+		sb.WriteString("unrecognized command: ")
+		sb.WriteString(cmdPref)
+		s.SendResp(ctx, SMTPCmdNotImpl, sb.String())
 		return SMTPCmdNotImpl
 	}
 	return SMTPOk
@@ -396,6 +405,7 @@ func (s *SMTPClientCtx) tlsHandler(
 	return nil
 }
 
+// rcptHandler will handle for command rcpt
 func (s *SMTPClientCtx) rcptHandler() {
 	// if currSMTPconf.AuthRequired && !s.Authorized {
 	// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
@@ -417,6 +427,7 @@ func (s *SMTPClientCtx) rcptHandler() {
 	// // one mail can have multiple receivers
 }
 
+// dataHandler will handle for command data
 func (s *SMTPClientCtx) dataHandler() {
 	// if currSMTPconf.AuthRequired && !s.Authorized {
 	// 	_ = s.SendResp(SMTPAuthErr, "Yet to be authorized")
@@ -463,7 +474,7 @@ func (s *SMTPServConf) InvokeForTCPtask(conn net.Conn) {
 			var sb strings.Builder
 			sb.WriteString("<SMTP>: ")
 			sb.WriteString(err.Error())
-			configs.Logger.Error(sb.String())
+			configs.Logger().Error(sb.String())
 		}
 	}()
 
@@ -491,14 +502,14 @@ func (s *SMTPServConf) InvokeForTCPtask(conn net.Conn) {
 		if res == nil {
 			break
 		}
-		switch res.(type) {
+		switch rs := res.(type) {
 		case error:
 			var sb strings.Builder
 			sb.WriteString("<SMTP>: ")
 			sb.WriteString(conn.RemoteAddr().String())
 			sb.WriteString(" ")
-			sb.WriteString(res.(error).Error())
-			configs.Logger.Error(sb.String())
+			sb.WriteString(rs.Error())
+			configs.Logger().Error(sb.String())
 		}
 	}
 }
@@ -519,7 +530,7 @@ func (s *SMTPServConf) Run(
 	args ...any,
 ) {
 	defer func() {
-		configs.Logger.Info(configs.GetLocalizedMsg(
+		configs.Logger().Info(configs.GetLocalizedMsg(
 			"services.SMTPQuitInfo", nil,
 		))
 	}()
@@ -530,10 +541,10 @@ func (s *SMTPServConf) Run(
 				"Expect": 1, "Actual": len(args),
 			},
 		)
-		configs.Logger.Info(payload)
+		configs.Logger().Info(payload)
 		return
 	} else if confObj == nil {
-		configs.Logger.Error(configs.GetLocalizedMsg(
+		configs.Logger().Error(configs.GetLocalizedMsg(
 			"services.SMTPNullConfErr", nil,
 		))
 		return

@@ -1,19 +1,21 @@
 package services
 
 import (
-	"b0gus/configs"
-	"b0gus/databases"
 	"context"
 	"math/rand/v2"
 	"net"
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"codeberg.org/miekg/dns"
 	"codeberg.org/miekg/dns/dnsutil"
 	"codeberg.org/miekg/dns/rdata"
+
+	"b0gus/configs"
+	"b0gus/databases"
 )
 
 // Reference: https://github.com/EmilHernvall/dnsguide/
@@ -124,7 +126,7 @@ func getDNSrr(queryType uint16, headerName string) dns.RR {
 	return nil
 }
 
-// analyze Query will record
+// analyzeQuery will record the remote request
 func (d *DNSservConf) analyzeQuery(req dns.RR, m *dns.Msg) {
 	headerName := req.Header().Name
 	payload := databases.DnsQuery{
@@ -170,12 +172,13 @@ func (d *DNSservConf) ServeDNS(
 	m.Response = true
 	_, err = m.WriteTo(respWriter)
 	if err != nil {
-		configs.Logger.Debug(err.Error())
+		configs.Logger().Debug(err.Error())
 	}
 }
 
 // Run will start up fake DNS server with recording
 // every query requests
+// [TODO]: since we use the framework, it is a little hard to switch the services
 func (d *DNSservConf) Run(
 	ConfObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
@@ -183,10 +186,10 @@ func (d *DNSservConf) Run(
 	args ...any,
 ) {
 	defer func() {
-		configs.Logger.Info(configs.GetLocalizedMsg("services.DNSQuitInfo", nil))
+		configs.Logger().Info(configs.GetLocalizedMsg("services.DNSQuitInfo", nil))
 	}()
 	if len(args) == 0 {
-		configs.Logger.Error(configs.GetLocalizedMsg(
+		configs.Logger().Error(configs.GetLocalizedMsg(
 			"services.DNSWrongParamNumErr",
 			map[string]any{
 				"Expect": "> 0",
@@ -195,12 +198,12 @@ func (d *DNSservConf) Run(
 		))
 		return
 	} else if ConfObj == nil {
-		configs.Logger.Error(configs.GetLocalizedMsg("services.DNSNullConfErr", nil))
+		configs.Logger().Error(configs.GetLocalizedMsg("services.DNSNullConfErr", nil))
 		return
 	}
 	snapshot, ok := ConfObj.Load().SelectTerm(configs.DNSEnum).(configs.DNSconfig)
 	if !ok {
-		configs.Logger.Error(configs.GetLocalizedMsg("services.DNSConfLoadErr", nil))
+		configs.Logger().Error(configs.GetLocalizedMsg("services.DNSConfLoadErr", nil))
 		return
 	}
 	var sb strings.Builder
@@ -212,14 +215,18 @@ func (d *DNSservConf) Run(
 		// have to re-create for certain table because services are separated
 		&databases.AddrInfo{}, &databases.PortInfo{}, &databases.DnsQuery{},
 	)
-	// TODO: since we use the framework, it is a little hard to switch the services
+	var mu sync.Mutex // this mutex required by race condition detection.
 	go func() {
 		<-scc.Ctx.Done()
-		s.Shutdown(context.TODO())
+		mu.Lock()
+		s.Shutdown(scc.Ctx)
+		mu.Unlock()
 	}()
 	s.Handler = d
+	mu.Lock()
 	err := s.ListenAndServe()
+	mu.Unlock()
 	if err != nil {
-		configs.Logger.Error(err.Error())
+		configs.Logger().Error(err.Error())
 	}
 }

@@ -31,7 +31,6 @@ type Shell struct {
 	/* concurrent control member */
 	cannotSend atomic.Bool
 	wg         sync.WaitGroup
-	ctxTimeout context.Context
 	prompt     atomic.Value
 
 	editor *LineEditor // editor maintains each line

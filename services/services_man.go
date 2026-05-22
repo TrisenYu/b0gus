@@ -1,6 +1,6 @@
 package services
 
-/// Last modified at 2026/05/09 星期六 15:18:24
+/// Last modified at 2026/05/18 星期一 15:48:07
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
@@ -92,7 +92,7 @@ func genericArgs(
 ) any {
 	switch tag {
 	case configs.SSHEnum:
-		snapshot, ok := servConf.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+		snapshot, ok := servConf.Load().SelectTerm(tag).(configs.SSHconfig)
 		if !ok {
 			return nil
 		}
