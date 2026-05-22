@@ -19,7 +19,7 @@ dependencies = [
     "iniconfig==2.3.0",
     "jiter==0.14.0",
     "loguru==0.7.3",
-    "openai==2.32.0",
+    "openai==2.38.0",
     "packaging==26.2",
     "pluggy==1.6.0",
     "pydantic==2.13.3",
