@@ -7,6 +7,9 @@ package configs
 import (
 	"context"
 	"os"
+	"path/filepath"
+
+	"b0gus/internal/misc_utils"
 )
 
 // services structures' definitions
@@ -14,9 +17,27 @@ import (
 // TLSFilesConf holds files' paths that are set to TLS pair(i.e. cert, key).
 type TLSFilesConf struct {
 	// path to Certificate signed-off by real CA for helping authenticate the communicating entity
-	TLSCertPath string `toml:"tls_cert_path" json:"tls_cert_path" mapstructure:"tls_cert_path"`
+	TLSCertPath string `toml:"tls_cert_path,omitempty" json:"tls_cert_path,omitempty" mapstructure:"tls_cert_path"`
 	// path to private key of one certificate signed-off by real CA
-	TLSKeyPath string `toml:"tls_key_path" json:"tls_key_path" mapstructure:"tls_key_path"`
+	TLSKeyPath string `toml:"tls_key_path,omitempty" json:"tls_key_path,omitempty" mapstructure:"tls_key_path"`
+}
+
+func (t *TLSFilesConf) GetCertPath() string {
+	if t == nil {
+		return ""
+	}
+	return t.TLSCertPath
+}
+
+func (t *TLSFilesConf) GetKeyPath() string {
+	if t == nil {
+		return ""
+	}
+	return t.TLSKeyPath
+}
+
+func (t *TLSFilesConf) SelfCheck() bool {
+	return CheckFilePair(t.TLSKeyPath, t.TLSCertPath)
 }
 
 // GenericServConf defines:
@@ -26,93 +47,128 @@ type TLSFilesConf struct {
 //   - TLS (key, cert) path.
 type GenericServConf struct {
 	TLSFilesConf      `toml:",inline" json:",inline" mapstructure:",squash"`
-	MaxClientNum      uint32 `toml:"max_client_num" json:"max_client_num" mapstructure:"max_client_num"`
-	ClientConnTimeout uint32 `toml:"client_conn_timeout" json:"client_conn_timeout" mapstructure:"client_conn_timeout"`
-	ListenPort        uint16 `toml:"listen_port" json:"listen_port" mapstructure:"listen_port"`
-}
-type SSHconfig struct {
-	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
-	LoginBanner     string `toml:"login_banner" json:"login_banner" mapstructure:"login_banner"`
-	ResponseType    string `toml:"response_type" json:"response_type" mapstructure:"response_type"`
-	HashAlgorithm   string `toml:"hash_algorithm" json:"hash_algorithm" mapstructure:"hash_algorithm"`
-	// PemName only set one time after running up the whole server
-	PemName string `toml:"pem_name" json:"pem_name" mapstructure:"pem_name"`
-	// PemType only set one time after running up the whole server
-	PemType string `toml:"pem_type" json:"pem_type" mapstructure:"pem_type"`
-	// PemLen only set one time after running up the whole server
-	PemLen       uint64 `toml:"pem_len" json:"pem_len" mapstructure:"pem_len"`
-	MaxAuthTries uint32 `toml:"max_auth_tries" json:"max_auth_tries" mapstructure:"max_auth_tries"`
-	PermitLogin  bool   `toml:"permit_login" json:"permit_login" mapstructure:"permit_login"`
-}
-
-type NTPconfig struct {
-	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
-	ListenAddr      string `toml:"listen_addr" json:"listen_addr" mapstructure:"listen_addr"`
-	// CurrZone change the real zone to the fake one for specific effects
-	CurrZone string `toml:"curr_zone" json:"curr_zone" mapstructure:"curr_zone"`
-}
-
-type DNSconfig struct {
-	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
-	ListenAddr      string `toml:"listen_addr" json:"listen_addr" mapstructure:"listen_addr"`
-	DefaultTTL      uint32 `toml:"default_ttl" json:"default_ttl" mapstructure:"default_ttl"`
-}
-
-type SMTPconfig struct {
-	GenericServConf  `toml:",inline" json:",inline" mapstructure:",squash"`
-	ListenAddr       string `toml:"listen_addr" json:"listen_addr" mapstructure:"listen_addr"`
-	LocalTLSCertPath string `toml:"local_tls_cert_path" json:"local_tls_cert_path" mapstructure:"local_tls_cert_path"`
-	LocalTLSKeyPath  string `toml:"local_tls_key_path" json:"local_tls_key_path" mapstructure:"local_tls_key_path"`
-	LocalSaveDir     string `toml:"local_save_dir" json:"local_save_dir" mapstructure:"local_save_dir"`
-	NaturalTLS       bool   `toml:"natural_tls" json:"natural_tls" mapstructure:"natural_tls"`
-	AuthRequired     bool   `toml:"auth_required" json:"auth_required" mapstructure:"auth_required"`
-}
-
-type HTTPconfig struct {
-	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
-}
-
-type FakeDBconf struct {
-	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
-	ListenAddr      string `toml:"listen_addr" json:"listen_addr" mapstructure:"listen_addr"`
+	MaxClientNum      uint32 `toml:"max_client_num" json:"max_client_num,omitempty" mapstructure:"max_client_num" default:"32"`
+	ClientConnTimeout uint32 `toml:"client_conn_timeout" json:"client_conn_timeout,omitempty" mapstructure:"client_conn_timeout" default:"5"`
+	ListenPort        uint16 `toml:"listen_port" json:"listen_port,omitempty" mapstructure:"listen_port"`
 }
 
 // RecDBConfig here means the recording database for attacker features
 // not as a bogus service.
 type RecDBConfig struct {
-	TLSFilesConf  `toml:",inline" json:",inline" mapstructure:",squash"`
-	Type          string `toml:"type" json:"type" mapstructure:"type"`
-	DBName        string `toml:"db_name" json:"db_name" mapstructure:"db_name"`
-	Path          string `toml:"path" json:"path" mapstructure:"path"`
-	Addr          string `toml:"addr" json:"addr" mapstructure:"addr"`
-	AdminName     string `toml:"admin_name" json:"admin_name" mapstructure:"admin_name"`
-	AdminPassword string `toml:"admin_password" json:"admin_password" mapstructure:"admin_password"`
-	Timeout       uint64 `toml:"timeout" json:"timeout" mapstructure:"timeout"`
-	Port          uint16 `toml:"port" json:"port" mapstructure:"port"`
+	DBType          string `toml:"db_type" json:"db_type,omitempty" mapstructure:"db_type"`
+	DBName          string `toml:"db_name" json:"db_name,omitempty" mapstructure:"db_name"`
+	DBPath          string `toml:"db_path" json:"db_path,omitempty" mapstructure:"db_path"`
+	DBAddr          string `toml:"db_addr" json:"db_addr,omitempty" mapstructure:"db_addr"`
+	DBAdminName     string `toml:"db_admin_name" json:"db_admin_name,omitempty" mapstructure:"db_admin_name"`
+	DBAdminPassword string `toml:"db_admin_password" json:"db_admin_password,omitempty" mapstructure:"db_admin_password"`
+	DBTimeout       uint64 `toml:"db_timeout" json:"db_timeout,omitempty" mapstructure:"db_timeout"`
+	DBPort          uint16 `toml:"db_port" json:"db_port,omitempty" mapstructure:"db_port"`
+}
+
+func (r RecDBConfig) CheckDBport() bool {
+	return misc_utils.IsPort(r.DBPort) && r.DBPort > 1024
+}
+
+func (r RecDBConfig) CheckDBpath() bool {
+	return len(r.DBPath) == 0 || misc_utils.IsFilePath(r.DBPath)
+}
+
+func (r RecDBConfig) CheckDBaddr() bool {
+	return misc_utils.IsIP(r.DBAddr) || misc_utils.IsHostnameRFC1123(r.DBAddr)
+}
+
+// DBSelfCheck returns true once the preset configuration is valid.
+func (r RecDBConfig) DBSelfCheck() bool {
+	// [TODO]: enhance configuration checking
+	// could not include `: / ? # [ ] @` in admin_name or password for certain DB,
+	// otherwise they need convert in the way that url encoding criterion
+	// that enforces
+	//		r.DBAdminName
+	//		r.DBAdminPassword
+	return r.CheckDBport() && (r.CheckDBpath() || r.CheckDBaddr())
+}
+
+type WrappedConf struct {
+	GenericServConf `toml:",inline" json:",inline" mapstructure:",squash"`
+	RecDBConfig     `toml:",inline" json:",inline" mapstructure:",squash"`
+}
+
+func (w WrappedConf) CheckAll() bool {
+	return w.SelfCheck() && w.CheckPort()
+}
+
+// SSHconfig is defined for fake SSH service
+type SSHconfig struct {
+	WrappedConf   `toml:",inline" json:",inline" mapstructure:",squash"`
+	// LLMConfPath points to the path of LLM's configuration
+	LLMConfPath string `toml:"llm_conf_path" json:"llm_conf_path,omitempty" mapstructure:"llm_conf_path"`
+	LoginBanner   string `toml:"login_banner" json:"login_banner,omitempty" mapstructure:"login_banner"`
+	ResponseType  string `toml:"response_type" json:"response_type,omitempty" mapstructure:"response_type"`
+	HashAlgorithm string `toml:"hash_algorithm" json:"hash_algorithm,omitempty" mapstructure:"hash_algorithm"`
+	// PemName only set one time after running up the whole server.
+	// And it indicates the name of used pem file
+	PemName string `toml:"pem_name" json:"pem_name,omitempty" mapstructure:"pem_name"`
+	// PemType only set one time after running up the whole server
+	PemType string `toml:"pem_type" json:"pem_type,omitempty" mapstructure:"pem_type"`
+	// PemLen only set one time after running up the whole server
+	PemLen       uint64 `toml:"pem_len" json:"pem_len,omitempty" mapstructure:"pem_len"`
+	MaxAuthTries uint32 `toml:"max_auth_tries" json:"max_auth_tries,omitempty" mapstructure:"max_auth_tries"`
+	PermitLogin  bool   `toml:"permit_login" json:"permit_login,omitempty" mapstructure:"permit_login"`
+}
+
+// NTPconfig is defined for fake NTP service
+type NTPconfig struct {
+	WrappedConf `toml:",inline" json:",inline" mapstructure:",squash"`
+
+	// CurrZone change the real zone to the fake one for specific effects
+	CurrZone string `toml:"curr_zone" json:"curr_zone,omitempty" mapstructure:"curr_zone"`
+}
+
+// DNSconfig is defined for fake DNS service
+type DNSconfig struct {
+	WrappedConf `toml:",inline" json:",inline" mapstructure:",squash"`
+
+	DefaultTTL uint32 `toml:"default_ttl" json:"default_ttl,omitempty" mapstructure:"default_ttl"`
+}
+
+// SMTPconfig is defined for fake SMTP service
+type SMTPconfig struct {
+	WrappedConf `toml:",inline" json:",inline" mapstructure:",squash"`
+
+	LocalSaveDir string `toml:"local_save_dir" json:"local_save_dir,omitempty" mapstructure:"local_save_dir"`
+	RemoteAddr   string `toml:"remote_addr" json:"remote_addr,omitempty" mapstructure:"remote_addr"`
+	NaturalTLS   bool   `toml:"natural_tls" json:"natural_tls,omitempty" mapstructure:"natural_tls"`
+	AuthRequired bool   `toml:"auth_required" json:"auth_required,omitempty" mapstructure:"auth_required"`
+}
+
+// HTTPconfig is defined for fake SMTP service
+// +k8s:protobuf:gen
+type HTTPconfig struct {
+	WrappedConf `toml:",inline" json:",inline" mapstructure:",squash"`
+	RemoteAddr  string `toml:"remote_addr" json:"remote_addr,omitempty" mapstructure:"remote_addr"`
+}
+
+// FakeDBconf is defined for fake SMTP service
+type FakeDBconf struct {
+	HTTPconfig `toml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 // TODO: push configuration from networking binary streams
 
 type LocalConfig struct {
-	// ServerConfig should refer to the toml config defined in configs/config.toml
-	ServerConfig struct {
-		Language string `toml:"language" json:"language" mapstructure:"language"`
+	Language    string `toml:"language" json:"language" mapstructure:"language" default:"en"`
 
-		// fields defined for services
-		// The reason why to use struct name as ServerConfig's member name is
-		// the iteration in `services_man.go` upon struct for data/control path needs refection
-
-		SSHconfig  SSHconfig  `toml:"ssh" json:"ssh" mapstructure:"ssh"`
-		NTPconfig  NTPconfig  `toml:"ntp"  json:"ntp" mapstructure:"ntp"`
-		DNSconfig  DNSconfig  `toml:"dns" json:"dns" mapstructure:"dns"`
-		SMTPconfig SMTPconfig `toml:"smtp" json:"smtp" mapstructure:"smtp"`
-		HTTPconfig HTTPconfig `toml:"http" json:"http" mapstructure:"http"`
-		// currently used for locally recording
-		RecDBConfig RecDBConfig `toml:"rec_db_config" json:"rec_db_config" mapstructure:"rec_db_config"`
-	} `toml:"server_config" json:"server_config" mapstructure:"server_config"`
+	// fields defined for services
+	// The reason why to use struct name as ServerConfig's member name is
+	// the iteration in `services_man.go` upon struct for data/control path needs refection
+	SSHconfig  SSHconfig  `toml:"ssh" json:"ssh,omitempty" mapstructure:"ssh"`
+	NTPconfig  NTPconfig  `toml:"ntp"  json:"ntp,omitempty" mapstructure:"ntp"`
+	DNSconfig  DNSconfig  `toml:"dns" json:"dns,omitempty" mapstructure:"dns"`
+	SMTPconfig SMTPconfig `toml:"smtp" json:"smtp,omitempty" mapstructure:"smtp"`
+	HTTPconfig HTTPconfig `toml:"http" json:"http,omitempty" mapstructure:"http"`
+	// currently used for locally recording
 }
 
-type ServEnum int
 type ServEnumInterface interface {
 	// GetPort return the port number in the representation of uint16
 	GetPort() uint16
@@ -122,23 +178,24 @@ type ServEnumInterface interface {
 	GetTimeout() uint32
 }
 
-/* Which is extremely dumb */
+type KeyCertPathPair interface {
+	// GetCertPath return the certPath registered as the member of one struct
+	GetCertPath() string
+	// GetKeyPath return the keyPath registered as the member of one struct
+	GetKeyPath() string
+	// SelfCheck will check if the path pair is validated
+	SelfCheck() bool
+}
 
-func (x SSHconfig) GetPort() uint16     { return x.ListenPort }
-func (x SSHconfig) GetMaxNum() uint32   { return x.MaxClientNum }
-func (x SSHconfig) GetTimeout() uint32  { return x.ClientConnTimeout }
-func (x DNSconfig) GetPort() uint16     { return x.ListenPort }
-func (x DNSconfig) GetMaxNum() uint32   { return x.MaxClientNum }
-func (x DNSconfig) GetTimeout() uint32  { return x.ClientConnTimeout }
-func (x NTPconfig) GetPort() uint16     { return x.ListenPort }
-func (x NTPconfig) GetMaxNum() uint32   { return x.MaxClientNum }
-func (x NTPconfig) GetTimeout() uint32  { return x.ClientConnTimeout }
-func (x SMTPconfig) GetPort() uint16    { return x.ListenPort }
-func (x SMTPconfig) GetMaxNum() uint32  { return x.MaxClientNum }
-func (x SMTPconfig) GetTimeout() uint32 { return x.ClientConnTimeout }
-func (x HTTPconfig) GetPort() uint16    { return x.ListenPort }
-func (x HTTPconfig) GetMaxNum() uint32  { return x.MaxClientNum }
-func (x HTTPconfig) GetTimeout() uint32 { return x.ClientConnTimeout }
+func (g GenericServConf) CheckPort() bool {
+	val := g.GetPort()
+	return misc_utils.IsPort(val) && val > 1024
+}
+func (g GenericServConf) GetPort() uint16    { return g.ListenPort }
+func (g GenericServConf) GetMaxNum() uint32  { return g.MaxClientNum }
+func (g GenericServConf) GetTimeout() uint32 { return g.ClientConnTimeout }
+
+type ServEnum int
 
 const (
 	RawEnum ServEnum = iota + 1
@@ -159,6 +216,7 @@ var (
 		HTTPEnum: "<HTTP>: ",
 		SMTPEnum: "<SMTP>: ",
 		NTPEnum:  "<NTP>: ",
+		DNSEnum:  "<DNS>: ",
 	}
 	ServInit = map[ServEnum]any{
 		RawEnum:   struct{}{},
@@ -178,31 +236,39 @@ func (lc *LocalConfig) SelectTerm(s ServEnum) any {
 	if lc == nil {
 		return nil
 	}
-	sc := lc.ServerConfig
+	var ret any = nil
 	switch s {
 	case SSHEnum:
-		if CheckSSHconfig(&sc.SSHconfig) {
-			return sc.SSHconfig
-		}
+		ret = lc.SSHconfig
+		//if CheckSSHconfig(&lc.SSHconfig) {
+		//	// err = validator.New().Struct(lc.SSHconfig)
+		//}
 	case NTPEnum:
-		if CheckNTPconfig(&sc.NTPconfig) {
-			return sc.NTPconfig
-		}
+		ret = lc.NTPconfig
+		//if lc.NTPconfig.CheckAll() {
+		//	//err = validator.New().Struct(lc.NTPconfig)
+		//}
 	case DNSEnum:
-		if CheckDNSconfig(&sc.DNSconfig) {
-			return sc.DNSconfig
-		}
+		ret = lc.DNSconfig
+		//if lc.DNSconfig.CheckAll() {
+		//	//err = validator.New().Struct(lc.DNSconfig)
+		//
+		//}
 	case SMTPEnum:
-		if CheckSMTPconfig(&sc.SMTPconfig) {
-			return sc.SMTPconfig
-		}
+		ret = lc.SMTPconfig
+		//if CheckSMTPconfig(&lc.SMTPconfig) {
+		//	//err = validator.New().Struct(lc.SMTPconfig)
+		//
+		//}
 	case HTTPEnum:
-		if CheckHTTPconfig(&sc.HTTPconfig) {
-			return sc.HTTPconfig
-		}
+		ret = lc.HTTPconfig
+		//if CheckHTTPconfig(&lc.HTTPconfig) {
+		//	//err = validator.New().Struct(lc.HTTPconfig)
+		//
+		//}
 	default:
 	}
-	return nil
+	return ret
 }
 
 func (lc *LocalConfig) SelectPort(s ServEnum) uint16 {
@@ -213,7 +279,11 @@ func (lc *LocalConfig) SelectPort(s ServEnum) uint16 {
 	if t == nil {
 		return 0
 	}
-	return max(t.(ServEnumInterface).GetPort(), 1025)
+	cast, ok := t.(ServEnumInterface)
+	if !ok {
+		return 0
+	}
+	return max(cast.GetPort(), 1025)
 }
 
 func (lc *LocalConfig) SelectMaxClient(s ServEnum) uint32 {
@@ -224,8 +294,13 @@ func (lc *LocalConfig) SelectMaxClient(s ServEnum) uint32 {
 	if t == nil {
 		return 1
 	}
-	return max(t.(ServEnumInterface).GetMaxNum(), 1)
+	cast, ok := t.(ServEnumInterface)
+	if !ok {
+		return 1
+	}
+	return max(cast.GetMaxNum(), 1)
 }
+
 func (lc *LocalConfig) SelectTimeout(s ServEnum) uint32 {
 	if lc == nil {
 		return 3
@@ -234,7 +309,11 @@ func (lc *LocalConfig) SelectTimeout(s ServEnum) uint32 {
 	if t == nil {
 		return 3
 	}
-	return max(t.(ServEnumInterface).GetTimeout(), 3)
+	cast, ok := t.(ServEnumInterface)
+	if !ok {
+		return 3
+	}
+	return max(cast.GetTimeout(), 3)
 }
 
 // SelectTLSpairWithRemoteHost will decide for whether returning tuple (cert, key, remoteServer).
@@ -246,18 +325,17 @@ func (lc *LocalConfig) SelectTLSpairWithRemoteHost(s ServEnum) (string, string, 
 	if lc == nil {
 		return "", "", ""
 	}
-	sc := lc.ServerConfig
 	switch s {
 	case HTTPEnum:
-		if CheckHTTPconfig(&sc.HTTPconfig) {
-			http := sc.HTTPconfig
-			return http.TLSCertPath, http.TLSKeyPath, ""
+		if CheckHTTPconfig(&lc.HTTPconfig) {
+			http := lc.HTTPconfig
+			return http.TLSCertPath, http.TLSKeyPath, http.RemoteAddr
 		}
 	case SMTPEnum:
-		if CheckSMTPconfig(&sc.SMTPconfig) {
-			smtp := sc.SMTPconfig
-			if smtp.NaturalTLS {
-				return smtp.TLSCertPath, smtp.TLSKeyPath, ""
+		if CheckSMTPconfig(&lc.SMTPconfig) {
+			smtp := lc.SMTPconfig
+			if smtp.NaturalTLS { // that means it is a SMTPS proto
+				return smtp.TLSCertPath, smtp.TLSKeyPath, smtp.RemoteAddr
 			}
 		}
 	default:
@@ -273,16 +351,29 @@ type PortReloadDef struct {
 // ServConcurrentCtrl is used for notifying the target services to terminate
 // or to update its configuration upon network.
 type ServConcurrentCtrl struct {
-	Ctx           context.Context
+	TerminatedCtx context.Context // TerminatedCtx is used for checking the signal of termination
 	ServNetTypeCh <-chan string
-	DBPortCh      <-chan PortReloadDef
+	ConfCh        <-chan PortReloadDef
 }
 
 // Naive check
 
+func LoadSSHpemPathWithPemName(conf *SSHconfig) string {
+	if conf == nil {
+		return ""
+	}
+	res, _ := filepath.Abs(filepath.Join(filepath.Dir(LocalConfigPathAsStr), conf.PemName))
+	return res
+}
+
 func CheckSSHconfig(sshConf *SSHconfig) bool {
 	// sshConf.ListenAddr might be localhost, which can not be accepted by net.ParseIP
-	if sshConf == nil || sshConf.ListenPort <= 1024 {
+	InvalidPathChecker := func(path string) bool {
+		// only when the path is not empty and valid, the return true
+		return len(path) == 0 || !misc_utils.IsFilePath(path)
+	}
+	if sshConf == nil || !sshConf.CheckPort() ||
+		(InvalidPathChecker(sshConf.TLSKeyPath) && InvalidPathChecker(LoadSSHpemPathWithPemName(sshConf))) {
 		return false
 	}
 	// At this moment and at most, we can only check whether those fields are null
@@ -293,33 +384,26 @@ func CheckSSHconfig(sshConf *SSHconfig) bool {
 	} else if sshConf.ResponseType == "" {
 		sshConf.ResponseType = "repeat"
 	}
-	return true
-}
-
-func CheckNTPconfig(ntpConf *NTPconfig) bool {
-	return ntpConf != nil && len(ntpConf.ListenAddr) != 0 &&
-		ntpConf.ListenPort > 1024
-}
-
-func CheckDNSconfig(dnsConf *DNSconfig) bool {
-	return dnsConf != nil && len(dnsConf.ListenAddr) != 0 &&
-		dnsConf.ListenPort > 1024
+	return sshConf.DBSelfCheck()
 }
 
 func CheckSMTPconfig(smtpConf *SMTPconfig) bool {
 	if smtpConf == nil {
 		return false
 	}
-	return len(smtpConf.ListenAddr) != 0 && smtpConf.ListenPort > 1024 &&
-		CheckFilePair(smtpConf.TLSKeyPath, smtpConf.TLSCertPath)
+	check := len(smtpConf.RemoteAddr) == 0 || misc_utils.IsIP(smtpConf.RemoteAddr) ||
+		misc_utils.IsHostnameRFC1123(smtpConf.RemoteAddr)
+	return check && smtpConf.CheckAll() && CheckFilePair(smtpConf.TLSKeyPath, smtpConf.TLSCertPath)
 }
 
 func CheckHTTPconfig(httpConf *HTTPconfig) bool {
 	if httpConf == nil {
 		return false
 	}
-	return httpConf.ListenPort > 1024 &&
-		CheckFilePair(httpConf.TLSKeyPath, httpConf.TLSCertPath)
+	check := len(httpConf.RemoteAddr) == 0 || misc_utils.IsIP(httpConf.RemoteAddr) ||
+		misc_utils.IsHostnameRFC1123(httpConf.RemoteAddr)
+	check = check && httpConf.CheckAll()
+	return check && CheckFilePair(httpConf.TLSKeyPath, httpConf.TLSCertPath)
 }
 
 // CheckFilePair will check if both file path (noted as fpath1, fpath2) exist at the same time or not.

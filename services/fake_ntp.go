@@ -7,6 +7,10 @@ package services
 //    https://github.com/ntpsec/ntpsec/blob/master/ntpd/ntp_control.c
 
 import (
+	"b0gus/configs"
+	"b0gus/databases"
+	"b0gus/net_aux"
+
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -17,9 +21,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"b0gus/configs"
-	"b0gus/databases"
 )
 
 type (
@@ -224,11 +225,11 @@ func generateNTPresponse(req []byte) []byte {
 	res[14] = 0x43
 	res[15] = 0x54
 
-	copy(res[16:20], int2bytes(second)[0:])
+	copy(res[16:20], int2bytes(second)[:])
 	copy(res[24:32], req[40:48])
 
-	copy(res[32:36], int2bytes(second)[0:])
-	copy(res[36:40], int2bytes(fraction)[0:])
+	copy(res[32:36], int2bytes(second)[:])
+	copy(res[36:40], int2bytes(fraction)[:])
 	copy(res[40:48], res[32:40])
 	return res
 }
@@ -351,10 +352,14 @@ func validLiVnMode(req []byte) bool {
 	/* that is 00_011_011 */
 	l := (req[0] >> 6) & 0b11
 	v := (req[0] >> 3) & 0b111
+	m := req[0] & 0b111
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(int(m)))
+	configs.Logger().Debug(sb.String())
 	if (l != LiNoWarning) && (l != LiReserved) {
 		return false
 	}
-	return (VnFirst <= v && v <= VnLast) && (req[0]&0b111 == ModeQuery || req[0]&0b111 == ModeCtrl)
+	return (VnFirst <= v && v <= VnLast) && (m == ModeQuery || m == ModeCtrl)
 }
 
 func handleNTPCtrlMsg(addr *net.UDPAddr, req []byte) []byte {
@@ -430,6 +435,7 @@ func SetNtpKV(key string, val any, opts ...any) string {
 }
 
 // SetNTPkvViaAnyArr will help to set "key1=val1,key2=val2" in the further datagram encapsulation
+//
 //nolint:unused
 func SetNTPkvViaAnyArr(key []string, val []any) string {
 	if len(key) != len(val) {
@@ -597,7 +603,6 @@ type NTPServConf struct {
 func (n *NTPServConf) Run(
 	confObj *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db databases.DBhandler,
 	args ...any,
 ) {
 	defer func() {
@@ -614,13 +619,30 @@ func (n *NTPServConf) Run(
 		configs.Logger().Error(configs.GetLocalizedMsg("NTPNullConfErr", nil))
 		return
 	}
-	_, ok := confObj.Load().SelectTerm(configs.NTPEnum).(configs.NTPconfig)
+	snapshot, ok := confObj.Load().SelectTerm(configs.NTPEnum).(configs.NTPconfig)
 	if !ok {
 		return
 	}
-	var clientAux = ReentrantNetType{}
-	n.DbFd = db
+
+	if n.DbFd == nil {
+		err := n.handleDB(snapshot)
+		if err != nil {
+			configs.Logger().Error(err.Error())
+			return
+		}
+	}
+
+	var clientAux = net_aux.ReentrantNetType{}
 	clientAux.Init(configs.NTPEnum, n)
 	go clientAux.EventMonitor(confObj, scc)
-	clientAux.AlterNetFd(UDPEnum, confObj)
+	clientAux.AlterNetFd(net_aux.UDPEnum, confObj)
+}
+
+func (n *NTPServConf) handleDB(snapshot configs.NTPconfig) error {
+	n.DbFd = &databases.RuntimeDB{
+		TLSKeyPath:  snapshot.TLSKeyPath,
+		TLSCertPath: snapshot.TLSCertPath,
+	}
+	// [TODO]: yet to record
+	return n.DbFd.Setup(&snapshot.RecDBConfig)
 }

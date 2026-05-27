@@ -11,16 +11,19 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/miekg/dns"
+	"codeberg.org/miekg/dns/dnstest"
 	"codeberg.org/miekg/dns/dnsutil"
 	"codeberg.org/miekg/dns/rdata"
 
 	"b0gus/configs"
+	"b0gus/crypto_aux"
 	"b0gus/databases"
+
 )
 
 // Reference: https://github.com/EmilHernvall/dnsguide/
 
-// TODO: What if we send a wrong response to other computer?
+// [TODO]: What if we send a wrong response to other computer?
 // Answers dns queries with a random ip address.
 // Responds to version bind queries with an old and unpatched version.
 
@@ -28,7 +31,9 @@ type DNSservConf struct {
 	/* database handler for writing data */
 	DBFd databases.DBhandler
 	/* fields below need concurrent control to follow the configuration */
-	ConfOptions *configs.DNSconfig
+	ConfOptions *atomic.Pointer[configs.LocalConfig]
+
+	tmpDNSserv *dns.Server
 }
 
 func getDNSrr(queryType uint16, headerName string) dns.RR {
@@ -178,12 +183,10 @@ func (d *DNSservConf) ServeDNS(
 
 // Run will start up fake DNS server with recording
 // every query requests
-// [TODO]: since we use the framework, it is a little hard to switch the services
+// [TODO]: since we use the framework, it is a little tricky to switch the services
 func (d *DNSservConf) Run(
 	ConfObj *atomic.Pointer[configs.LocalConfig],
-	scc *configs.ServConcurrentCtrl,
-	db databases.DBhandler,
-	args ...any,
+	scc *configs.ServConcurrentCtrl, args ...any,
 ) {
 	defer func() {
 		configs.Logger().Info(configs.GetLocalizedMsg("services.DNSQuitInfo", nil))
@@ -209,24 +212,42 @@ func (d *DNSservConf) Run(
 	var sb strings.Builder
 	sb.WriteString(":")
 	sb.WriteString(strconv.Itoa(int(snapshot.ListenPort)))
-	s := &dns.Server{Addr: sb.String(), Net: "udp"}
-	d.DBFd = db
-	_ = d.DBFd.CreateTable(
-		// have to re-create for certain table because services are separated
-		&databases.AddrInfo{}, &databases.PortInfo{}, &databases.DnsQuery{},
-	)
-	var mu sync.Mutex // this mutex required by race condition detection.
-	go func() {
-		<-scc.Ctx.Done()
-		mu.Lock()
-		s.Shutdown(scc.Ctx)
-		mu.Unlock()
-	}()
-	s.Handler = d
-	mu.Lock()
-	err := s.ListenAndServe()
-	mu.Unlock()
+
+	dnsOpt := func(victim *dns.Server) {
+		if configs.CheckFilePair(snapshot.TLSCertPath, snapshot.TLSKeyPath) && len(snapshot.TLSKeyPath) > 0 {
+			victim.Net = "tcp"
+			victim.TLSConfig = crypto_aux.LoadNormalCertAsTLSServ(snapshot.TLSCertPath, snapshot.TLSKeyPath)
+		} else {
+			victim.Net = "udp"
+		}
+		victim.Handler = d
+	}
+
+	d.ConfOptions = ConfObj
+	// [TODO]: message queue first, and then its database
+	if d.DBFd == nil {
+		if err := d.handleDB(snapshot); err != nil {
+			configs.Logger().Debug(err.Error())
+			return
+		}
+	}
+	cancel, _, err := dnstest.Server(sb.String(), dnsOpt)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		<-scc.TerminatedCtx.Done()
+		cancel()
+	})
 	if err != nil {
 		configs.Logger().Error(err.Error())
 	}
+	wg.Wait()
+}
+
+func (d *DNSservConf) handleDB(snapshot configs.DNSconfig) error {
+	d.DBFd = &databases.RuntimeDB{}
+	return d.DBFd.Setup(
+		&snapshot.RecDBConfig,
+		// have to re-create for certain table because services are separated
+		&databases.AddrInfo{}, &databases.PortInfo{}, &databases.DnsQuery{},
+	)
 }

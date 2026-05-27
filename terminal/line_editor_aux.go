@@ -655,7 +655,7 @@ func (l *LineEditor) handleMultiBytes4CtrlSeq(
 	case typeDel:
 		l.DeleteCharNearCursor(CurRight)
 	default:
-		return nil, pseudoErrKeepReading
+		res = nil
 	}
 	return res, pseudoErrKeepReading
 }

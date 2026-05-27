@@ -4,73 +4,15 @@ package main
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
-	"flag"
 	"os"
 	"os/signal"
-	"runtime"
-	"strings"
 	"syscall"
 
 	"b0gus/configs"
-	"b0gus/databases"
 	"b0gus/services"
 )
 
-var (
-	versionStr   string
-	buildTimeStr string
-	hashValStr   string
-	builtByStr   string
-)
-
-func initConfFlags() {
-	flag.StringVar(
-		&configs.LocalConfigPathAsStr, "conf-path", "./configs/config.toml",
-		configs.GetLocalizedMsg("meta_conf.ConfPath", nil),
-	)
-	configs.GlobConf.Store(configs.LoadDefaultConfig(""))
-	f := flag.Lookup("conf-path")
-	if f != nil { // reset the configuration path description if feasible
-		f.Usage = configs.GetLocalizedMsg("meta_conf.ConfPath", nil)
-	}
-	showVersion := flag.Bool("version", false, "")
-	flag.BoolVar(showVersion, "v", false, "")
-	flag.StringVar(&configs.RemotePullSource, "remote-pull-source", ":65431", "")
-	// TODO: CA is typically helping for intranet peers to verify each other
-	//       not convert the functionality into cluster at current time
-	flag.StringVar(
-		&configs.LocalRootCaCertAbsPath, "local-root-ca-cert-abs-path",
-		"./configs/root-ca.cert", "",
-	)
-	flag.StringVar(
-		&configs.LocalRootCaKeyAbsPath, "local-root-ca-key-abs-path",
-		"./configs/root-ca.key", "",
-	)
-
-	flag.Parse()
-	if *showVersion {
-		var sb strings.Builder
-		sb.WriteString("b0gus Version: ")
-		sb.WriteString(versionStr)
-		sb.WriteRune('-')
-		sb.WriteString(configs.BuildTypeStr)
-		sb.WriteString("\nBuild Time:    ")
-		sb.WriteString(buildTimeStr)
-		sb.WriteString("\nBuild Hash:    ")
-		sb.WriteString(hashValStr)
-		sb.WriteString("\nBuild Name:    ")
-		sb.WriteString(builtByStr)
-		sb.WriteString("\nCurrent ISA:   ")
-		sb.WriteString(runtime.GOARCH)
-		sb.WriteString("\nCurrent OS:    ")
-		sb.WriteString(runtime.GOOS)
-		println(sb.String())
-		os.Exit(0)
-	} else if configs.GlobConf.Load() == nil {
-		payload := configs.GetLocalizedMsg("main.FailToApplyConfiguration", nil)
-		configs.Logger().Fatal(payload)
-	}
-}
+// [TODO]: rpc registering
 
 /*-------------------------------------------------------------------------------------------------+
    Overview:
@@ -96,37 +38,13 @@ func initConfFlags() {
 */
 
 // main function is the entry of b0gus.
-// configuration in `./configs/` should be properly set up before executing
+// configuration in `./configs/` should be properly set up before executing.
+// At present, b0gus run locally
 func main() {
-	initConfFlags()
-	defer func() { _ = configs.Logger().Sync() }()
-	db, dbStr, err := databases.SelectDatabaseBackend(
-		&configs.GlobConf.Load().ServerConfig.RecDBConfig,
-	)
-	if err != nil {
-		configs.Logger().Error(configs.GetLocalizedMsg(
-			"main.DatabaseConnectionError",
-			map[string]any{
-				"DatabaseStr": dbStr,
-				"ErrInfo":     err.Error(),
-			},
-		))
-		return
-	} else if db == nil {
-		configs.Logger().Error(configs.GetLocalizedMsg(
-			"main.DatabaseEmptyError", nil,
-		))
-		return
-	}
-
-	var (
-		globRecordDb = databases.RuntimeDB{}
-		terminator   = make(chan struct{}, 1)
-		signalChan   = make(chan os.Signal, 1)
-	)
-	// [TODO]: different services should may have their different DB
-	//         or use message queue for load-balance and dispatching
-	globRecordDb.AlterDatabaseHandler(db)
+	configs.InitConfFlags()
+	defer configs.SetLogger(nil)
+	terminator := make(chan struct{}, 1)
+	signalChan := make(chan os.Signal, 1)
 
 	// signal notification to terminate the whole server
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
@@ -137,9 +55,9 @@ func main() {
 			map[string]any{"SignalStr": sig.String()},
 		))
 		terminator <- struct{}{}
-		close(terminator)
 		signal.Stop(signalChan)
 		close(signalChan)
+		close(terminator)
 	}()
-	services.Brancher(terminator, &configs.GlobConf, &globRecordDb)
+	services.Brancher(terminator, &configs.GlobConf)
 }

@@ -1,6 +1,6 @@
 # this is a line of comment
 
-# we use auto-generated rules to represent rather than 
+# we use auto-generated rules to represent rather than
 # hard-encoded implementation by hand for specific structures
 
 # and NoSQL may benefit from these reduced definitions
@@ -61,4 +61,9 @@ remote_command_relation:
     session_id:integer (notnull);
     cid:integer (foreign -> command_info:command_id)
 
-
+invalid_command_info:
+	command_id:integer (primary, notnull, autoincrement, createtime ns, index)
+	cmd:text (notnull)
+	valid:integer (notnull)
+	reason:text (notnull)
+	potential_issues:text ()

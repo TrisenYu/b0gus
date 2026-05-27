@@ -55,7 +55,7 @@ Local installation and configuration as a user-level service are not supported f
    Meanwhile, before submitting a merge request, **you need to ensure that all commits within the request are verified**.
    After code review and further evaluation, your branch will be merged, 
    and you will become a contributor to b0gus.
-5. Before submitting any pull request, remember to include your information in the [author list]](../AUTHORS).
+5. Before submitting any pull request, remember to include your information in the [author list](AUTHORS).
 
 #### Code Quality Guidelines
 
@@ -64,7 +64,8 @@ This repository enforces restrictive rules for all code written herein:
    the line count shall not exceed $100$ lines, and the character count per column shall not exceed $110$.
 	1. If indentation inevitably exceeds $4$ levels but is no more than $5$ levels,
 	   the total lines (including comments) within that scope shall not exceed $10$ lines.
-	2. reject to review or accept the pull request once the indentation level $\ge 6$. 
+	2. Reject to review or accept the pull request once the indentation level $\ge 6$. 
+    3. Go struct tags are temporarily exempted from the column limit.
 2. For function signatures/function definitions, the total number of input and
    output parameters shall not exceed $6$. When the definition is excessively long,
    it shall follow the reference formats below.
@@ -74,7 +75,7 @@ This repository enforces restrictive rules for all code written herein:
    please automatically format your implementation code using local lint or
    code formatting tools before creating a branch pull request.
 5. Except for automatically generated code implementations and unit test code,
-   it is recommended that the number of code lines in each file does not exceed 2000.
+   it is recommended that the number of code lines in each file does not exceed $2000$.
 
 ```python
 from typing import NoReturn
@@ -164,7 +165,8 @@ void retry(
 mentioned in code or the documentations.
 
 ### License
-b0gus is distributed under the terms of the BSD 3-Clause License. See the included file `license` in the root directory of b0gus for more details.
+b0gus is distributed under the terms of the BSD 3-Clause License. See the included file `license` 
+in the root directory of b0gus for more details.
 
 ### Todo-list
 - if possible, set up [oss-fuzz](https://google.github.io/oss-fuzz/getting-started/new-project-guide/)

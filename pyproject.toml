@@ -1,5 +1,5 @@
 [project]
-authors = [
+main-maintainers = [
 	{ name="", email="jajune257@gmail.com" },
 	{ name="", email="kisfg@hotmail.com" }
 ]
@@ -10,7 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
     "annotated-types==0.7.0",
     "anyio==4.13.0",
-    "certifi==2026.2.25",
+    "certifi==2026.5.20",
     "distro==1.9.0",
     "h11==0.16.0",
     "httpcore==1.0.9",
@@ -22,8 +22,8 @@ dependencies = [
     "openai==2.38.0",
     "packaging==26.2",
     "pluggy==1.6.0",
-    "pydantic==2.13.3",
-    "pydantic-core==2.46.3",
+    "pydantic==2.13.4",
+    "pydantic-core==2.46.4",
     "pygments==2.20.0",
     "pytest==9.0.3",
     "python-dotenv==1.2.2",
@@ -34,14 +34,14 @@ dependencies = [
     "typing-inspection==0.4.2",
 ]
 
-[tool.ruff]
-indent-width = 4
-line-length = 110
-
 [[tool.uv.index]]
 # set to normal url or other mirror link by yourself if you have such a demand
 url = "https://mirrors.aliyun.com/pypi/simple/"
 default = true
+
+[tool.ruff]
+indent-width = 4
+line-length = 110
 
 [tool.ruff.lint]
 # reference: https://docs.astral.sh/ruff/linter/#fixes

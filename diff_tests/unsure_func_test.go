@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,32 +35,28 @@ func TestReflection(t *testing.T) {
 	examConfPath := "../configs/example.toml"
 	testConfPath, _ := filepath.Abs(examConfPath)
 	localConf := configs.LoadDefaultConfig(testConfPath)
-	resMap := misc_utils.TurnStruct2Map(localConf.ServerConfig)
+	resMap := misc_utils.TurnStruct2Map(localConf)
 	assert.NotEqual(t, resMap, nil)
-	sshName := misc_utils.GetTypeNameViaType(localConf.ServerConfig.SSHconfig)
+	sshName := misc_utils.GetTypeNameViaType(localConf.SSHconfig)
 	assert.Equal(t, "SSHconfig", sshName)
-	misc_utils.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
+	misc_utils.GetTypeNameViaType(&localConf.SSHconfig)
 	_, ok := resMap[sshName]
 	assert.Equal(t, true, ok)
-	resMap = misc_utils.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
+	resMap = misc_utils.TurnStruct2Map(localConf.SSHconfig)
 	assert.NotEqual(t, resMap, nil)
-	curr, err := misc_utils.GetFieldValueByName(localConf.ServerConfig, sshName)
+	curr, err := misc_utils.GetFieldValueByName(localConf, sshName)
 	assert.Equal(t, nil, err)
-	_, ok = curr.(*configs.SSHconfig)
-	assert.Equal(t, false, ok)
-	_, ok = curr.(configs.SSHconfig)
+	recur, ok := curr.(*configs.SSHconfig)
 	assert.Equal(t, true, ok)
-	recur, ok := curr.(configs.SSHconfig)
-	assert.Equal(t, true, ok)
-	assert.IsType(t, &configs.SSHconfig{}, &recur)
+	assert.IsType(t, &configs.SSHconfig{}, recur)
 
 	curr, err = misc_utils.GetFieldValueByName(
-		localConf.ServerConfig,
-		misc_utils.GetTypeNameViaType(localConf.ServerConfig.SMTPconfig),
+		localConf,
+		misc_utils.GetTypeNameViaType(localConf.SMTPconfig),
 	)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, localConf.ServerConfig.SMTPconfig, curr)
-	_, ok = curr.(configs.SMTPconfig)
+	assert.Equal(t, &localConf.SMTPconfig, curr)
+	_, ok = curr.(*configs.SMTPconfig)
 	assert.Equal(t, true, ok)
 	_, err = misc_utils.GetFieldValueByName(
 		map[string]map[string]any{
@@ -257,5 +254,66 @@ func TestIPvXparser(t *testing.T) {
 			assert.Equal(t, tt.expected.Addr, str, "wrong addr")
 			assert.Equal(t, tt.expected.Port, num, "wrong port")
 		})
+	}
+}
+
+func TestIsIP(t *testing.T) {
+	assert.True(t, misc_utils.IsIP("127.0.0.1"))
+	assert.True(t, misc_utils.IsIP("2001:db8::1"))
+	assert.False(t, misc_utils.IsIP("256.0.0.1"))
+	assert.False(t, misc_utils.IsIP(""))
+	assert.False(t, misc_utils.IsIP("localhost"))
+}
+
+func TestIsHostnameRFC1123(t *testing.T) {
+	assert.True(t, misc_utils.IsHostnameRFC1123("localhost"))
+	assert.True(t, misc_utils.IsHostnameRFC1123("my-host"))
+	assert.True(t, misc_utils.IsHostnameRFC1123("a.example.com"))
+	assert.False(t, misc_utils.IsHostnameRFC1123("-host"))
+	assert.False(t, misc_utils.IsHostnameRFC1123("host_underscore"))
+}
+
+func TestIsPort(t *testing.T) {
+	assert.True(t, misc_utils.IsPort(1))
+	assert.True(t, misc_utils.IsPort(80))
+	assert.True(t, misc_utils.IsPort(65535))
+	assert.False(t, misc_utils.IsPort(0))
+	assert.False(t, misc_utils.IsPort(65536))
+}
+
+func TestIsURL(t *testing.T) {
+	assert.True(t, misc_utils.IsURL("https://example.com/path"))
+	assert.True(t, misc_utils.IsURL("file:///tmp/file"))
+	assert.False(t, misc_utils.IsURL("http://"))
+	assert.False(t, misc_utils.IsURL("just-text"))
+}
+
+func TestStripMarkdownSignIfAny(t *testing.T) {
+	cases := []struct {
+		input  string
+		expect string
+	}{
+		{"```go\nhello world\n```", "hello world"},
+		{"no code block", "no code block"},
+		{"```", ""},
+		{"``````", ""},
+		{"`````````", ""},
+		{"```t```", ""},
+		{"```\nt\n```", ""},
+		{"t```", ""},
+		{"", ""},
+		{"t", "t"},
+		{"```toml\nhello world```", ""},
+		{"```toml\nhello world\n```", "hello world"},
+		{"```tomlhello world", ""},
+		{"```toml\n你好输出\n```", "你好输出"},
+		{"```你好输出\ntoml\n```", "toml"},
+		{strings.Repeat("`", 100), ""},
+		{"```a\nq" + strings.Repeat("```a\nq", 11), ""},
+		{`{"helo": [1, 2, 3], "world": "456"}`, `{"helo": [1, 2, 3], "world": "456"}`},
+	}
+	for _, c := range cases {
+		actual := misc_utils.StripMarkdownSignIfAny(c.input)
+		assert.Equal(t, c.expect, actual)
 	}
 }

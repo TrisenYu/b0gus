@@ -23,7 +23,8 @@ from auto_translator import markdown_stripper, seize_err_if_any
     ("```toml\n你好输出\n```", '你好输出'),
     ("```你好输出\ntoml\n```", 'toml'),
     ("`"*100, None),
-    ("```a\nq"*12, None)
+    ("```a\nq"*12, None),
+    ('{"helo": [1, 2, 3], "world": "456"}', '{"helo": [1, 2, 3], "world": "456"}')
 ])
 def test_markdown(a: str, expected: Optional[str]):
     if expected is None:

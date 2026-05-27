@@ -1,148 +1,186 @@
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "Ορισμός του καταλόγου στατικών πόρων."
+    other = "Ορισμός καταλόγου στατικών πόρων."
     [meta_conf.ConfPath]
-    other = "Διαδρομή του τοπικού αρχείου ρυθμίσεων."
+    other = "Διαδρομή τοπικού αρχείου διαμόρφωσης."
     [meta_conf.PermitConfAlterInRuntime]
-    other = "Ρύθμιση που επιτρέπει την αλλαγή ρυθμίσεων κατά τη διάρκεια εκτέλεσης."
+    other = "Ρύθμιση που επιτρέπει την αλλαγή διαμόρφωσης κατά τη διάρκεια εκτέλεσης."
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "Ρύθμιση που επιτρέπει την αυτο-αλλαγή ρυθμίσεων κατά τη διάρκεια εκτέλεσης."
+    other = "Ρύθμιση που επιτρέπει την αυτοαλλαγή της διαμόρφωσης κατά τη διάρκεια εκτέλεσης."
     [meta_conf.PermitShellAlterInRuntime]
-    other = "Ρύθμιση που επιτρέπει την αλλαγή ρυθμίσεων μέσω εντολών στο κέλυφος κατά τη διάρκεια εκτέλεσης."
+    other = "Ρύθμιση δικαιωμάτων που επιτρέπει την αλλαγή διαμόρφωσης μέσω εισαγωγής εντολών στο κέλυφος κατά τη διάρκεια εκτέλεσης."
     [meta_conf.PermitRemotePullInRuntime]
-    other = "Ρύθμιση που επιτρέπει την αλλαγή ρυθμίσεων μέσω απομακρυσμένης λήψης κατά τη διάρκεια εκτέλεσης."
+    other = "Ρύθμιση δικαιωμάτων που επιτρέπει την αλλαγή διαμόρφωσης μέσω λήψης από απομακρυσμένο σημείο κατά τη διάρκεια εκτέλεσης."
 
 [main]
-    [main.DatabaseConnectionError]
-    other = "Αδυναμία σύνδεσης στη βάση δεδομένων {{.DatabaseStr}}. Σφάλμα: <{{.ErrInfo}}>."
-    [main.DatabaseEmptyError]
-    other = "Λήψη κενού τελεστή βάσης δεδομένων βάσει της δοθείσας ρύθμισης."
-    [main.DatabaseChangingWarn]
-    other = "Λόγω εσωτερικού σφάλματος, δεν γίνεται αλλαγή της τρέχουσας βάσης δεδομένων σε χρήση."
     [main.TerminationSignalWarn]
-    other = "Λήψη σήματος τερματισμού του διακομιστή b0gus <{{.SignalStr}}>."
+    other = "Εντοπίστηκε σήμα τερματισμού του διακομιστή b0gus<{{.SignalStr}}>."
 	[main.FailToApplyConfiguration]
-	other = "Αδυναμία εφαρμογής του δοθέντος αρχείου ρυθμίσεων στην τρέχουσα διαμόρφωση."
+	other = "Αδυναμία εφαρμογής του δεδομένου αρχείου διαμόρφωσης στην τρέχουσα διαμόρφωση."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "Αδύνατο το άνοιγμα αρχείου PEM <{{.PemPath}}> για τη διαμόρφωση του τοπικού δημόσιου κλειδιού SSH!"
+    other = "Αδυναμία ανοίγματος του αρχείου PEM <{{.PemPath}}> για τη διαμόρφωση του τοπικού δημόσιου κλειδιού SSH!"
     [crypto_aux.PemFileReadFailure]
-    other = "Αδυναμία ανάγνωσης του δοθέντος αρχείου PEM!"
+    other = "Αδυναμία ανάγνωσης του δεδομένου αρχείου PEM!"
     [crypto_aux.PemFileDecodeFailure]
     other = "Αδυναμία σωστής αποκωδικοποίησης του αρχείου PEM!"
     [crypto_aux.PemFileUnsupportedTypeError]
-    other = "Μη υποστηριζόμενος τύπος αρχείου PEM!"
+    other = "Μη υποστηριζόμενο αρχείο PEM!"
     [crypto_aux.PemFileFormatError]
-    other = "Μη υποστηριζόμενη μορφή πιστοποιητικού υπογραφής"
+    other = "Η μορφή αυτού του πιστοποιητικού υπογραφής δεν υποστηρίζεται."
     [crypto_aux.InvalidLengthForEllipticCurveError]
-    other = "Το μήκος του δημόσιου κλειδιού <{{.PemLen}}> που δόθηκε δεν είναι κατάλληλο για γνωστούς αλγόριθμους κρυπτογράφησης ελλειπτικών καμπυλών."
+    other = "Το μήκος του παρεχόμενου δημόσιου κλειδιού <{{.PemLen}}> δεν είναι κατάλληλο για γνωστό αλγόριθμο κρυπτογράφησης ελλειπτικών καμπυλών."
     [crypto_aux.InvalidLengthForRSAError]
-    other = "Το μήκος του δημόσιου κλειδιού <{{.PemLen}}> που δόθηκε δεν είναι κατάλληλο για τον αλγόριθμο κρυπτογράφησης RSA."
+    other = "Το μήκος του παρεχόμενου δημόσιου κλειδιού <{{.PemLen}}> δεν είναι κατάλληλο για τον αλγόριθμο κρυπτογράφησης RSA."
     [crypto_aux.SSHPrivateKeyGenFailure]
-    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία δημιουργίας ιδιωτικού κλειδιού SSH βάσει του δοθέντος αλγόριθμου."
+    other = "Λόγω σφάλματος <{{.ErrInfo}}>, αδυναμία δημιουργίας ιδιωτικού κλειδιού SSH με βάση τον δεδομένο αλγόριθμο."
     [crypto_aux.SSHPrivateKeySetFailure]
-    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία ρύθμισης ιδιωτικού κλειδιού για την υπηρεσία SSH."
+    other = "Λόγω σφάλματος <{{.ErrInfo}}>, αδυναμία ορισμού ιδιωτικού κλειδιού για την υπηρεσία SSH."
     [crypto_aux.CreatePemToGivenPathError]
-    other = "Αδυναμία δημιουργίας πιστοποιητικού στη δοθείσα διαδρομή <{{.PemPath}}>."
+    other = "Αδυναμία δημιουργίας πιστοποιητικού στη δεδομένη διαδρομή <{{.PemPath}}>."
     [crypto_aux.Base64EncodeFailure]
     other = "Αδυναμία σωστής κωδικοποίησης του πιστοποιητικού σε συμβολοσειρά Base64."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Χρήση μη έγκυρου ή μη υποστηριζόμενου πιστοποιητικού, λεπτομέρειες: <{{.ErrInfo}}>. Το b0gus θα προσπαθήσει να δημιουργήσει ένα πιστοποιητικό ανάλογα με τη ρύθμιση."
+    other = "Χρησιμοποιήθηκε μη έγκυρο ή μη υποστηριζόμενο πιστοποιητικό λεπτομέρεια<{{.ErrInfo}}>. Το b0gus θα επιχειρήσει να δημιουργήσει ένα πιστοποιητικό βάσει διαμόρφωσης."
     [crypto_aux.PemFileCreateFailure]
-    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία δημιουργίας πιστοποιητικού στη διαδρομή <{{.PemPath}}>, και η υπηρεσία b0gus δεν θα ξεκινήσει."
+    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία δημιουργίας πιστοποιητικού στη διαδρομή <{{.PemPath}}> και η υπηρεσία b0gus δεν θα ξεκινήσει."
 
 [databases]
+	[databases.DatabaseConnectionError]
+	other = "Αδυναμία σύνδεσης στη βάση δεδομένων {{.DatabaseStr}}. Σφάλμα: <{{.ErrInfo}}>."
+	[databases.DatabaseEmptyError]
+	other = "Ελήφθη κενός τελεστής βάσης δεδομένων βάσει της δεδομένης διαμόρφωσης."
+	[databases.DatabaseChangingWarn]
+	other = "Λόγω εσωτερικού σφάλματος, δεν γίνεται αλλαγή της τρέχουσας βάσης δεδομένων."
     [databases.DatabaseTypeError]
-    other = "Βρέθηκε μη υποστηριζόμενη βάση δεδομένων <{{.Database}}>!"
+    other = "Εντοπίστηκε μη υποστηριζόμενη βάση δεδομένων <{{.Database}}>!"
 	[databases.InvalidMongoDBclientErr]
-	other = "Μη έγκυρο πρόγραμμα-πελάτη MongoDB!"
+	other = "Μη έγκυρος πελάτης MongoDB!"
 
 [configs]
     # Βάση δεδομένων
     [configs.InvalidDatabaseAddrError]
-    other = "Παρέχεται μη έγκυρη διεύθυνση σύνδεσης βάσης δεδομένων <{{.DatabaseAddr}}> στο αρχείο ρυθμίσεων!"
+    other = "Το αρχείο διαμόρφωσης παρέχει μη έγκυρη διεύθυνση σύνδεσης βάσης δεδομένων <{{.DatabaseAddr}}>!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Βρέθηκε άγνωστος τύπος βάσης δεδομένων. Το b0gus υποστηρίζει PostgreSQL, SQLite και MongoDB, ενώ εσύ επέλεξες <{{.DatabaseType}}>."
-    # Παγκόσμιες πληροφορίες ρυθμίσεων
+    other = "Εντοπίστηκε άγνωστος τύπος βάσης δεδομένων. Το b0gus υποστηρίζει PostgreSQL, SQLite και MongoDB, ενώ εσείς επιλέξατε <{{.DatabaseType}}>."
+    # Πληροφορίες γενικής διαμόρφωσης
     [configs.ReadingConfigurationFailure]
-    other = "Αδυναμία ανάγνωσης της ρύθμισης. Αιτία αποτυχίας: <{{.ErrInfo}}>."
+    other = "Αδυναμία ανάγνωσης διαμόρφωσης. Αιτία αποτυχίας: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
-    other = "Αποτυχία επαναφόρτωσης του αρχείου ρυθμίσεων! Δεν θα γίνει αλλαγή της τρέχουσας ρύθμισης. Αιτία αποτυχίας: <{{.ErrInfo}}>."
+    other = "Αποτυχία επαναφόρτωσης αρχείου διαμόρφωσης! Η τρέχουσα διαμόρφωση δεν θα αλλάξει. Αιτία αποτυχίας: <{{.ErrInfo}}>."
     [configs.UnmarshallingConfigurationFailure]
-    other = "Αδυναμία ανάλυσης του αρχείου ρυθμίσεων. Αιτία αποτυχίας: <{{.ErrInfo}}>."
+    other = "Αδυναμία ανάλυσης αρχείου διαμόρφωσης. Αιτία αποτυχίας: <{{.ErrInfo}}>."
 
 [services]
 	# abstract_tcpip
 	[services.absTCPIPPortErr]
-	other = "Επιλογή προνομιούχας θύρας"
+	other = "Επιλέχθηκε προνομιακή θύρα"
 	[services.absTCPIPUninitErr]
-	other = "Χρήση μη αρχικοποιημένου ReentrantNetType"
+	other = "Χρησιμοποιήθηκε μη αρχικοποιημένο ReentrantNetType."
 	[services.absTCPIPUnknownNetType]
-	other = "Χρήση άγνωστου τύπου δικτύου."
+	other = "Χρησιμοποιήθηκε άγνωστος τύπος δικτύου."
 	[services.absTCPIPUDPConnCastingErr]
 	other = "Αποτυχία μετατροπής net.UDPConn."
+	[services.absTCPIPunsupportedOSOnICMPErr]
+	other = "Τα Windows γενικά δεν υποστηρίζουν ανάπτυξη ως διακομιστή ICMP"
     # SSH
     [services.SSHversionWarn]
-    other = "Αδυναμία δημιουργίας 3 τυχαίων byte. Θα επιστραφεί προεπιλεγμένη τιμή για την έκδοση SSH."
+    other = "Αδυναμία δημιουργίας 3 τυχαίων bytes. Θα επιστραφεί προεπιλεγμένη τιμή για την έκδοση SSH."
     [services.SSHWriteResponseError]
     other = "Σφάλμα κατά την εγγραφή του αποτελέσματος εντολής <{{.ErrInfo}}>."
     [services.SSHsetTimeoutError]
-    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία ρύθμισης χρονικού ορίου για την επερχόμενη σύνδεση."
+    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία ορισμού χρονικού ορίου για την επερχόμενη σύνδεση."
     [services.SSHEstablishConnectionFailure]
-    other = "Αδυναμία δημιουργίας σύνδεσης SSH. (Απομακρυσμένη διεύθυνση, τρέχουσα έκδοση SSH, αιτία αποτυχίας): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    other = "Αδυναμία εγκατάστασης σύνδεσης SSH. (Απομακρυσμένη διεύθυνση, τρέχουσα έκδοση SSH, αιτία αποτυχίας): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
     [services.SSHchannelAcceptanceError]
     other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία αποδοχής του καναλιού SSH που παρέχεται στην απομακρυσμένη διεύθυνση <{{.RemoteAddr}}>."
     [services.SSHinvalidConfigurationWarn]
-    other = "Μη έγκυρη ρύθμιση SSH, παράκαμψη ενημέρωσης"
+    other = "Μη έγκυρη διαμόρφωση SSH, παράβλεψη ενημέρωσης."
     [services.SSHSwitchListenerError]
-    other = "Αδυναμία εναλλαγής στη δοθείσα διεύθυνση <{{.ListenAddr}}> για επαναφορά ακρόασης. Λόγω αυτού, δεν θα τροποποιηθεί ο τρέχων διακομιστής b0gus SSH."
+    other = "Αδυναμία εναλλαγής στη δεδομένη διεύθυνση <{{.ListenAddr}}> για επαναπαρακολούθηση. Ο τρέχων διακομιστής SSH b0gus δεν θα τροποποιηθεί."
     [services.SSHSetupListenerError]
-    other = "Αδυναμία έναρξης ακρόασης του διακομιστή SSH στη δοθείσα διεύθυνση <{{.ListenAddr}}>."
+    other = "Αδυναμία παρακολούθησης του διακομιστή SSH στη δεδομένη διεύθυνση <{{.ListenAddr}}>."
     [services.SSHAcceptConnWarn]
-    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία αποδοχής εξωτερικής αίτησης σύνδεσης SSH."
+    other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία αποδοχής εξωτερικού αιτήματος σύνδεσης SSH."
     [services.SSHCanNotUseSigner]
-    other = "Αδυναμία χρήσης του δοθέντος πιστοποιητικού <{{.Signer}}> για υπογραφή κατά τη διάρκεια της αλληλεπίδρασης του πρωτοκόλλου SSH."
+    other = "Αδυναμία χρήσης του δεδομένου πιστοποιητικού <{{.Signer}}> για υπογραφή κατά την επικοινωνία πρωτοκόλλου SSH."
     [services.SSHQuitInfo]
-    other = "Η υπηρεσία SSH έχει εξέλθει."
+    other = "Η υπηρεσία SSH τερματίστηκε."
 	[services.SSHConfigLoadingFailure]
-	other = "Αδυναμία επιλογής της ρύθμισης SSH από τη δοθείσα δομή ρύθμισης."
+	other = "Αδυναμία επιλογής διαμόρφωσης SSH από τη δεδομένη δομή διαμόρφωσης."
+	[services.SSHInvalidConfigFailure]
+	other = "Μετά από έλεγχο, η γενική διαμόρφωση παρείχε μη έγκυρη διαμόρφωση για την υπηρεσία SSH."
 	[services.SSHEmptyGlobConfigFailure]
-	other = "Παρέχεται κενή παγκόσμια ρύθμιση."
+	other = "Παρέχεται κενή γενική διαμόρφωση."
 	[services.SSHRequireSignerAsOnlyArgErr]
 	other = "Απαιτείται τουλάχιστον ένα ssh.Signer ως παράμετρος εισόδου."
+	[services.SSHResponseCmdClientSetupErr]
+	other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία ενεργοποίησης δημιουργίας απόκρισης εντολών τερματικού από LLM."
+	[services.SSHValidationCmdClientSetupErr]
+	other = "Λόγω σφάλματος <{{.ErrInfo}}> αδυναμία ενεργοποίησης ελέγχου συντακτικής ορθότητας εντολών τερματικού από LLM."
+	[services.SSHInvalidLLMConfigurePathErr]
+	other = "Εντοπίστηκε σφάλμα <{{.ErrInfo}}>. Παρέχεται λανθασμένη διαδρομή διαμόρφωσης <{{.WrongPath}}>."
+	[services.SSHLLMRepsJsonUnmarshallingErr]
+	other = "Αδυναμία ανάκτησης δομής από την JSON απόκριση LLM. Σφάλμα <{{.ErrInfo}}>"
+	[services.SSHNoAvailableLLMForResponseErr]
+	other = "Δεν υπάρχει διαθέσιμο άκρο επικοινωνίας LLM για δημιουργία πλαστής απόκρισης σε εξωτερική κίνηση."
+	[services.SSHInvalidShellCmdCheckedByParserWarn]
+	other = "Εντοπίστηκε συντακτικά μη έγκυρη εντολή τερματικού από τον συντακτικό αναλυτή."
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
-    other = "Ο διακομιστής NTP έλαβε αίτημα χρόνου μήκους <{{.Len}}> από <{{.IP}}>."
+    other = "Ο διακομιστής NTP έλαβε αίτημα χρονικής ερώτησης μήκους <{{.Len}}> από <{{.IP}}>."
     [services.NTPQuitInfo]
-    other = "Η υπηρεσία NTP έχει εξέλθει."
+    other = "Η υπηρεσία NTP τερματίστηκε."
 	[services.NTPNullConfErr]
-	other = "Παρέχεται κενή ρύθμιση NTP"
+	other = "Παρέχεται κενή διαμόρφωση NTP."
     # DNS
 	[services.DNSQuitInfo]
-	other = "Η υπηρεσία DNS έχει εξέλθει."
+	other = "Η υπηρεσία DNS τερματίστηκε."
 	[services.DNSNullConfErr]
-	other = "Παρέχεται κενή ρύθμιση DNS"
+	other = "Παρέχεται κενή διαμόρφωση DNS."
 	[services.DNSWrongParamNumErr]
-	other = "Λάθος αριθμός παραμέτρων. Αναμένονταν {{.Expect}}, λήφθηκαν {{.Actual}}."
+	other = "Εισήχθη λανθασμένος αριθμός παραμέτρων. Αναμενόταν {{.Expect}}, ελήφθη {{.Actual}}."
 	[services.DNSConfLoadErr]
-	other = "Αδυναμία εξαγωγής της υπορύθμισης DNS από τη ρύθμιση!"
+	other = "Αδυναμία εξαγωγής υποδιαμόρφωσης DNS από τη διαμόρφωση!"
     # SMTP
 	[services.SMTPQuitInfo]
-	other = "Η υπηρεσία SMTP έχει εξέλθει"
+	other = "Η υπηρεσία SMTP τερματίστηκε."
 	[services.SMTPWrongParamNumErr]
-	other = "Λάθος αριθμός παραμέτρων. Αναμένονταν {{.Expect}}, λήφθηκαν {{.Actual}}."
+	other = "Εισήχθη λανθασμένος αριθμός παραμέτρων. Αναμενόταν {{.Expect}}, ελήφθη {{.Actual}}."
 	[services.SMTPNullConfErr]
-	other = "Παρέχεται κενή ρύθμιση SMTP"
+	other = "Παρέχεται κενή διαμόρφωση SMTP."
 	# HTTP
 	[services.HTTPQuitInfo]
-	other = "Η υπηρεσία HTTP έχει εξέλθει"
+	other = "Η υπηρεσία HTTP τερματίστηκε."
 	[services.HTTPNullConfErr]
-	other = "Παρέχεται κενή ρύθμιση HTTP"
+	other = "Παρέχεται κενή διαμόρφωση HTTP."
 	[services.HTTPWrongParamNumErr]
-	other = "Λάθος αριθμός παραμέτρων. Αναμένονταν {{.Expect}}, λήφθηκαν {{.Actual}}."
+	other = "Εισήχθη λανθασμένος αριθμός παραμέτρων. Αναμενόταν {{.Expect}}, ελήφθη {{.Actual}}."
 	[services.HTTPConfLoadErr]
-	other = "Αδυναμία φόρτωσης της ρύθμισης HTTP"
+	other = "Αδυναμία φόρτωσης διαμόρφωσης HTTP."
     # ICMP
 	[services.ICMPwindowsUnsupportWarn]
-	other = "Το σύστημα Windows δεν υποστηρίζει τη δημιουργία διακομιστή ICMP"
+	other = "Το σύστημα Windows δεν υποστηρίζει ανάπτυξη διακομιστή ICMP."
+
+[llm]
+	[llm.UnableToSetPromptDueToUnkCurrTaskType]
+	other = "Λόγω άγνωστου τύπου εργασίας <{{.TaskType}}>, αδυναμία ορισμού προτροπής."
+	[llm.UnknownLLMProviderErr]
+	other = "Άγνωστος πάροχος LLM."
+	[llm.EmptyBaseURLErr]
+	other = "Η διεύθυνση API του παρόχου υπηρεσίας LLM είναι κενή."
+	[llm.InvalidBaseURLErr]
+	other = "Η παρεχόμενη διεύθυνση API του παρόχου υπηρεσίας LLM είναι μη έγκυρη."
+	[llm.EmptyAPIKeyErr]
+	other = "Κενό διακριτικό κλήσης API."
+	[llm.EmptyModelNameErr]
+	other = "Δεν καθορίστηκε το όνομα μοντέλου που χρησιμοποιείται."
+	[llm.EmptyRolePromptErr]
+	other = "Παρέχεται κενή προτροπή συστήματος."
+	[llm.EmptyLLMResponseErr]
+	other = "Ελήφθη κενή απόκριση."
+	[llm.EmptyLLMChoicesErr]
+	other = "Όλες οι προαιρετικές επιλογές που επέστρεψε το LLM φαίνεται να είναι κενές."
+	[llm.EmptyLLMRespContentErr]
+	other = "Από το αποτέλεσμα επιστροφής του LLM βρέθηκε μόνο κενό περιεχόμενο απόκρισης."

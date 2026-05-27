@@ -1,18 +1,18 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/20 星期三 22:04:34
+# Last modified at 2026/05/26 星期二 19:53:13
 b0gus_name=b0gus
-b0gus_ver=0.2.0
-
-phony=
-
+# milestone.major.minor, no patch at present
+b0gus_ver=0.3.0
 Arch=
 osType=
+
+phony=
 
 cc=gcc
 cxx=g++
 striper=strip
 dock=docker
-
+go_install_path:=$(shell go env GOPATH)/bin/
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- set up the name of program and build time
 ifeq ($(OS),Windows_NT)
 define build_time_payload
@@ -87,21 +87,14 @@ ifneq ($(Arch),)
 	passing_params+="GOARCH=$(Arch)"
 endif
 
-### set up link flags
-# well, $(b0gus_name) has to be precompiled so that the shell pipeline command below can work.
-## go tool nm $(b0gus_name) | grep -in "versionStr" | awk '{print $NF}'
-must_set_flag=-X 'main.versionStr=$(b0gus_ver)'        \
-              -X 'main.buildTimeStr=$(build_time_str)' \
-              -X 'main.hashValStr=$(b0gus_hash)'       \
-			  -X 'main.builtByStr=$(build_username)'
-
+# help first.
 help:
 	@echo "[makefile] usages:\n"                                        \
 	"    help      - (default) print this help\n\n"                     \
 	"    debug     - compile b0gus for debugging\n" 		            \
 	"    release   - compile b0gus for releasing\n\n" 		            \
-	"    mock      - generate internal/mock structure for diff_tests\n" \
-	"    test      - test testcases under ./diff_tests/\n" 	            \
+	"    mock      - generate internal/mock structure for diff_tests/\n"\
+	"    test      - test testcases under diff_tests/\n" 	            \
 	"    dry-run   - trial\n" 								            \
 	"    perf      - evaluate performance\n"                            \
 	"    clean     - clean build files and registered files\n"          \
@@ -121,6 +114,15 @@ phony += help
 # -asan for checking latent memory accessing error
 # -race for checking race condition whether exists or not
 # 	go: may not use -race and -asan simultaneously
+
+### set up link flags
+# well, $(b0gus_name) has to be precompiled so that the shell pipeline command below can work.
+## go tool nm $(b0gus_name) | grep -in "versionStr" | awk '{print $NF}'
+must_set_flag=-X 'b0gus/configs.versionStr=$(b0gus_ver)'        \
+              -X 'b0gus/configs.buildTimeStr=$(build_time_str)' \
+              -X 'b0gus/configs.hashValStr=$(b0gus_hash)'       \
+			  -X 'b0gus/configs.builtByStr=$(build_username)'
+
 debug_link_opts=-gcflags="-l -m" \
 			 -ldflags="$(must_set_flag) -X 'b0gus/configs.BuildTypeStr=debug'"
 debug: deps
@@ -140,20 +142,22 @@ release: deps
 	-$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
 # yes, strip the symbols
 	-$(striper) --strip-all $(b0gus_name)
+	-$(striper) -R .go.buildinfo $(b0gus_name)
 phony += release
 
 # better not execute if there happens to be any error
 invoke_protoc=protoc --go_out=. http_aux.proto; \
-			  protoc --go_out=. services.proto
+			  protoc --go_out=. --go-grpc_out=. services.proto;
 deps: clean
 	@go mod tidy
 	$(passing_params) go mod download
-	@-cd databases/rdt-parser && $(gen_script) || echo 			  \
-	"\033[1;33mantlr4 failed. If having not yet installed antlr4 (version >= 4.13), \
+	@-cd tools/rdt-parser && $(gen_script) || echo 			  \
+	"\033[1;33m'antlr4' failed. If having not yet installed antlr4 (version >= 4.13), \
 	then it will be better follow the installation tutorial on its official website\033[0m"
 	@-cd services && ( $(invoke_protoc) ) || echo 				  \
-	"\033[1;33mprotoc failed. If having not yet installed protoc, \
-	command 'sudo apt install protoc-gen-go' is recommended in Debian-based distributions...\033[0m"
+	"\033[1;33m'protoc' or 'protoc-gen-grpc' might failed. If having not yet installed protoc or   \
+	protoc-gen-go-grpc, command 'sudo apt install protoc-gen-go protoc-gen-go-grpc' is recommended \
+	in Debian-based distributions...\033[0m"
 phony += deps
 
 dry-run: release
@@ -161,15 +165,14 @@ dry-run: release
 phony += dry-run
 
 test:
-	-go test -race -v              \
-		-count=1 -failfast         \
-		-covermode=atomic          \
-		-coverprofile=coverage.out \
-		-coverpkg=./... ./... &&   \
+	-go test -timeout=300s -race -v \
+		-failfast -count=1          \
+		-covermode=atomic           \
+		-coverprofile=coverage.out  \
+		-coverpkg=./... ./... &&    \
 	go tool cover -func=coverage.out | grep -iI "total"
 
 phony += test
-
 
 clean:
 	@-rm $(b0gus_name)
@@ -189,18 +192,18 @@ fuzz: test
 phony += fuzz
 
 mock:
-	-$(shell go env GOPATH)/bin/mockgen             \
-		-source=services/abstract_tcpip.go          \
+	-$(go_install_path)mockgen                      \
+		-source=net_aux/abstract_tcpip.go           \
 		-destination=internal/mock/mock_net_serv.go \
 		-package=mock
-	-$(shell go env GOPATH)/bin/mockgen       \
+	-$(go_install_path)mockgen                \
 		-source=databases/db_aux.go           \
 		-destination=internal/mock/mock_db.go \
 		-package=mock
 phony += mock
 
 golint:
-	-$(shell go env GOPATH)/bin/golangci-lint run ./...
+	-$(go_install_path)golangci-lint run ./...
 phony += golint
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related

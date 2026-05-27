@@ -151,6 +151,8 @@ func createPriObj(pemType string, pemLen uint64) (crypto.PrivateKey, error) {
 		if err == nil && currPem != nil {
 			hostPem = *currPem
 		}
+	case "elliptic":
+		fallthrough
 	case "ecdsa":
 		hostPem, err = handleEcdsa(pemLen)
 	case "rsa":
@@ -224,6 +226,11 @@ func createPriKey(
 
 // LoadOrCreateSSHpem will try to load pem from pemPath
 // if the previous actions failed, then the function will warn and attempt to creat one.
+// When:
+// 	1. setting pemPath with only name, then the pem will be created under the same directory of the
+// 	invoked source file.
+//  2. setting pemPath with available filepath, then the pem will be created under the assigned one
+// Otherwise, this function return nil as its calculation result.
 func LoadOrCreateSSHpem(
 	pemPath, pemType string,
 	pemLen uint64,

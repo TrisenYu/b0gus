@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/12 星期二 17:50:56
+# Last modified at 2026/05/23 星期六 23:36:46
 
 # Currently don't need virtual environment
 # because imported packages are standard.
@@ -87,13 +87,12 @@ class SockWrapper:
             self.lock.acquire()
             resp, remote_ip = self.sock.recvfrom(512)
             self.lock.release()
-
-            t = struct.unpack("!12I", resp[:min(48, len(data))])[10] - FROM_1900_TO_1970
+            t = struct.unpack("!12I", resp[:min(48, len(data), len(resp))])[10] - FROM_1900_TO_1970
             print(f"{time.ctime(t)} {t} from {remote_ip}")
         # Like this: `Thu Nov 27 20:19:48 2025`
         # Literally, t is a unix timestamp in the form of integer
         except Exception as e:
-            print("can not properly convert to 12 bytes int!", data, e)
+            print("can not properly convert to 12 bytes int!", len(data), e)
 
 
 # TODO: NTP-DDoS/relay/sniff.

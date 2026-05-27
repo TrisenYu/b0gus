@@ -4,7 +4,12 @@
 # Last modified at 2026/05/17 星期日 22:03:58
 """
 [auto_translator] will read configuration from given/default source file
-and generate translated files by calling API to interact with LLM
+and generate translated files by calling API to interact with LLM.
+Only
+
+[TODO]: There might be a better way to update documentation like
+    using git diff to compare the modified base-reference and the previous one.
+    Thereby avoiding unnecessary token consumption.
 """
 import argparse
 import http

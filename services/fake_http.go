@@ -14,6 +14,7 @@ import (
 
 	"b0gus/configs"
 	"b0gus/databases"
+	"b0gus/net_aux"
 )
 
 type HTTPservConf struct {
@@ -62,9 +63,7 @@ func (hs *HTTPservConf) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (hs *HTTPservConf) Run(
 	ConfObj *atomic.Pointer[configs.LocalConfig],
-	scc *configs.ServConcurrentCtrl,
-	db databases.DBhandler,
-	args ...any,
+	scc *configs.ServConcurrentCtrl, args ...any,
 ) {
 	defer func() {
 		configs.Logger().Info(configs.GetLocalizedMsg(
@@ -87,15 +86,20 @@ func (hs *HTTPservConf) Run(
 		configs.Logger().Error(payload)
 		return
 	}
-	_, ok := ConfObj.Load().SelectTerm(configs.HTTPEnum).(configs.HTTPconfig)
+	snapshot, ok := ConfObj.Load().SelectTerm(configs.HTTPEnum).(configs.HTTPconfig)
 	if !ok {
 		configs.Logger().Error(configs.GetLocalizedMsg(
 			"services.HTTPConfLoadErr", nil,
 		))
 		return
 	}
-	hs.db = db
-	_ = hs.db.CreateTable(&databases.HttpInfo{})
+
+	if hs.db == nil {
+		if err := hs.handleDB(snapshot); err != nil {
+			configs.Logger().Debug(err.Error())
+			return
+		}
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = io.Discard
@@ -132,10 +136,19 @@ Allow: /sitemap.xml
 	//      2. minimize the legal risk while keeping aiming at the real attacker/hacker.
 	r.NoRoute(httpInterceptor)
 	hs.r = r
-	var clientAux = ReentrantNetType{}
+	var clientAux = net_aux.ReentrantNetType{}
 	clientAux.Init(configs.HTTPEnum, hs)
 	go clientAux.EventMonitor(ConfObj, scc)
-	clientAux.AlterNetFd(HTTPEnum, ConfObj)
+	clientAux.AlterNetFd(net_aux.HTTPEnum, ConfObj)
+}
+
+func (hs *HTTPservConf) handleDB(snapshot configs.HTTPconfig) error {
+	// [TODO]: yet to record
+	hs.db = &databases.RuntimeDB{
+		TLSKeyPath:  snapshot.TLSKeyPath,
+		TLSCertPath: snapshot.TLSCertPath,
+	}
+	return hs.db.Setup(&snapshot.RecDBConfig, &databases.HttpInfo{})
 }
 
 func ginLogger() gin.HandlerFunc { return httpLogger }

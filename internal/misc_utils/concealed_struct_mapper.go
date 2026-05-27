@@ -1,12 +1,12 @@
-/// Last modified at 2026/05/16 星期六 12:27:54
 package misc_utils
 
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
+/// Last modified at 2026/05/16 星期六 12:27:54
 
 import (
 	"errors"
-	"strings"
 	"reflect"
+	"strings"
 )
 
 // TurnStruct2Map will use recursion to convert a struct into (nested) map.
@@ -29,7 +29,7 @@ func TurnStruct2Map(s any) map[string]any {
 
 	var res = make(map[string]any)
 
-	// TODO: use a queue instead of recursion
+	// [TODO]: use a queue instead of recursion
 	for i := range styp.NumField() {
 		child := styp.Field(i).Type
 		if len(child.Name()) == 0 {

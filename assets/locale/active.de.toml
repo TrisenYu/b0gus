@@ -1,148 +1,186 @@
 [meta_conf]
     [meta_conf.AssetsDir]
-    other = "Setzen Sie das Verzeichnis für statische Ressourcen."
+    other = "Verzeichnis für statische Ressourcen festlegen."
     [meta_conf.ConfPath]
-    other = "Pfad der lokalen Konfigurationsdatei."
+    other = "Pfad zur lokalen Konfigurationsdatei."
     [meta_conf.PermitConfAlterInRuntime]
-    other = "Einstellung für die zulässige Konfigurationsänderung während der Laufzeit."
+    other = "Einstellung für das Ändern der Konfiguration während der Laufzeit."
     [meta_conf.PermitSelfAlterInRuntime]
-    other = "Einstellung für die zulässige Selbständerung der Konfiguration während der Laufzeit."
+    other = "Einstellung für die Selbständerung der Konfiguration während der Laufzeit."
     [meta_conf.PermitShellAlterInRuntime]
-    other = "Berechtigungseinstellung für die Konfigurationsänderung während der Laufzeit durch Eingabe von Befehlen in die Shell."
+    other = "Einstellung für die Berechtigung, Konfiguration während der Laufzeit durch Shell-Befehle zu ändern."
     [meta_conf.PermitRemotePullInRuntime]
-    other = "Berechtigungseinstellung für die zulässige Konfigurationsänderung während der Laufzeit durch Remote-Pull."
+    other = "Einstellung für die Berechtigung, Konfiguration während der Laufzeit durch Fernabruf zu ändern."
 
 [main]
-    [main.DatabaseConnectionError]
-    other = "Kann keine Verbindung zur Datenbank {{.DatabaseStr}} herstellen. Fehler: <{{.ErrInfo}}>."
-    [main.DatabaseEmptyError]
-    other = "Aufgrund der angegebenen Konfiguration wurde ein leerer Datenbankoperator abgerufen."
-    [main.DatabaseChangingWarn]
-    other = "Aufgrund eines internen Fehlers wird die aktuell verwendete Datenbank nicht gewechselt."
     [main.TerminationSignalWarn]
-    other = "Signal <{{.SignalStr}}> zum Beenden des b0gus-Servers abgefangen."
+    other = "Signal zum Beenden des b0gus-Servers abgefangen <{{.SignalStr}}>."
 	[main.FailToApplyConfiguration]
-	other = "Kann die angegebene Konfigurationsdatei nicht auf die aktuelle Konfiguration anwenden."
+	other = "Die angegebene Konfigurationsdatei kann nicht auf die aktuelle Konfiguration angewendet werden."
 
 [crypto_aux]
     [crypto_aux.PemFileOpenFailure]
-    other = "Kann die PEM-Datei <{{.PemPath}}> zum Konfigurieren des lokalen SSH-öffentlichen Schlüssels nicht öffnen!"
+    other = "PEM-Datei <{{.PemPath}}> kann nicht zum Konfigurieren des lokalen SSH-öffentlichen Schlüssels geöffnet werden!"
     [crypto_aux.PemFileReadFailure]
-    other = "Kann die angegebene PEM-Datei nicht lesen!"
+    other = "Die angegebene PEM-Datei kann nicht gelesen werden!"
     [crypto_aux.PemFileDecodeFailure]
-    other = "Kann die PEM-Datei nicht korrekt dekodieren!"
+    other = "Die PEM-Datei kann nicht korrekt decodiert werden!"
     [crypto_aux.PemFileUnsupportedTypeError]
-    other = "Nicht unterstützte PEM-Datei!"
+    other = "Nicht unterstützter PEM-Dateityp!"
     [crypto_aux.PemFileFormatError]
     other = "Format dieses Signaturzertifikats wird nicht unterstützt"
     [crypto_aux.InvalidLengthForEllipticCurveError]
-    other = "Die bereitgestellte Länge des öffentlichen Schlüssels <{{.PemLen}}> ist für bekannte Elliptische-Kurven-Kryptografie-Algorithmen nicht geeignet."
+    other = "Die bereitgestellte öffentliche Schlüssellänge <{{.PemLen}}> ist für bekannte elliptische Kurven-Kryptographieverfahren ungeeignet."
     [crypto_aux.InvalidLengthForRSAError]
-    other = "Die bereitgestellte Länge des öffentlichen Schlüssels <{{.PemLen}}> ist für RSA-Kryptografie nicht geeignet."
+    other = "Die bereitgestellte öffentliche Schlüssellänge <{{.PemLen}}> ist für das RSA-Kryptographieverfahren ungeeignet."
     [crypto_aux.SSHPrivateKeyGenFailure]
-    other = "Kann aufgrund des Fehlers <{{.ErrInfo}}> keinen SSH-privaten Schlüssel mit dem angegebenen Algorithmus generieren."
+    other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann kein SSH-privater Schlüssel mit dem angegebenen Algorithmus generiert werden."
     [crypto_aux.SSHPrivateKeySetFailure]
-    other = "Kann aufgrund des Fehlers <{{.ErrInfo}}> keinen privaten Schlüssel für den SSH-Dienst festlegen."
+    other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann kein privater Schlüssel für den SSH-Dienst festgelegt werden."
     [crypto_aux.CreatePemToGivenPathError]
-    other = "Kann kein Zertifikat zum angegebenen Pfad <{{.PemPath}}> erstellen."
+    other = "Zertifikat kann nicht unter dem angegebenen Pfad <{{.PemPath}}> erstellt werden."
     [crypto_aux.Base64EncodeFailure]
-    other = "Kann das Zertifikat nicht korrekt in eine Base64-Zeichenfolge kodieren."
+    other = "Das Zertifikat kann nicht korrekt in einen Base64-String codiert werden."
     [crypto_aux.UnsupportedOrInvalidPemWarn]
-    other = "Es wurde ein ungültiges oder nicht unterstütztes Zertifikat verwendet. Details: <{{.ErrInfo}}>. b0gus wird versuchen, ein Zertifikat zu generieren, sofern dies konfiguriert ist."
+    other = "Ein ungültiges oder nicht unterstütztes Zertifikat verwendet, Details: <{{.ErrInfo}}>. b0gus wird versuchen, entsprechend der Konfiguration ein Zertifikat zu generieren."
     [crypto_aux.PemFileCreateFailure]
-    other = "Kann aufgrund des Fehlers <{{.ErrInfo}}> kein Zertifikat unter dem Pfad <{{.PemPath}}> erstellen, und der b0gus-Dienst wird nicht gestartet."
+    other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann kein Zertifikat unter dem Pfad <{{.PemPath}}> erstellt werden; der b0gus-Dienst wird nicht gestartet."
 
 [databases]
+	[databases.DatabaseConnectionError]
+	other = "Verbindung zur Datenbank {{.DatabaseStr}} kann nicht hergestellt werden. Fehler: <{{.ErrInfo}}>."
+	[databases.DatabaseEmptyError]
+	other = "Bei gegebener Konfiguration wurde ein leerer Datenbankoperator abgerufen."
+	[databases.DatabaseChangingWarn]
+	other = "Aufgrund eines internen Fehlers wird die aktuell verwendete Datenbank nicht gewechselt."
     [databases.DatabaseTypeError]
-    other = "Es wurde eine nicht unterstützte Datenbank <{{.Database}}> gefunden!"
+    other = "Nicht unterstützte Datenbank <{{.Database}}> gefunden!"
 	[databases.InvalidMongoDBclientErr]
 	other = "Ungültiger MongoDB-Client!"
 
 [configs]
     # Datenbank
     [configs.InvalidDatabaseAddrError]
-    other = "Die Konfigurationsdatei enthält eine ungültige Datenbankverbindungsadresse <{{.DatabaseAddr}}>!"
+    other = "In der Konfigurationsdatei wurde eine ungültige Datenbankverbindungsadresse <{{.DatabaseAddr}}> angegeben!"
     [configs.UnsupportDatabaseTypeError]
-    other = "Es wurde ein unbekannter Datenbanktyp gefunden. Derzeit unterstützt b0gus PostgreSQL, SQLite und MongoDB, Sie haben <{{.DatabaseType}}> gewählt."
+    other = "Unbekannter Datenbanktyp gefunden. b0gus unterstützt derzeit PostgreSQL, SQLite und MongoDB; Sie haben <{{.DatabaseType}}> ausgewählt."
     # Globale Konfigurationsinformationen
     [configs.ReadingConfigurationFailure]
-    other = "Kann die Konfiguration nicht lesen. Grund: <{{.ErrInfo}}>."
+    other = "Konfiguration kann nicht gelesen werden. Fehlergrund: <{{.ErrInfo}}>."
     [configs.ReloadingConfigurationFailure]
-    other = "Laden der Konfigurationsdatei fehlgeschlagen! Die aktuelle Konfiguration wird nicht ersetzt. Grund: <{{.ErrInfo}}>."
+    other = "Neuladen der Konfigurationsdatei fehlgeschlagen! Aktuelle Konfiguration wird nicht ausgetauscht. Fehlergrund: <{{.ErrInfo}}>."
     [configs.UnmarshallingConfigurationFailure]
-    other = "Kann die Konfigurationsdatei nicht analysieren. Grund: <{{.ErrInfo}}>."
+    other = "Konfigurationsdatei kann nicht analysiert werden. Fehlergrund: <{{.ErrInfo}}>."
 
 [services]
 	# abstract_tcpip
 	[services.absTCPIPPortErr]
-	other = "Es wurde ein privilegierter Port ausgewählt"
+	other = "Privilegierter Port ausgewählt"
 	[services.absTCPIPUninitErr]
-	other = "Es wurde ein nicht initialisierter ReentrantNetType verwendet"
+	other = "Nicht initialisierter ReentrantNetType verwendet."
 	[services.absTCPIPUnknownNetType]
-	other = "Es wurde ein unbekannter Netztyp verwendet."
+	other = "Unbekannter Netzwerktyp verwendet."
 	[services.absTCPIPUDPConnCastingErr]
 	other = "Konvertierung von net.UDPConn fehlgeschlagen."
+	[services.absTCPIPunsupportedOSOnICMPErr]
+	other = "Windows unterstützt im Allgemeinen keinen ICMP-Server"
     # SSH
     [services.SSHversionWarn]
-    other = "Kann keine 3 zufälligen Bytes generieren. Ein Standardwert wird für die SSH-Version zurückgegeben."
+    other = "Drei zufällige Bytes können nicht generiert werden. Für die SSH-Version wird ein Standardwert zurückgegeben."
     [services.SSHWriteResponseError]
-    other = "Beim Rückschreiben des Befehlsergebnisses ist ein Fehler aufgetreten <{{.ErrInfo}}>."
+    other = "Beim Zurückschreiben des Befehlsergebnisses ist ein Fehler aufgetreten <{{.ErrInfo}}>."
     [services.SSHsetTimeoutError]
-    other = "Kann aufgrund des Fehlers <{{.ErrInfo}}> kein Timeout für die eingehende Verbindung festlegen."
+    other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann kein Timeout für die eingehende Verbindung festgelegt werden."
     [services.SSHEstablishConnectionFailure]
-    other = "Kann keine SSH-Verbindung herstellen. (Remote-Adresse, aktuelle SSH-Version, Grund): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    other = "SSH-Verbindung kann nicht hergestellt werden. (Remote-Adresse, aktuelle SSH-Version, Fehlergrund): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
     [services.SSHchannelAcceptanceError]
-    other = "Kann aufgrund des Fehlers <{{.ErrInfo}}> den aktuell für die Remote-Adresse <{{.RemoteAddr}}> bereitgestellten SSH-Kanal nicht akzeptieren."
+    other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann der für die Remote-Adresse <{{.RemoteAddr}}> bereitgestellte SSH-Kanal nicht akzeptiert werden."
     [services.SSHinvalidConfigurationWarn]
-    other = "Ungültige SSH-Konfiguration, Update wird übersprungen"
+    other = "Ungültige SSH-Konfiguration; Aktualisierung wird übersprungen."
     [services.SSHSwitchListenerError]
-    other = "Kann nicht zur angegebenen Adresse <{{.ListenAddr}}> wechseln, um erneut zu lauschen. Der aktuelle b0gus SSH-Server wird davon nicht beeinflusst."
+    other = "Kann nicht zur angegebenen Adresse <{{.ListenAddr}}> wechseln, um erneut zu lauschen. Der aktuelle b0gus SSH-Server wird daher nicht geändert."
     [services.SSHSetupListenerError]
-    other = "Kann den SSH-Server auf der angegebenen Adresse <{{.ListenAddr}}> nicht zum Lauschen bringen."
+    other = "SSH-Server kann nicht an der angegebenen Adresse <{{.ListenAddr}}> gestartet werden."
     [services.SSHAcceptConnWarn]
-    other = "Kann aufgrund des Fehlers <{{.ErrInfo}}> keine externe SSH-Verbindungsanforderung akzeptieren."
+    other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann keine eingehende SSH-Verbindungsanfrage angenommen werden."
     [services.SSHCanNotUseSigner]
-    other = "Kann das angegebene Zertifikat <{{.Signer}}> nicht für die Signierung während der SSH-Protokoll-Interaktion verwenden."
+    other = "Das angegebene Zertifikat <{{.Signer}}> kann nicht zur Signatur während der SSH-Protokollinteraktion verwendet werden."
     [services.SSHQuitInfo]
-    other = "SSH-Dienst wurde beendet."
+    other = "SSH-Dienst beendet."
 	[services.SSHConfigLoadingFailure]
-	other = "Kann aus der angegebenen Konfigurationsstruktur keine SSH-Konfiguration auswählen."
+	other = "Die SSH-Konfiguration kann nicht aus der angegebenen Konfigurationsstruktur extrahiert werden."
+	[services.SSHInvalidConfigFailure]
+	other = "Die globalen Konfigurationen enthalten nach Prüfung eine ungültige Konfiguration für den SSH-Dienst."
 	[services.SSHEmptyGlobConfigFailure]
-	other = "Es wurde eine leere globale Konfiguration bereitgestellt."
+	other = "Leere globale Konfiguration bereitgestellt."
 	[services.SSHRequireSignerAsOnlyArgErr]
-	other = "Mindestens ein ssh.Signer muss als Parameter übergeben werden."
+	other = "Mindestens ein ssh.Signer muss als Eingabeparameter bereitgestellt werden."
+	[services.SSHResponseCmdClientSetupErr]
+	other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann die LLM-Response für Terminalbefehle nicht aktiviert werden."
+	[services.SSHValidationCmdClientSetupErr]
+	other = "Aufgrund des Fehlers <{{.ErrInfo}}> kann die LLM-Überprüfung der Terminalbefehlssyntax nicht aktiviert werden."
+	[services.SSHInvalidLLMConfigurePathErr]
+	other = "Fehler <{{.ErrInfo}}> abgefangen. Falscher Konfigurationspfad <{{.WrongPath}}>."
+	[services.SSHLLMRepsJsonUnmarshallingErr]
+	other = "Struktur kann aus der JSON-Response des LLM nicht wiederhergestellt werden. Fehler <{{.ErrInfo}}>"
+	[services.SSHNoAvailableLLMForResponseErr]
+	other = "Kein verfügbarer LLM-Kommunikationsendpunkt, um gefälschte Antworten auf externe Anfragen zu generieren."
+	[services.SSHInvalidShellCmdCheckedByParserWarn]
+	other = "Von der Syntaxprüfung wurde ein syntaktisch ungültiger Terminalbefehl festgestellt."
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
-    other = "NTP-Server hat vom <{{.IP}}> eine Zeitabfrage der Länge <{{.Len}}> empfangen."
+    other = "NTP-Server empfängt eine Zeitabfrage von <{{.IP}}> mit der Länge <{{.Len}}>."
     [services.NTPQuitInfo]
-    other = "NTP-Dienst wurde beendet."
+    other = "NTP-Dienst beendet."
 	[services.NTPNullConfErr]
-	other = "Es wurde eine leere NTP-Konfiguration bereitgestellt"
+	other = "Leere NTP-Konfiguration bereitgestellt."
     # DNS
 	[services.DNSQuitInfo]
-	other = "DNS-Dienst wurde beendet."
+	other = "DNS-Dienst beendet."
 	[services.DNSNullConfErr]
-	other = "Es wurde eine leere DNS-Konfiguration bereitgestellt"
+	other = "Leere DNS-Konfiguration bereitgestellt."
 	[services.DNSWrongParamNumErr]
-	other = "Es wurde eine falsche Anzahl von Parametern übergeben. Erwartet {{.Expect}}, tatsächlich {{.Actual}}."
+	other = "Falsche Anzahl von Parametern übergeben. Erwartet {{.Expect}}, tatsächlich {{.Actual}}."
 	[services.DNSConfLoadErr]
-	other = "Kann die DNS-Unterkonfiguration nicht aus der Konfiguration extrahieren!"
+	other = "DNS-Unterkonfiguration kann nicht aus der Konfiguration extrahiert werden!"
     # SMTP
 	[services.SMTPQuitInfo]
-	other = "SMTP-Dienst wurde beendet"
+	other = "SMTP-Dienst beendet."
 	[services.SMTPWrongParamNumErr]
-	other = "Es wurde eine falsche Anzahl von Parametern übergeben. Erwartet {{.Expect}}, tatsächlich {{.Actual}}."
+	other = "Falsche Anzahl von Parametern übergeben. Erwartet {{.Expect}}, tatsächlich {{.Actual}}."
 	[services.SMTPNullConfErr]
-	other = "Es wurde eine leere SMTP-Konfiguration bereitgestellt"
+	other = "Leere SMTP-Konfiguration bereitgestellt."
 	# HTTP
 	[services.HTTPQuitInfo]
-	other = "HTTP-Dienst wurde beendet"
+	other = "HTTP-Dienst beendet."
 	[services.HTTPNullConfErr]
-	other = "Es wurde eine leere HTTP-Konfiguration bereitgestellt"
+	other = "Leere HTTP-Konfiguration bereitgestellt."
 	[services.HTTPWrongParamNumErr]
-	other = "Es wurde eine falsche Anzahl von Parametern übergeben. Erwartet {{.Expect}}, tatsächlich {{.Actual}}."
+	other = "Falsche Anzahl von Parametern übergeben. Erwartet {{.Expect}}, tatsächlich {{.Actual}}."
 	[services.HTTPConfLoadErr]
-	other = "Kann die HTTP-Konfiguration nicht laden"
+	other = "HTTP-Konfiguration kann nicht geladen werden."
     # ICMP
 	[services.ICMPwindowsUnsupportWarn]
-	other = "Windows-System unterstützt keinen ICMP-Server"
+	other = "Windows-Systeme unterstützen keinen ICMP-Server."
+
+[llm]
+	[llm.UnableToSetPromptDueToUnkCurrTaskType]
+	other = "Aufgrund des unbekannten Aufgabentyps <{{.TaskType}}> kann der Prompt nicht festgelegt werden."
+	[llm.UnknownLLMProviderErr]
+	other = "Unbekannter LLM-Anbieter."
+	[llm.EmptyBaseURLErr]
+	other = "Die API-URL des LLM-Dienstanbieters ist leer."
+	[llm.InvalidBaseURLErr]
+	other = "Die bereitgestellte API-URL des LLM-Dienstanbieters ist ungültig."
+	[llm.EmptyAPIKeyErr]
+	other = "Leerer API-Aufruftoken."
+	[llm.EmptyModelNameErr]
+	other = "Kein Modellname angegeben."
+	[llm.EmptyRolePromptErr]
+	other = "Leerer System-Prompt bereitgestellt."
+	[llm.EmptyLLMResponseErr]
+	other = "Leere Antwort erhalten."
+	[llm.EmptyLLMChoicesErr]
+	other = "Die vom LLM zurückgegebenen Optionen scheinen alle leer zu sein."
+	[llm.EmptyLLMRespContentErr]
+	other = "Aus dem LLM-Ergebnis wurde nur leerer Antwortinhalt gefunden."

@@ -5,23 +5,28 @@ package services
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
+	"b0gus/configs"
+	"b0gus/crypto_aux"
+	"b0gus/databases"
+	"b0gus/internal/misc_utils"
+	"b0gus/llm"
+	"b0gus/net_aux"
+	"b0gus/terminal"
+
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
-
-	"b0gus/configs"
-	"b0gus/crypto_aux"
-	"b0gus/databases"
-	"b0gus/internal/misc_utils"
-	"b0gus/terminal"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 var (
@@ -30,7 +35,7 @@ var (
 		"PuTTY", "paramiko", "FlowSSH", "check_ssh",
 		"dropbear",
 	}
-	// TODO: falsify operating system and its version string in the future
+	// [TODO]: falsify OS and its version string in the future
 	sshOSCommentArr = []string{
 		"Debian-10", "Debian-11", "Ubuntu-18.04",
 		"Ubuntu-20.04", "Ubuntu-22.04", "Fedora-34",
@@ -70,8 +75,7 @@ func getRandomSSHVersion() string {
 	sb.WriteString(strconv.Itoa(int(buf[2])))
 	sb.WriteRune(' ')
 	sb.WriteString(sshOSCommentArr[buf[4]])
-	// "SSH-2.0-%s_%d.%d.%d %s"
-	return sb.String()
+	return sb.String() /* "SSH-2.0-%s_%d.%d.%d %s" */
 }
 
 // SSHServConf is designed for executing the fake ssh service.
@@ -81,8 +85,16 @@ func getRandomSSHVersion() string {
 type SSHServConf struct {
 	// hostSigner holds the ssh key of host
 	hostSigner ssh.Signer
+
 	// DbFd is an object for interacting with database
 	DbFd databases.DBhandler
+
+	// clis is client map to interact with remote LLM server with custom prompt
+	clis map[llm.LLMtaskType]*llm.LLMcli
+
+	// ShCmdParser will be used for parsing shell command when clis is not available
+	ShCmdParser *syntax.Parser
+
 	// ConfOptions is a dangling copy of global configuration
 	ConfOptions *atomic.Pointer[configs.LocalConfig]
 }
@@ -90,8 +102,7 @@ type SSHServConf struct {
 // Run is the function for invoking the fake ssh service
 func (s *SSHServConf) Run(
 	confObj *atomic.Pointer[configs.LocalConfig],
-	scc *configs.ServConcurrentCtrl,
-	db databases.DBhandler, args ...any,
+	scc *configs.ServConcurrentCtrl, args ...any,
 ) {
 	defer func() {
 		payload := configs.GetLocalizedMsg(
@@ -99,6 +110,10 @@ func (s *SSHServConf) Run(
 			nil,
 		)
 		configs.Logger().Info(payload)
+		for c := range s.clis {
+			s.clis[c] = nil
+		}
+		s.clis = nil
 	}()
 
 	if len(args) != 1 {
@@ -116,12 +131,14 @@ func (s *SSHServConf) Run(
 		configs.Logger().Error(payload)
 		return
 	}
-	_, ok := confObj.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+	snapshot, ok := confObj.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
 	if !ok {
-		payload := configs.GetLocalizedMsg(
-			"services.SSHConfigLoadingFailure",
-			nil,
-		)
+		payload := configs.GetLocalizedMsg("services.SSHConfigLoadingFailure", nil)
+		configs.Logger().Error(payload)
+		return
+	}
+	if !configs.CheckSSHconfig(&snapshot) {
+		payload := configs.GetLocalizedMsg("services.SSHInvalidConfigFailure", nil)
 		configs.Logger().Error(payload)
 		return
 	}
@@ -135,24 +152,36 @@ func (s *SSHServConf) Run(
 		return
 	}
 	s.hostSigner = hostKey
-	err := db.CreateTable(
+	// the same message request for remote DB to query/create/update/delete tables or records.
+	if s.DbFd == nil {
+		err := s.handleDB(snapshot)
+		if err != nil {
+			configs.Logger().Error(err.Error())
+			return
+		}
+	}
+	var clientAux net_aux.ReentrantNetType
+	s.ConfOptions = confObj
+	s.clis = make(map[llm.LLMtaskType]*llm.LLMcli)
+	clientAux.Init(configs.SSHEnum, s)
+	go clientAux.EventMonitor(confObj, scc)
+	clientAux.AlterNetFd(net_aux.TCPEnum, confObj)
+}
+
+func (s *SSHServConf) handleDB(snapshot configs.SSHconfig) error {
+	s.DbFd = &databases.RuntimeDB{
+		TLSKeyPath:  snapshot.TLSKeyPath,
+		TLSCertPath: snapshot.TLSCertPath,
+	}
+	return s.DbFd.Setup(&snapshot.RecDBConfig,
 		&databases.AddrInfo{}, &databases.PortInfo{},
 		&databases.UsernameInfo{}, &databases.PasswordInfo{},
 		&databases.PublickeyInfo{}, &databases.SshVersionInfo{}, &databases.CommandInfo{},
-		// extended relations
+		/* extended relations */
 		&databases.RemoteUsernameRelation{}, &databases.RemotePasswordRelation{},
 		&databases.RemotePublickeyRelation{}, &databases.RemoteSshverRelation{},
 		&databases.RemoteCommandRelation{},
 	)
-	if err != nil {
-		configs.Logger().Error(err.Error())
-		return
-	}
-	var clientAux ReentrantNetType
-	s.ConfOptions, s.DbFd = confObj, db
-	clientAux.Init(configs.SSHEnum, s)
-	go clientAux.EventMonitor(confObj, scc)
-	clientAux.AlterNetFd(TCPEnum, confObj)
 }
 
 // InvokeForUDPtask here will do nothing due to ssh is a TCP protocol
@@ -167,11 +196,14 @@ func (s *SSHServConf) InvokeForICMPtask(net.Addr, []byte) {}
 // InvokeForTCPtask is implemented for the callback function defined in ReentrantNetType.
 func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 	defer func() { _ = conn.Close() }()
-	snapshot, ok := s.ConfOptions.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+	wholeConf := s.ConfOptions.Load()
+	snapshot, ok := wholeConf.SelectTerm(configs.SSHEnum).(configs.SSHconfig)
 	if !ok {
-		// TODO: log
+		payload := configs.GetLocalizedMsg("services.SSHConfigLoadingFailure", nil)
+		configs.Logger().Error(payload)
 		return
 	}
+	s.setupLLMClients(snapshot)
 	maxTryTimes := int(snapshot.MaxAuthTries)
 	hashAlg := crypto_aux.OnceHashByChoice(snapshot.HashAlgorithm)
 	ip, port := misc_utils.IPAddrSplit(conn.RemoteAddr().String())
@@ -217,7 +249,6 @@ func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 		NoClientAuth:      false, // request for basic authentication
 		MaxAuthTries:      maxTryTimes,
 	}
-
 	sshConfig.AddHostKey(s.hostSigner)
 	sshConn, chans, relayReqs, err := ssh.NewServerConn(conn, sshConfig)
 	if err != nil {
@@ -247,6 +278,45 @@ func (s *SSHServConf) InvokeForTCPtask(conn net.Conn) {
 	}
 }
 
+// setupLLMClients will check the configuration path of LLM and attempt to create 2 clients
+// for shell command format checking and responding.
+func (s *SSHServConf) setupLLMClients(snapshot configs.SSHconfig) {
+	absLLMPath := configs.GetFilePathUnderConfigDir(snapshot.LLMConfPath)
+	_, errConf := os.Stat(absLLMPath)
+	if os.IsExist(errConf) || errConf == nil {
+		var err1, err2 error
+		s.clis[llm.ResponseCmd], err1 = llm.NewLLMcli(absLLMPath)
+		if err1 == nil {
+			s.clis[llm.ResponseCmd].AlterPrompt(llm.ResponseCmd)
+		} else {
+			payload := configs.GetLocalizedMsg(
+				"services.SSHResponseCmdClientSetupErr",
+				map[string]any{"ErrInfo": err1.Error()},
+			)
+			configs.Logger().Warn(payload)
+		}
+		s.clis[llm.ValidateCmd], err2 = llm.NewLLMcli(absLLMPath)
+		if err2 == nil {
+			s.clis[llm.ValidateCmd].AlterPrompt(llm.ValidateCmd)
+		} else {
+			payload := configs.GetLocalizedMsg(
+				"services.SSHValidateCmdClientSetupErr",
+				map[string]any{"ErrInfo": err2.Error()},
+			)
+			configs.Logger().Warn(payload)
+		}
+	} else {
+		payload := configs.GetLocalizedMsg(
+			"services.SSHInvalidLLMConfigurePathErr",
+			map[string]any{
+				"ErrInfo":   errConf.Error(),
+				"WrongPath": snapshot.LLMConfPath,
+			},
+		)
+		configs.Logger().Error(payload)
+	}
+}
+
 func (s *SSHServConf) handleNewSSHchan(
 	sessionId int64,
 	sshConn *ssh.ServerConn,
@@ -263,8 +333,6 @@ func (s *SSHServConf) handleNewSSHchan(
 	}
 	sshChan, reqs, err := newChan.Accept()
 	if err == nil {
-		// [TODO]: use configuration to determine which kind of mode we really need.
-		//		1. talk with an LLM with tailored prompt
 		s.mockShellForRemote(sessionId, sshConn, sshChan, reqs)
 		return
 	}
@@ -382,8 +450,7 @@ func (s *SSHServConf) cmdForwarding(
 	go func() {
 		err := term.Run()
 		defer shouldCease.Store(true)
-		if err == nil {
-			// send exit-status before quiting.
+		if err == nil { // send exit-status before quiting.
 			_, _ = sshChan.SendRequest(
 				"exit-status", false,
 				ssh.Marshal(&struct{ Status uint32 }{0}),
@@ -405,51 +472,108 @@ func (s *SSHServConf) cmdForwarding(
 			break
 		}
 		/*
-			TODO: Add hook for specific commands output like `uname -a`
+			[TODO]: Add hook for specific commands output like `uname -a`
 				0. check if the configuration needs such modification
 				1. inspect command, determine whether it matches the request or not
 				2. once match, modify the return pattern
 		*/
-		snapshot, ok := s.ConfOptions.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+		wholeConf := s.ConfOptions.Load()
+		snapshot, ok := wholeConf.SelectTerm(configs.SSHEnum).(configs.SSHconfig)
 		if !ok {
 			// use default method
 			go term.SetCurrResp(currPayload)
-		} else {
-			respType := snapshot.ResponseType
-			switch strings.ToLower(respType) {
-			case "llm":
-				// TODO: switch to easier mode if all tokens run up or utilized local LLM if possible...
-			case "empty":
-				go term.SetCurrResp(&terminal.ShellSyncObj{Ctx: currPayload.Ctx, Payload: ""})
-			case "sandbox":
-				// TODO container as sandbox
-				fallthrough
-			case "repeat":
-				fallthrough
-			default:
-				go term.SetCurrResp(currPayload)
-			}
+			go s.evalAndStoreUntrustedCmd(sessionId, currPayload.Payload)
+			continue
 		}
-		go s.evalAndstoreUntrustCmd(sessionId, currPayload.Payload)
+		respType := snapshot.ResponseType
+		switch strings.ToLower(respType) {
+		case "empty":
+			go term.SetCurrResp(&terminal.ShellSyncObj{Ctx: currPayload.Ctx, Payload: ""})
+		case "llm":
+			var err error
+			cli := s.clis[llm.ResponseCmd]
+			// [Warn]: Asynchronous code execution may cause latent data corruption.
+			if cli == nil { // fallback to `repeat`
+				configs.Logger().Error(
+					configs.GetLocalizedMsg("services.SSHNoAvailableLLMForResponseErr", nil),
+				)
+				go term.SetCurrResp(currPayload)
+				go s.evalAndStoreUntrustedCmd(sessionId, currPayload.Payload)
+				continue
+			}
+			res, err := cli.GenerateResponse(cli.SetMsg(currPayload.Payload), nil)
+			if err == nil {
+				currPayload.Payload = res
+			} else {
+				configs.Logger().Error(err.Error())
+			}
+			fallthrough
+		case "sandbox":
+			// [TODO] container as sandbox
+			fallthrough
+		case "repeat":
+			fallthrough
+		default:
+			go term.SetCurrResp(currPayload)
+		}
+		go s.evalAndStoreUntrustedCmd(sessionId, currPayload.Payload)
 	}
 }
 
-func (s *SSHServConf) evalAndstoreUntrustCmd(
-	sessionID int64,
-	x string,
-) {
-	// [TODO]: filter the malform, meaningless commands
-	//       alleviate the DB I/O pressure.
-	//       consider the overhead of TTL, implementation below might be better to
-	//       wrap with another go routine.
-	//       concurrent control is required.
+// cmdCheckResp will refer to assets/prompts/cmd-validate.txt
+type cmdCheckResp struct {
+	Reason          string `json:"reason"`
+	PotentialIssues string `json:"potential_issues"`
+	Valid           bool   `json:"valid"`
+	doNotStart      bool
+}
 
-	// check if we can use LLM as the judger
-	// else use default syntax AST parser to check if the command is executable
-	// otherwise, the malform commands will stress the database ops
-
-	// if cmdNeedFilterOut(currPayload.Payload) { continue }
-
+// evalAndStoreUntrustedCmd will attempt to filter the malform, meaningless commands
+// so that alleviate the DB I/O pressure.
+// Firstly check if this function can use LLM as the judger.
+// Otherwise, use a default syntax AST parser to check if the command is executable
+func (s *SSHServConf) evalAndStoreUntrustedCmd(sessionID int64, x string) {
+	var checkRes cmdCheckResp
+	cli := s.clis[llm.ValidateCmd]
+	if cli != nil {
+		// consider the overhead of TTL, implementation below might be better to
+		// wrap with another go routine.
+		jsonOutput, err := cli.GenerateResponse(cli.SetMsg(x), nil)
+		if err == nil {
+			_ = json.Unmarshal([]byte(jsonOutput), &checkRes)
+		} else {
+			// otherwise still unable to check
+			payload := configs.GetLocalizedMsg(
+				"services.SSHLLMRepsJsonUnmarshallingErr",
+				map[string]any{
+					"ErrInfo": err.Error(),
+				},
+			)
+			configs.Logger().Warn(payload)
+			checkRes.doNotStart = true
+		}
+	}
+	// [TODO] compressed command with specific algorithm
+	if !checkRes.doNotStart && !checkRes.Valid {
+		payload := &databases.InvalidCommandInfo{
+			Valid:           misc_utils.BoolToAnyInt[int64](checkRes.Valid),
+			Reason:          checkRes.Reason,
+			PotentialIssues: checkRes.PotentialIssues,
+		}
+		_ = s.DbFd.CreateOrUpdateItem(payload, payload)
+		return
+	} else if checkRes.doNotStart {
+		if s.ShCmdParser == nil {
+			s.ShCmdParser = syntax.NewParser()
+		}
+		_, err := s.ShCmdParser.Parse(strings.NewReader(x), "")
+		if err != nil {
+			configs.Logger().Warn(
+				configs.GetLocalizedMsg("services.SSHInvalidShellCmdCheckedByParserWarn", nil),
+			)
+			return
+		}
+	} // else we insert
 	cmdText := &databases.CommandInfo{Cmd: x}
 	_ = s.DbFd.CreateOrUpdateItem(cmdText, cmdText)
 	tmp := &databases.RemoteCommandRelation{

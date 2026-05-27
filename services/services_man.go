@@ -5,19 +5,17 @@ package services
 
 import (
 	"context"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 
 	"b0gus/configs"
 	"b0gus/crypto_aux"
-	"b0gus/databases"
+	"b0gus/internal/misc_utils"
 )
 
 type servRunner func(
 	globConf *atomic.Pointer[configs.LocalConfig],
 	scc *configs.ServConcurrentCtrl,
-	db databases.DBhandler,
 	args ...any,
 )
 
@@ -35,7 +33,6 @@ var (
 func Brancher(
 	terminator <-chan struct{},
 	serverConf *atomic.Pointer[configs.LocalConfig],
-	db *databases.RuntimeDB,
 ) {
 	var (
 		wg           sync.WaitGroup
@@ -59,10 +56,11 @@ func Brancher(
 		for ex := range servAliveMap {
 			servAliveMap[ex] = false
 		}
-		// [FEAT]: temporarily do not require for services updates
-		//         due to the engineering complexity .
+		// [NOTE]: temporarily do not require for services updates
+		//         due to the engineering complexity.
 	}()
 
+	// [TODO]: execute all services at one time?
 	for k := range chSlots {
 		decision, ok := tagMapsToServ[k]
 		if !ok || decision == nil {
@@ -73,12 +71,17 @@ func Brancher(
 		//      it can mitigate the intensive pressure on current host
 		// 		when the computing capacity of host is not adequate and robust.
 		// 		Any configuration upon RPC has to be inspected here.
+		//
+		//     any rpc services will return by itself, then the main process should be waiting for
+		//     further command or monitoring any available configuration updates
+		//
+		//      services downgrade should be implemented as well
 		wg.Go(func() {
 			decision(
 				serverConf, &configs.ServConcurrentCtrl{
-					Ctx:           rootCtx,
+					TerminatedCtx: rootCtx,
 					ServNetTypeCh: chSlots[k],
-				}, db, genericArgs(k, serverConf),
+				}, genericArgs(k, serverConf),
 			)
 		})
 	}
@@ -86,22 +89,28 @@ func Brancher(
 }
 
 // genericArgs adjusts arguments required for different services
+// For SSH, default will set LocalConfigPathStr/TLSKeyPath as the
 func genericArgs(
 	tag configs.ServEnum,
 	servConf *atomic.Pointer[configs.LocalConfig],
 ) any {
-	switch tag {
-	case configs.SSHEnum:
-		snapshot, ok := servConf.Load().SelectTerm(tag).(configs.SSHconfig)
-		if !ok {
-			return nil
-		}
-		pemPath, _ := filepath.Abs(filepath.Join(
-			filepath.Dir(configs.LocalConfigPathAsStr),
-			snapshot.PemName,
-		))
-		return crypto_aux.LoadOrCreateSSHpem(pemPath, snapshot.PemType, snapshot.PemLen)
-	default:
+	if tag != configs.SSHEnum {
 		return nil
 	}
+	if servConf == nil {
+		return nil
+	}
+	snapshot, ok := servConf.Load().SelectTerm(tag).(configs.SSHconfig)
+	if !ok {
+		return nil
+	}
+	pemPath := snapshot.TLSKeyPath
+	if misc_utils.IsFilePath(pemPath) {
+		return crypto_aux.LoadOrCreateSSHpem(pemPath, snapshot.PemType, snapshot.PemLen)
+	}
+	pemPath = configs.GetFilePathUnderConfigDir(snapshot.PemName)
+	if misc_utils.IsFilePath(pemPath) {
+		return crypto_aux.LoadOrCreateSSHpem(pemPath, snapshot.PemType, snapshot.PemLen)
+	}
+	return nil
 }

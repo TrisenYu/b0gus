@@ -1,4 +1,4 @@
-package services
+package net_aux
 
 /// Last modified at 2026/05/16 星期六 12:21:03
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,45 +20,6 @@ import (
 
 	"b0gus/configs"
 	"b0gus/crypto_aux"
-)
-
-// AbsServNetAux is a business-callback interface used by the ReentrantNetType.
-type AbsServNetAux interface {
-	http.Handler
-
-	// InvokeForTCPtask uses for executing TCP-typed Business
-	InvokeForTCPtask(conn net.Conn)
-
-	// InvokeForUDPtask uses for executing UDP-typed Business
-	InvokeForUDPtask(addr net.Addr, payload []byte) []byte
-
-	// InvokeForICMPtask uses for executing ICMP-typed Business,
-	// merely on **unix-system**
-	InvokeForICMPtask(addr net.Addr, payload []byte)
-}
-
-// ReentrantNetType is used for directly setup network listener without caring
-// how to update monitoring port or its corresponding type.
-type ReentrantNetType struct {
-	fdGuard  sync.RWMutex
-	cbGuard  sync.RWMutex // cbGuard is used for promising the concurrent security of callBack
-	callBack AbsServNetAux
-	// clientLimiter is as a filter to limit the max number of alive connections.
-	clientLimiter atomic.Uint32
-	ShutdownFlag  atomic.Bool
-	servFd        io.Closer // servFd temporarily stores the listener and is guarded by fdGuard
-	// servTag holds the service ID.
-	servTag configs.ServEnum
-}
-
-type NetTypeEnum int // maintain as tcp/ip suite
-
-const (
-	TCPEnum NetTypeEnum = iota
-	UDPEnum
-	HTTPEnum // actually http here is quic
-	ICMPEnum
-	OtherEnum
 )
 
 func (nt *ReentrantNetType) AlterNetFd(
@@ -98,7 +58,9 @@ func (nt *ReentrantNetType) AlterNetFd(
 		// because there is no notion named port in ICMP.
 		// for windows, skip this function calling.
 		if runtime.GOOS == "windows" {
-			configs.Logger().Warn("windows does not support to startup an ICMP server")
+			configs.Logger().Warn(
+				configs.GetLocalizedMsg("services.absTCPIPunsupportedOSOnICMPErr", nil),
+			)
 			return
 		}
 		if nt.servFd != nil {
@@ -188,7 +150,7 @@ func (nt *ReentrantNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 		nt.fdGuard.RUnlock()
 		inConn, err := currListener.Accept()
 		if err != nil {
-			// FIXME: noisy for the same connection try
+			// [FIXME]: noisy for the same connection try
 			nt.errHandler(err)
 			continue
 		}
@@ -202,8 +164,7 @@ func (nt *ReentrantNetType) tcp(ConfObj *atomic.Pointer[configs.LocalConfig]) {
 }
 
 func (nt *ReentrantNetType) tcpClientHandler(
-	inConn net.Conn,
-	ConfObj *atomic.Pointer[configs.LocalConfig],
+	inConn net.Conn, ConfObj *atomic.Pointer[configs.LocalConfig],
 ) {
 	tag, _ := nt.getCallBackFnWithServTag()
 	if nt.clientLimiter.Load() >= ConfObj.Load().SelectMaxClient(tag) {
@@ -415,7 +376,7 @@ func (nt *ReentrantNetType) EventMonitor(
 	}
 back:
 	select {
-	case <-scc.Ctx.Done(): // terminated notification
+	case <-scc.TerminatedCtx.Done(): // terminated notification
 	case netTypeStr := <-scc.ServNetTypeCh:
 		var choice = TCPEnum
 		tmp := strings.ToLower(netTypeStr)

@@ -9,6 +9,7 @@ package services
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -21,80 +22,195 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ServConf struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	SerializedInfo []byte                 `protobuf:"bytes,2,opt,name=serializedInfo,proto3" json:"serializedInfo,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
+type ServicesRequest_AvailableService int32
 
-func (x *ServConf) Reset() {
-	*x = ServConf{}
-	mi := &file_services_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
+const (
+	ServicesRequest_Raw  ServicesRequest_AvailableService = 0
+	ServicesRequest_SSH  ServicesRequest_AvailableService = 1
+	ServicesRequest_NTP  ServicesRequest_AvailableService = 2
+	ServicesRequest_DNS  ServicesRequest_AvailableService = 3
+	ServicesRequest_SMTP ServicesRequest_AvailableService = 4
+	ServicesRequest_HTTP ServicesRequest_AvailableService = 5
+)
 
-func (x *ServConf) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ServConf) ProtoMessage() {}
-
-func (x *ServConf) ProtoReflect() protoreflect.Message {
-	mi := &file_services_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+// Enum value maps for ServicesRequest_AvailableService.
+var (
+	ServicesRequest_AvailableService_name = map[int32]string{
+		0: "Raw",
+		1: "SSH",
+		2: "NTP",
+		3: "DNS",
+		4: "SMTP",
+		5: "HTTP",
 	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ServConf.ProtoReflect.Descriptor instead.
-func (*ServConf) Descriptor() ([]byte, []int) {
-	return file_services_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ServConf) GetId() uint64 {
-	if x != nil {
-		return x.Id
+	ServicesRequest_AvailableService_value = map[string]int32{
+		"Raw":  0,
+		"SSH":  1,
+		"NTP":  2,
+		"DNS":  3,
+		"SMTP": 4,
+		"HTTP": 5,
 	}
-	return 0
+)
+
+func (x ServicesRequest_AvailableService) Enum() *ServicesRequest_AvailableService {
+	p := new(ServicesRequest_AvailableService)
+	*p = x
+	return p
 }
 
-func (x *ServConf) GetSerializedInfo() []byte {
-	if x != nil {
-		return x.SerializedInfo
+func (x ServicesRequest_AvailableService) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ServicesRequest_AvailableService) Descriptor() protoreflect.EnumDescriptor {
+	return file_services_proto_enumTypes[0].Descriptor()
+}
+
+func (ServicesRequest_AvailableService) Type() protoreflect.EnumType {
+	return &file_services_proto_enumTypes[0]
+}
+
+func (x ServicesRequest_AvailableService) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ServicesRequest_AvailableService.Descriptor instead.
+func (ServicesRequest_AvailableService) EnumDescriptor() ([]byte, []int) {
+	return file_services_proto_rawDescGZIP(), []int{0, 0}
+}
+
+type ServicesResponse_ServingStatus int32
+
+const (
+	ServicesResponse_OK          ServicesResponse_ServingStatus = 0
+	ServicesResponse_InternalErr ServicesResponse_ServingStatus = 1
+	ServicesResponse_RequestErr  ServicesResponse_ServingStatus = 2
+)
+
+// Enum value maps for ServicesResponse_ServingStatus.
+var (
+	ServicesResponse_ServingStatus_name = map[int32]string{
+		0: "OK",
+		1: "InternalErr",
+		2: "RequestErr",
 	}
-	return nil
+	ServicesResponse_ServingStatus_value = map[string]int32{
+		"OK":          0,
+		"InternalErr": 1,
+		"RequestErr":  2,
+	}
+)
+
+func (x ServicesResponse_ServingStatus) Enum() *ServicesResponse_ServingStatus {
+	p := new(ServicesResponse_ServingStatus)
+	*p = x
+	return p
 }
 
-type ServReply struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
-	ErrInfo       string                 `protobuf:"bytes,2,opt,name=errInfo,proto3" json:"errInfo,omitempty"`
+func (x ServicesResponse_ServingStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ServicesResponse_ServingStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_services_proto_enumTypes[1].Descriptor()
+}
+
+func (ServicesResponse_ServingStatus) Type() protoreflect.EnumType {
+	return &file_services_proto_enumTypes[1]
+}
+
+func (x ServicesResponse_ServingStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ServicesResponse_ServingStatus.Descriptor instead.
+func (ServicesResponse_ServingStatus) EnumDescriptor() ([]byte, []int) {
+	return file_services_proto_rawDescGZIP(), []int{1, 0}
+}
+
+type ServicesRequest struct {
+	state         protoimpl.MessageState           `protogen:"open.v1"`
+	ServEnum      ServicesRequest_AvailableService `protobuf:"varint,1,opt,name=servEnum,proto3,enum=rpc.ServicesRequest_AvailableService" json:"servEnum,omitempty"`
+	Config        *anypb.Any                       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	Payload       []byte                           `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"` // payload like command or packet
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ServReply) Reset() {
-	*x = ServReply{}
+func (x *ServicesRequest) Reset() {
+	*x = ServicesRequest{}
+	mi := &file_services_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServicesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServicesRequest) ProtoMessage() {}
+
+func (x *ServicesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_services_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServicesRequest.ProtoReflect.Descriptor instead.
+func (*ServicesRequest) Descriptor() ([]byte, []int) {
+	return file_services_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ServicesRequest) GetServEnum() ServicesRequest_AvailableService {
+	if x != nil {
+		return x.ServEnum
+	}
+	return ServicesRequest_Raw
+}
+
+func (x *ServicesRequest) GetConfig() *anypb.Any {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *ServicesRequest) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+type ServicesResponse struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Ok            ServicesResponse_ServingStatus `protobuf:"varint,1,opt,name=ok,proto3,enum=rpc.ServicesResponse_ServingStatus" json:"ok,omitempty"`
+	Msg           string                         `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServicesResponse) Reset() {
+	*x = ServicesResponse{}
 	mi := &file_services_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ServReply) String() string {
+func (x *ServicesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ServReply) ProtoMessage() {}
+func (*ServicesResponse) ProtoMessage() {}
 
-func (x *ServReply) ProtoReflect() protoreflect.Message {
+func (x *ServicesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_services_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -106,21 +222,21 @@ func (x *ServReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ServReply.ProtoReflect.Descriptor instead.
-func (*ServReply) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServicesResponse.ProtoReflect.Descriptor instead.
+func (*ServicesResponse) Descriptor() ([]byte, []int) {
 	return file_services_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ServReply) GetCode() uint64 {
+func (x *ServicesResponse) GetOk() ServicesResponse_ServingStatus {
 	if x != nil {
-		return x.Code
+		return x.Ok
 	}
-	return 0
+	return ServicesResponse_OK
 }
 
-func (x *ServReply) GetErrInfo() string {
+func (x *ServicesResponse) GetMsg() string {
 	if x != nil {
-		return x.ErrInfo
+		return x.Msg
 	}
 	return ""
 }
@@ -129,19 +245,45 @@ var File_services_proto protoreflect.FileDescriptor
 
 var file_services_proto_rawDesc = string([]byte{
 	0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x22, 0x42, 0x0a, 0x08, 0x53, 0x65, 0x72, 0x76, 0x43, 0x6f, 0x6e, 0x66, 0x12, 0x0e, 0x0a, 0x02,
-	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x02, 0x69, 0x64, 0x12, 0x26, 0x0a, 0x0e,
-	0x73, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x0c, 0x52, 0x0e, 0x73, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x64,
-	0x49, 0x6e, 0x66, 0x6f, 0x22, 0x39, 0x0a, 0x09, 0x53, 0x65, 0x72, 0x76, 0x52, 0x65, 0x70, 0x6c,
-	0x79, 0x12, 0x12, 0x0a, 0x04, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52,
-	0x04, 0x63, 0x6f, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x65, 0x72, 0x72, 0x49, 0x6e, 0x66, 0x6f,
-	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x65, 0x72, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x32,
-	0x33, 0x0a, 0x07, 0x53, 0x65, 0x72, 0x76, 0x52, 0x50, 0x43, 0x12, 0x28, 0x0a, 0x0d, 0x50, 0x75,
-	0x62, 0x6c, 0x69, 0x73, 0x68, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x12, 0x09, 0x2e, 0x53, 0x65,
-	0x72, 0x76, 0x43, 0x6f, 0x6e, 0x66, 0x1a, 0x0a, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x52, 0x65, 0x70,
-	0x6c, 0x79, 0x22, 0x00, 0x42, 0x0c, 0x5a, 0x0a, 0x2e, 0x3b, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63,
-	0x65, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x12, 0x03, 0x72, 0x70, 0x63, 0x1a, 0x19, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x61, 0x6e, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x22, 0xe8, 0x01, 0x0a, 0x0f, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x12, 0x41, 0x0a, 0x08, 0x73, 0x65, 0x72, 0x76, 0x45, 0x6e, 0x75, 0x6d,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x25, 0x2e, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x72,
+	0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x41, 0x76, 0x61,
+	0x69, 0x6c, 0x61, 0x62, 0x6c, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x08, 0x73,
+	0x65, 0x72, 0x76, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x2c, 0x0a, 0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69,
+	0x67, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x41, 0x6e, 0x79, 0x52, 0x06, 0x63,
+	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x18, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22,
+	0x4a, 0x0a, 0x10, 0x41, 0x76, 0x61, 0x69, 0x6c, 0x61, 0x62, 0x6c, 0x65, 0x53, 0x65, 0x72, 0x76,
+	0x69, 0x63, 0x65, 0x12, 0x07, 0x0a, 0x03, 0x52, 0x61, 0x77, 0x10, 0x00, 0x12, 0x07, 0x0a, 0x03,
+	0x53, 0x53, 0x48, 0x10, 0x01, 0x12, 0x07, 0x0a, 0x03, 0x4e, 0x54, 0x50, 0x10, 0x02, 0x12, 0x07,
+	0x0a, 0x03, 0x44, 0x4e, 0x53, 0x10, 0x03, 0x12, 0x08, 0x0a, 0x04, 0x53, 0x4d, 0x54, 0x50, 0x10,
+	0x04, 0x12, 0x08, 0x0a, 0x04, 0x48, 0x54, 0x54, 0x50, 0x10, 0x05, 0x22, 0x93, 0x01, 0x0a, 0x10,
+	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x33, 0x0a, 0x02, 0x6f, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x23, 0x2e, 0x72,
+	0x70, 0x63, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x6e, 0x67, 0x53, 0x74, 0x61, 0x74, 0x75,
+	0x73, 0x52, 0x02, 0x6f, 0x6b, 0x12, 0x10, 0x0a, 0x03, 0x6d, 0x73, 0x67, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x03, 0x6d, 0x73, 0x67, 0x22, 0x38, 0x0a, 0x0d, 0x53, 0x65, 0x72, 0x76, 0x69,
+	0x6e, 0x67, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x06, 0x0a, 0x02, 0x4f, 0x4b, 0x10, 0x00,
+	0x12, 0x0f, 0x0a, 0x0b, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x45, 0x72, 0x72, 0x10,
+	0x01, 0x12, 0x0e, 0x0a, 0x0a, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x45, 0x72, 0x72, 0x10,
+	0x02, 0x32, 0xb6, 0x01, 0x0a, 0x09, 0x54, 0x61, 0x73, 0x6b, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x12,
+	0x34, 0x0a, 0x05, 0x53, 0x74, 0x61, 0x72, 0x74, 0x12, 0x14, 0x2e, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15,
+	0x2e, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x38, 0x0a, 0x09, 0x54, 0x65, 0x72, 0x6d, 0x69, 0x6e, 0x61,
+	0x74, 0x65, 0x12, 0x14, 0x2e, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x70, 0x63, 0x2e, 0x53,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x39, 0x0a, 0x0a, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x12, 0x14, 0x2e,
+	0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
+	0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0c, 0x5a, 0x0a, 0x2e, 0x3b,
+	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 })
 
 var (
@@ -156,19 +298,30 @@ func file_services_proto_rawDescGZIP() []byte {
 	return file_services_proto_rawDescData
 }
 
+var file_services_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_services_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_services_proto_goTypes = []any{
-	(*ServConf)(nil),  // 0: ServConf
-	(*ServReply)(nil), // 1: ServReply
+	(ServicesRequest_AvailableService)(0), // 0: rpc.ServicesRequest.AvailableService
+	(ServicesResponse_ServingStatus)(0),   // 1: rpc.ServicesResponse.ServingStatus
+	(*ServicesRequest)(nil),               // 2: rpc.ServicesRequest
+	(*ServicesResponse)(nil),              // 3: rpc.ServicesResponse
+	(*anypb.Any)(nil),                     // 4: google.protobuf.Any
 }
 var file_services_proto_depIdxs = []int32{
-	0, // 0: ServRPC.PublishUpdate:input_type -> ServConf
-	1, // 1: ServRPC.PublishUpdate:output_type -> ServReply
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: rpc.ServicesRequest.servEnum:type_name -> rpc.ServicesRequest.AvailableService
+	4, // 1: rpc.ServicesRequest.config:type_name -> google.protobuf.Any
+	1, // 2: rpc.ServicesResponse.ok:type_name -> rpc.ServicesResponse.ServingStatus
+	2, // 3: rpc.TaskCheck.Start:input_type -> rpc.ServicesRequest
+	2, // 4: rpc.TaskCheck.Terminate:input_type -> rpc.ServicesRequest
+	2, // 5: rpc.TaskCheck.UpdateConf:input_type -> rpc.ServicesRequest
+	3, // 6: rpc.TaskCheck.Start:output_type -> rpc.ServicesResponse
+	3, // 7: rpc.TaskCheck.Terminate:output_type -> rpc.ServicesResponse
+	3, // 8: rpc.TaskCheck.UpdateConf:output_type -> rpc.ServicesResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_services_proto_init() }
@@ -181,13 +334,14 @@ func file_services_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_services_proto_rawDesc), len(file_services_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      2,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_services_proto_goTypes,
 		DependencyIndexes: file_services_proto_depIdxs,
+		EnumInfos:         file_services_proto_enumTypes,
 		MessageInfos:      file_services_proto_msgTypes,
 	}.Build()
 	File_services_proto = out.File

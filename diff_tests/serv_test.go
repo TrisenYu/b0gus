@@ -5,13 +5,13 @@ import (
 	"b0gus/crypto_aux"
 	"b0gus/internal/mock"
 	"b0gus/services"
+
+	"context"
 	"io"
 	"math/rand/v2"
 	"net"
 	"os"
 	"strconv"
-
-	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,7 +35,7 @@ type metaMocker struct {
 
 type mockEvaluator struct {
 	metaMocker
-	// mock-related
+	/* mock-related */
 	MockDB *mock.MockDBhandler
 }
 
@@ -48,15 +48,15 @@ func (m *mockEvaluator) ReloadConf(t *testing.T) {
 func (m *mockEvaluator) ReloadByAssignment(payload any) {
 	switch p := payload.(type) {
 	case configs.SSHconfig:
-		m.conf.ServerConfig.SSHconfig = p
+		m.conf.SSHconfig = p
 	case configs.SMTPconfig:
-		m.conf.ServerConfig.SMTPconfig = p
+		m.conf.SMTPconfig = p
 	case configs.HTTPconfig:
-		m.conf.ServerConfig.HTTPconfig = p
+		m.conf.HTTPconfig = p
 	case configs.NTPconfig:
-		m.conf.ServerConfig.NTPconfig = p
+		m.conf.NTPconfig = p
 	case configs.DNSconfig:
-		m.conf.ServerConfig.DNSconfig = p
+		m.conf.DNSconfig = p
 	default:
 		return
 	}
@@ -66,7 +66,9 @@ func (m *mockEvaluator) ReloadByAssignment(payload any) {
 func (m *mockEvaluator) Init(t *testing.T, timeout time.Duration) {
 	m.initCtrl(t)
 	m.Ctx, m.Cancel = context.WithTimeout(context.Background(), timeout)
+	m.FakeConf.Store(&m.conf)
 	m.MockDB = mock.NewMockDBhandler(m.ctrl)
+	m.MockDB.EXPECT().Setup(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	m.MockDB.EXPECT().AlterDatabaseHandler(gomock.Any()).Return().AnyTimes()
 	m.MockDB.EXPECT().CreateTable(gomock.Any()).Return(nil).AnyTimes()
 	m.MockDB.EXPECT().CreateOrUpdateItemsInSeq(gomock.Any()).Return(nil).AnyTimes()
@@ -124,15 +126,27 @@ func TestMockSSH(t *testing.T) {
 	assert.True(t, ok, "Expected to find SSH config")
 	val.TLSKeyPath = pemPath
 	val.PermitLogin = true
-	val.ListenPort = 3222
+	val.ListenPort = 32222
+	val.DBPath = "./test_dir/youme.db"
 	m.ReloadByAssignment(val)
 	restore := zap.ReplaceGlobals(zap.NewNop())
 	defer restore()
-	go (&services.SSHServConf{}).Run(
-		&m.FakeConf,
-		&configs.ServConcurrentCtrl{Ctx: m.Ctx},
-		m.MockDB, servKey,
-	)
+	tmp, ok := m.FakeConf.Load().SelectTerm(configs.SSHEnum).(configs.SSHconfig)
+	assert.True(t, ok, "Expected to find SSH config")
+	if !ok {
+		t.FailNow()
+	}
+	assert.True(t, configs.CheckSSHconfig(&tmp))
+	quitSign := atomic.Bool{}
+	quitSign.Store(false)
+	go func() {
+		(&services.SSHServConf{DbFd: m.MockDB}).Run(
+			&m.FakeConf,
+			&configs.ServConcurrentCtrl{TerminatedCtx: m.Ctx},
+			servKey,
+		)
+		quitSign.Store(true)
+	} ()
 	sshConf := &ssh.ClientConfig{
 		User: gofakeit.Username(),
 		Auth: []ssh.AuthMethod{
@@ -141,6 +155,12 @@ func TestMockSSH(t *testing.T) {
 			),
 		},
 		HostKeyCallback: ssh.FixedHostKey(servKey.PublicKey()),
+		Timeout:         time.Second * 10,
+	}
+	if quitSign.Load() {
+		m.Cancel()
+		t.Error("fake ssh server quit before dialing")
+		return
 	}
 	client, err := ssh.Dial("tcp", "localhost:"+strconv.Itoa(int(val.ListenPort)), sshConf)
 	assert.NoError(t, err)
@@ -185,12 +205,22 @@ func TestMockNTP(t *testing.T) {
 	// [TODO]: Noisy and chaos logging actions
 	restore := zap.ReplaceGlobals(zap.NewNop())
 	defer restore()
-	go (&services.NTPServConf{}).Run(
-		&m.FakeConf,
-		&configs.ServConcurrentCtrl{Ctx: m.Ctx},
-		m.MockDB, nil,
-	)
+	quitSign := atomic.Bool{}
+	quitSign.Store(false)
+	go func() {
+		(&services.NTPServConf{DbFd: m.MockDB}).Run(
+			&m.FakeConf,
+			&configs.ServConcurrentCtrl{TerminatedCtx: m.Ctx},
+			nil,
+		)
+		quitSign.Store(true)
+	} ()
 
+	if quitSign.Load() {
+		m.Cancel()
+		t.Error("quit before dialing")
+		return
+	}
 	conn, err := net.Dial("udp", "localhost:"+strconv.Itoa(int(val.ListenPort)))
 	assert.NoError(t, err)
 	if conn == nil {
@@ -200,7 +230,7 @@ func TestMockNTP(t *testing.T) {
 	}
 	defer func() { _ = conn.Close() }()
 	for _, cmd := range CmdSeeds {
-		// write only UDP connection
+		/* only write UDP connection */
 		_, _ = conn.Write([]byte(cmd))
 	}
 	<-m.Ctx.Done()
@@ -232,11 +262,17 @@ func TestMockDNS(t *testing.T) {
 	defer m.Cancel()
 	restore := zap.ReplaceGlobals(zap.NewNop())
 	defer restore()
-	go (&services.DNSservConf{}).Run(
-		&m.FakeConf,
-		&configs.ServConcurrentCtrl{Ctx: m.Ctx},
-		m.MockDB, nil,
-	)
+	quitSign := atomic.Bool{}
+	quitSign.Store(false)
+	go func() {
+		(&services.DNSservConf{DBFd: m.MockDB}).Run(
+			&m.FakeConf,
+			&configs.ServConcurrentCtrl{TerminatedCtx: m.Ctx},
+			nil,
+		)
+		quitSign.Store(true)
+	} ()
+
 	c := dns.Client{
 		Net:     "udp",
 		Timeout: 2 * time.Second,
@@ -245,6 +281,11 @@ func TestMockDNS(t *testing.T) {
 		dm := new(dns.Msg)
 		dm.SetQuestion(dns.Fqdn(testcase.domain), testcase.dnsType)
 		dm.RecursionDesired = true
+		if quitSign.Load() {
+			t.Error("exchange before quiting")
+			m.Cancel()
+			break
+		}
 		in, _, err := c.Exchange(dm, "localhost:"+strconv.Itoa(int(val.ListenPort)))
 		assert.NoError(t, err)
 		if err != nil {
@@ -253,29 +294,30 @@ func TestMockDNS(t *testing.T) {
 			return
 		}
 		if in.Rcode != dns.RcodeSuccess {
+			m.Cancel()
 			t.Fatalf("DNS Fault: %s", dns.RcodeToString[in.Rcode])
-			return
 		}
 	}
 	<-m.Ctx.Done()
 }
 
-//func TestMockHTTP(t *testing.T) {
-//	m := mockEvaluator{}
-//	m.Init(t, 15*time.Second)
-//	defer m.Free()
-//
-//	m.ReloadConf(t)
-//	val, ok := m.Access(configs.HTTPEnum).(configs.HTTPconfig)
-//  assert.True(t, ok, "Expected to find HTTP config")
-//	m.ReloadByAssignment(val)
-//	defer m.Cancel()
-//
-//	go (&services.HTTPservConf{}).Run(
-//		&m.FakeConf,
-//		&configs.ServConcurrentCtrl{Ctx: m.Ctx},
-//		m.MockDB, nil,
-//	)
-//
-//	<-m.Ctx.Done()
-//}
+func TestMockBrancher(t *testing.T) {
+	termCh := make(chan struct{})
+	defer close(termCh)
+	m := mockEvaluator{}
+	m.Init(t, 15*time.Second)
+	defer m.Free()
+
+	m.ReloadConf(t)
+	val, ok := m.Access(configs.DNSEnum).(configs.DNSconfig)
+	assert.True(t, ok, "Expected to find DNS config")
+	val.ListenPort = 5553
+	val.DBPath = "./test_dir/hello.db"
+	m.ReloadByAssignment(val)
+	defer m.Cancel()
+	restore := zap.ReplaceGlobals(zap.NewNop())
+	defer restore()
+	go services.Brancher(termCh, &m.FakeConf)
+	<-time.After(15 * time.Second)
+	termCh <- struct{}{}
+}

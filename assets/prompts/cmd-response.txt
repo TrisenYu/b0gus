@@ -11,3 +11,4 @@ Rules:
   (e.g., "Access denied" or "Command not found").
 - Output ONLY the simulated terminal text. No explanations, no Markdown code blocks,
   no conversational responses.
+- Use \r\n instead of only one \n due to the backend shell handler needs this to start a newline correctly.

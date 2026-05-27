@@ -1,6 +1,3 @@
-//go:build tools
-// +build tools
-
 package main
 
 // Last modified at 2026/02/11 星期三 22:25:54
@@ -41,7 +38,7 @@ func main() {
 		)
 	}()
 
-	srcFileArr, err := getRDTfilesInDir("../rdt-def")
+	srcFileArr, err := getRDTfilesInDir("../../databases/rdt-def")
 	if err != nil {
 		panic(err)
 	}
@@ -59,14 +56,15 @@ func main() {
 			srcFile = "aux_gen.go"
 			splitPos = len(srcFile)
 		}
-		RDTGenAux(listener, "../"+srcFile[:splitPos]+"_gen.go")
+		RDTGenAux(listener, "../../databases/"+srcFile[:splitPos]+"_gen.go")
 	}
 }
 
 // Requirements:
-// 	1. counter for some statistics 				(o)
-// 	2. context for auto-recoding foreign keys 	(~)
-// 	3. generic for all database backends		(?, partially)
+//  1. counter for some statistics 				(o)
+//  2. context for auto-recoding foreign keys 	(~)
+//  3. generic for all database backends		(?, partially)
+//
 // these three requirements should be satisfied at the same time.
 
 type RdtListener struct {
@@ -555,7 +553,7 @@ package databases
 		}
 		if len(attrs.Json) > 0 {
 			setTag(false)
-			fmt.Printf("%sjson:\"%s\" ", pace, attrs.Json)
+			fmt.Printf("%sjson:\"%s\" toml:\"%s\" ", pace, attrs.Json, attrs.Json)
 		}
 		if len(attrs.Bson) > 0 {
 			setTag(false)
