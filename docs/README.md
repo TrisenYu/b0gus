@@ -1,7 +1,6 @@
 
 See introductions of b0gus which have been translated into different languages below.
 
-- [English](readmes/en.md)
 - [中文](readmes/zh_cn.md)
 
 ## TL;DR
@@ -50,11 +49,13 @@ Local installation and configuration as a user-level service are not supported f
    to clearly indicate feature additions or code removals. Also specify the main modified files and
    a brief description of your changes in the commit message.
 4. Once you confirm your implementation is logically correct and runs stably in your local environment
-   (i.e. free of logical bugs, memory leaks, out-of-bounds access and other abnormal behaviors),
-   or you have added corresponding unit tests under diff\_tests and
+   (i.e. free of logical bugs, race conditions, memory leaks, out-of-bounds access and other abnormal behaviors), 
+   or you have added corresponding unit tests under diff\_tests and 
    all tests for your new feature pass completely, you may submit a Pull Request from your branch.
-   After code review and further evaluation, your branch will be merged,
+   Meanwhile, before submitting a merge request, **you need to ensure that all commits within the request are verified**.
+   After code review and further evaluation, your branch will be merged, 
    and you will become a contributor to b0gus.
+5. Before submitting any pull request, remember to include your information in the [author list]](../AUTHORS).
 
 #### Code Quality Guidelines
 
@@ -117,7 +118,7 @@ func tmpCamel(
 ```
 
 ```c
-// C is not used currently, but the format is as follows if applicable.
+// If you need to use C language, the format is as follows.
 int fib(int argc, char *argv[]) {
     int a = 1, b = 1, c;
     for (int i = 0; i < 16; i++) {
