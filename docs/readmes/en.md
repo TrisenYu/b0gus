@@ -63,8 +63,10 @@ Local installation and configuration as a user-level service are not supported f
    (i.e. free of logical bugs, race conditions, memory leaks, out-of-bounds access and other abnormal behaviors), 
    or you have added corresponding unit tests under diff\_tests and 
    all tests for your new feature pass completely, you may submit a Pull Request from your branch.
+   Meanwhile, before submitting a merge request, **you need to ensure that all commits within the request are verified**.
    After code review and further evaluation, your branch will be merged, 
    and you will become a contributor to b0gus.
+5. Before submitting any pull request, remember to include your information in the [author list]](../AUTHORS).
 
 #### Code Quality Guidelines
 
@@ -127,7 +129,7 @@ func tmpCamel(
 }
 ```
 ```c
-// C language is not used in b0gus currently, but the format is as follows if applicable.
+// If you need to use C language, the format is as follows.
 int fib(int argc, char *argv[]) {
     int a = 1, b = 1, c;
     for (int i = 0; i < 16; i++) {
