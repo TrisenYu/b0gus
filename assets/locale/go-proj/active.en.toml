@@ -1,0 +1,186 @@
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Set the directory for static assets."
+    [meta_conf.ConfPath]
+    other = "Path to the local configuration file."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Setting to allow configuration changes during runtime."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Setting to allow self-modification of configuration during runtime."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Permission setting to alter configuration via shell commands during runtime."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Permission setting to allow configuration changes via remote pull during runtime."
+
+[main]
+    [main.TerminationSignalWarn]
+    other = "Captured signal to terminate the b0gus server <{{.SignalStr}}>."
+    [main.FailToApplyConfiguration]
+    other = "Unable to apply the given configuration file to the current configuration."
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "Failed to open PEM file <{{.PemPath}}> for configuring local SSH public key!"
+    [crypto_aux.PemFileReadFailure]
+    other = "Failed to read the given PEM file!"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "Failed to properly decode the PEM file!"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Unsupported PEM file type!"
+    [crypto_aux.PemFileFormatError]
+    other = "Unsupported format for this type of signing certificate"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "The provided public key length <{{.PemLen}}> is invalid for known elliptic curve algorithms."
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "The provided public key length <{{.PemLen}}> is invalid for RSA algorithm."
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "Failed to generate SSH private key with the given algorithm due to error <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "Failed to set private key for SSH service due to error <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "Failed to create certificate to given path <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "Failed to encode certificate to Base64 string."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Invalid or unsupported certificate used. Details: <{{.ErrInfo}}>. b0gus will attempt to generate a certificate based on configuration."
+    [crypto_aux.PemFileCreateFailure]
+    other = "Failed to create certificate at path <{{.PemPath}}> due to error <{{.ErrInfo}}>. b0gus service will not start."
+
+[databases]
+    [databases.DatabaseConnectionError]
+    other = "Failed to connect to database {{.DatabaseStr}}. Error: <{{.ErrInfo}}>."
+    [databases.DatabaseEmptyError]
+    other = "Empty database operator obtained from the given configuration."
+    [databases.DatabaseChangingWarn]
+    other = "Due to internal error, the current database will not be switched."
+    [databases.DatabaseTypeError]
+    other = "Unsupported database type <{{.Database}}> encountered!"
+    [databases.InvalidMongoDBclientErr]
+    other = "Invalid MongoDB client!"
+
+[configs]
+    # Database
+    [configs.InvalidDatabaseAddrError]
+    other = "Invalid database connection address <{{.DatabaseAddr}}> provided in configuration file!"
+    [configs.UnsupportDatabaseTypeError]
+    other = "Unknown database type. Currently b0gus supports PostgreSQL, SQLite, and MongoDB, but you selected <{{.DatabaseType}}>."
+    # Global configuration
+    [configs.ReadingConfigurationFailure]
+    other = "Failed to read configuration. Reason: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "Failed to reload configuration file! Current configuration will not be replaced. Reason: <{{.ErrInfo}}>."
+    [configs.UnmarshallingConfigurationFailure]
+    other = "Failed to parse configuration file. Reason: <{{.ErrInfo}}>."
+
+[services]
+    # abstract_tcpip
+    [services.absTCPIPPortErr]
+    other = "Privileged port selected"
+    [services.absTCPIPUninitErr]
+    other = "Uninitialized ReentrantNetType used."
+    [services.absTCPIPUnknownNetType]
+    other = "Unknown network type used."
+    [services.absTCPIPUDPConnCastingErr]
+    other = "Failed to cast net.UDPConn."
+    [services.absTCPIPunsupportedOSOnICMPErr]
+    other = "Windows generally does not support deploying as an ICMP server"
+    # SSH
+    [services.SSHversionWarn]
+    other = "Unable to generate 3 random bytes. A default value will be returned for SSH version."
+    [services.SSHWriteResponseError]
+    other = "Encountered an error <{{.ErrInfo}}> while writing back the command result."
+    [services.SSHsetTimeoutError]
+    other = "Unable to set timeout for the upcoming connection due to error <{{.ErrInfo}}>."
+    [services.SSHEstablishConnectionFailure]
+    other = "Failed to establish SSH connection. (Remote address, current SSH version, failure reason): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "Unable to accept SSH channel for remote address <{{.RemoteAddr}}> due to error <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Invalid SSH configuration. Skipping update."
+    [services.SSHSwitchListenerError]
+    other = "Unable to switch to given address <{{.ListenAddr}}> for re-listening. The current b0gus SSH server will not be modified."
+    [services.SSHSetupListenerError]
+    other = "Unable to start SSH server listener on given address <{{.ListenAddr}}>."
+    [services.SSHAcceptConnWarn]
+    other = "Unable to accept external SSH connection request due to error <{{.ErrInfo}}>."
+    [services.SSHCanNotUseSigner]
+    other = "Unable to use the given certificate <{{.Signer}}> for signing during SSH protocol interaction."
+    [services.SSHQuitInfo]
+    other = "SSH service exited."
+    [services.SSHConfigLoadingFailure]
+    other = "Unable to extract SSH configuration from the given configuration struct."
+    [services.SSHInvalidConfigFailure]
+    other = "Global configuration provides invalid configuration for SSH service."
+    [services.SSHEmptyGlobConfigFailure]
+    other = "Empty global configuration provided."
+    [services.SSHRequireSignerAsOnlyArgErr]
+    other = "At least one ssh.Signer is required as an input parameter."
+    [services.SSHResponseCmdClientSetupErr]
+    other = "Unable to enable LLM-generated terminal command response due to error <{{.ErrInfo}}>."
+    [services.SSHValidationCmdClientSetupErr]
+    other = "Unable to enable LLM syntax check of terminal commands due to error <{{.ErrInfo}}>."
+    [services.SSHInvalidLLMConfigurePathErr]
+    other = "Caught error <{{.ErrInfo}}>. Invalid configuration path <{{.WrongPath}}> provided."
+    [services.SSHLLMRepsJsonUnmarshallingErr]
+    other = "Unable to recover struct from LLM JSON response. Error <{{.ErrInfo}}>."
+    [services.SSHNoAvailableLLMForResponseErr]
+    other = "No available LLM endpoint to generate fake responses for external traffic."
+    [services.SSHInvalidShellCmdCheckedByParserWarn]
+    other = "Syntax parser flagged a syntactically invalid terminal command."
+    # NTP
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "NTP server received a time query from <{{.IP}}> with length <{{.Len}}>."
+    [services.NTPQuitInfo]
+    other = "NTP service exited."
+    [services.NTPNullConfErr]
+    other = "Empty NTP configuration provided."
+    # DNS
+    [services.DNSQuitInfo]
+    other = "DNS service exited."
+    [services.DNSNullConfErr]
+    other = "Empty DNS configuration provided."
+    [services.DNSWrongParamNumErr]
+    other = "Incorrect number of parameters. Expected {{.Expect}}, received {{.Actual}}."
+    [services.DNSConfLoadErr]
+    other = "Unable to extract DNS sub-configuration from configuration!"
+    # SMTP
+    [services.SMTPQuitInfo]
+    other = "SMTP service exited."
+    [services.SMTPWrongParamNumErr]
+    other = "Incorrect number of parameters. Expected {{.Expect}}, received {{.Actual}}."
+    [services.SMTPNullConfErr]
+    other = "Empty SMTP configuration provided."
+    # HTTP
+    [services.HTTPQuitInfo]
+    other = "HTTP service exited."
+    [services.HTTPNullConfErr]
+    other = "Empty HTTP configuration provided."
+    [services.HTTPWrongParamNumErr]
+    other = "Incorrect number of parameters. Expected {{.Expect}}, received {{.Actual}}."
+    [services.HTTPConfLoadErr]
+    other = "Unable to load HTTP configuration."
+    # ICMP
+    [services.ICMPwindowsUnsupportWarn]
+    other = "Windows system does not support setting up an ICMP server."
+
+[llm]
+    [llm.UnableToSetPromptDueToUnkCurrTaskType]
+    other = "Unable to set prompt due to unknown task type <{{.TaskType}}>."
+    [llm.UnknownLLMProviderErr]
+    other = "Unknown LLM provider."
+    [llm.EmptyBaseURLErr]
+    other = "API address for LLM provider is empty."
+    [llm.InvalidBaseURLErr]
+    other = "Provided API address for LLM provider is invalid."
+    [llm.EmptyAPIKeyErr]
+    other = "Empty API key token."
+    [llm.EmptyModelNameErr]
+    other = "Model name not specified."
+    [llm.EmptyRolePromptErr]
+    other = "Empty system prompt provided."
+    [llm.EmptyLLMResponseErr]
+    other = "Received an empty response."
+    [llm.EmptyLLMChoicesErr]
+    other = "All optional results returned by LLM appear to be empty."
+    [llm.EmptyLLMRespContentErr]
+    other = "Only empty response content found in the LLM return."

@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/17 星期日 22:03:58
+# Last modified at 2026/05/28 星期四 17:06:43
 """
 [auto_translator] will read configuration from given/default source file
-and generate translated files by calling API to interact with LLM
+and generate translated files by calling API to interact with LLM.
+Only
+
+[TODO]: There might be a better way to update documentation like
+    using git diff to compare the modified base-reference and the previous one.
+    Thereby avoiding unnecessary token consumption.
 """
 import argparse
 import http
@@ -30,10 +35,10 @@ support_lang_arr = [
     "gr", "it", "ja", "ko", "ru",
 ]
 locale_fn = lambda x: str(
-    Path(__file__).parent / "assets" / "locale" / f"active.{x}.toml"
+    Path(__file__).parent / ".." / "assets" / "locale" / "go-proj" / f"active.{x}.toml"
 )
 readme_fn = lambda x: str(
-    Path(__file__).parent / "docs" / "readmes" / f"readme-{x}.md"
+    Path(__file__).parent / ".." / "docs" / "readmes" / f"readme-{x}.md"
 )
 
 
@@ -55,31 +60,33 @@ def init_argv() -> argparse.Namespace:
     )
     _argv_parser.add_argument(
         '-blt', '--base-locale-toml',
-        type=str, default=str(Path(__file__).parent / "assets" / "locale" / "active.zh_cn.toml"),
+        type=str, default=str(
+            Path(__file__).parent / ".." / "assets" / "locale" / "go-proj" / "active.zh_cn.toml"
+        ),
         help="`base locale toml` points to the absolute path of given toml waiting to be translated"
     )
     _argv_parser.add_argument(
         '-bdm', '--base-document-markdown',
-        type=str, default=str(Path(__file__).parent / "docs" / "help" / "zh_cn.md"),
+        type=str, default=str(Path(__file__).parent / ".." / "docs" / "help" / "zh_cn.md"),
         help="`markdown reference document` is similar to `base locale toml`"
     )
     _argv_parser.add_argument(
         '-pti', '--path-to-i18n4toml',
-        type=str, default=str(Path(__file__).parent / "assets" / "prompts" / "i18n4toml.txt"),
+        type=str, default=str(Path(__file__).parent / ".." / "assets" / "prompts" / "i18n4toml.txt"),
         help="`path to i18n4toml.txt` is the backup directory "+
-        "when there is no `role_prompt` define in llm-conf"
+             "when there is no `role_prompt` define in llm-conf"
     )
     _argv_parser.add_argument(
         '-lcp', '--llm-conf-path',
-        type=str, default=str(Path(__file__).parent / "configs" / "llm-conf.toml"),
+        type=str, default=str(Path(__file__).parent / ".." / "configs" / "llm-conf.toml"),
         help="`llm configuration path` is the configuration of this translator and " +
-        "stores your secret (e.g. api key, model name) of AI-provider(s)"
+             "stores your secret (e.g. api key, model name) of AI-provider(s)"
     )
     ## Log configuration
     # log path
     _argv_parser.add_argument(
         '-lp', '--log-path',
-        type=str, default=str(Path(__file__).parent / "assets" / "log" / "translator-run.log"),
+        type=str, default=str(Path(__file__).parent / ".." / "assets" / "log" / "translator-run.log"),
         help="`log path` will auto-generate log-info during the runtime"
     )
     # log format
@@ -95,7 +102,7 @@ def init_argv() -> argparse.Namespace:
         '-ll', '--log-level',
         type=str, default='DEBUG',
         help="`log level` determines the logging level. " +
-        "The options could be {debug, info, warning, error}"
+             "The options could be {debug, info, warning, error}"
     )
     # log color option
     _argv_parser.add_argument(
@@ -108,7 +115,7 @@ def init_argv() -> argparse.Namespace:
         "-ds", "--disable-stdout",
         type=bool, default=False,
         help="`disable stdout` will disable the functionality of printing to the "+
-        "stdout (i.e. console or terminal)"
+             "stdout (i.e. console or terminal)"
     )
     try:
         res = _argv_parser.parse_args()
@@ -175,14 +182,14 @@ def markdown_stripper(s: str) -> Optional[str]:
         #   2.2 `-excluded chars
         #   2.3 newline
         #   2.4 ```
-        re.compile(r'(?s)^(?:[^`]|(?!```).)*$|^```(\w+)\n([^`]*?)\n```$'),
+        re.compile(r'^(?:[^`]|(?!```).)*$|^```(\w+)\n([^`]*?)\n```$'),
         s
     )
     if res is None:
         return res
     elif res.group(1) is not None:
         # res.group(1) is typically the programming language tag or documentation type.
-        # res.group(2) is the content we want
+        # res.group(2) is the content that we want
         return res.group(2)
     elif len(s) > 0:
         # ok, it is a string without ```.

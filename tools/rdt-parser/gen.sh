@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Last modified at 2026/04/05 星期日 02:24:04
 set -euo pipefail
+shopt -s nullglob
 
 # unix or darwin?
 # shellcheck disable=SC2209
@@ -35,32 +36,19 @@ if [ "$?" != 0 ]; then
 fi
 
 Lang="Go"
+g4_files=(*.g4)
 # antlr4 defined in /usr/share/bin/: $(which java) -jar antlr4-complete.jar $@
-ls *.g4 | xargs -I {} \
-	antlr4 -Werror -Dlanguage="$Lang" -no-visitor -listener {} -o "$(pwd)/" -Xexact-output-dir 2>/dev/null
+for file in "${g4_files[@]}"; do
+	antlr4 -Werror -Dlanguage="$Lang" -no-visitor -listener "$file" -o "$(pwd)/" -Xexact-output-dir
+done
 if [[ "$Lang" = "Go" ]]; then
-	alter_list=`$grep_check "package parser" -rl . | $grep_check -v "gen.*"`
+	alter_list=$($grep_check "package parser" -rl . | $grep_check -v "gen.*")
 	if [ -z "$alter_list" ]; then
 		echo ""
 	else
 		echo "$alter_list" | xargs sed -i "s/package parser/package main/g"
 	fi
 fi
-
-targets=(rdt*.go)
-mark_string='//go:build tools
-// +build tools
-'
-for target in "${targets[@]}"; do
-	[ -f "$target" ] || continue
-	$grep_check -qxF '//go:build tools' "$target" && {
-		continue
-	}
-	echo "$mark_string" > "$target.tmp"
-	cat "$target" >> "$target.tmp"
-	mv "$target.tmp" "$target"
-done
-
 
 go generate
 rm ./*.interp ./*.tokens

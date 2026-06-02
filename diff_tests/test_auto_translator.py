@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 # Last modified at 2026/05/09 星期六 14:54:47
-from typing import Optional, Any
+from typing import Any, Optional
 
 import pytest
 
-from auto_translator import markdown_stripper, seize_err_if_any
+from tools.auto_translator import markdown_stripper, seize_err_if_any
 
 
 @pytest.mark.parametrize("a, expected", [
@@ -23,13 +23,17 @@ from auto_translator import markdown_stripper, seize_err_if_any
     ("```toml\n你好输出\n```", '你好输出'),
     ("```你好输出\ntoml\n```", 'toml'),
     ("`"*100, None),
-    ("```a\nq"*12, None)
+    ("```a\nq"*12, None),
+    ('{"helo": [1, 2, 3], "world": "456"}', '{"helo": [1, 2, 3], "world": "456"}'),
+    ('```json\n{"helo": [1, 2, 3], "world": "456"}\n```', '{"helo": [1, 2, 3], "world": "456"}'),
+    ('```json\\n{"helo": [1, 2, 3], "world": "456"}\\n```', None),
+    ("a```b", None)
 ])
 def test_markdown(a: str, expected: Optional[str]):
     if expected is None:
         assert markdown_stripper(a) is None
-    else:
-        assert markdown_stripper(a) == expected
+        return
+    assert markdown_stripper(a) == expected
 
 @seize_err_if_any()
 def _helo():

@@ -1,7 +1,7 @@
 package terminal
 
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-/// Last modified at 2026/05/15 星期五 13:29:56
+/// Last modified at 2026/05/31 星期日 10:35:57
 
 import (
 	"bufio"
@@ -30,7 +30,9 @@ type LineEditor struct {
 	reader    *bufio.Reader
 	termState *term.State
 	Writer    io.Writer
+
 	debugger  *os.File
+
 	// prompt must have the comparable shape of `ColorReset anyPromptLiteral ColorReset`
 	prompt string
 
@@ -41,12 +43,8 @@ type LineEditor struct {
 	lastTotCnt int
 
 	// configuration options for line editor
-	MaxCharCntPerLine int
-	maxBufLen         int
-
-	fullCRLF bool
-	LFasCRLF bool
-	holdCR   bool
+	MaxCharCntPerLine, maxBufLen int
+	fullCRLF, LFasCRLF, holdCR   bool
 }
 
 // SetTermState will turn termState into raw mode, and store the old state value
@@ -91,16 +89,48 @@ func (l *LineEditor) write(args ...any) {
 	_, _ = l.Writer.Write([]byte(sb.String()))
 }
 
-// Writeln automatically inserts "\r\n" after [args] and then invokes function write
-func (l *LineEditor) Writeln(args ...any) {
-	args = append(args, "\r\n")
+// WriteOrderly will analyze the args and output them aligned with l.MaxCharCntPerLine
+func (l *LineEditor) WriteOrderly(args ...any) {
+	var (
+		sb  strings.Builder
+		tmp string
+		i   = 0
+	)
+	for _, a := range args {
+		switch aa := a.(type) {
+		case string:
+			sb.WriteString(aa)
+		case rune:
+			sb.WriteRune(aa)
+		}
+	}
+	payload := sb.String()
+	sb.Reset()
+	div, mod := len(payload)/l.MaxCharCntPerLine, len(payload)%l.MaxCharCntPerLine
+	for ; i < div; i++ {
+		sb.WriteString(payload[i*l.MaxCharCntPerLine : (i+1)*l.MaxCharCntPerLine])
+		sb.WriteString("\r\n")
+	}
+	if mod > 0 {
+		sb.WriteString(payload[i*l.MaxCharCntPerLine : i*l.MaxCharCntPerLine+mod])
+		tmp = sb.String()
+		if !l.fullCRLF && !l.LFasCRLF {
+			tmp = strings.Replace(tmp, "\n", "\r\n", -1)
+		}
+		tmp += "\r\n"
+	} else {
+		tmp = sb.String()
+		if !l.fullCRLF && !l.LFasCRLF {
+			tmp = strings.Replace(tmp, "\n", "\r\n", -1)
+		}
+	}
 	if l.curPos != len(l.buf) {
 		l.curPos = len(l.buf)
-		tailPos := len(l.buf) + len(l.prompt) - ColorCtrlMinusOfs
+		tailPos := l.curPos + len(l.prompt) - ColorCtrlMinusOfs
 		l.renderCursor(tailPos/l.MaxCharCntPerLine, tailPos%l.MaxCharCntPerLine, CurRight)
-		l.write("\r")
+		tmp += "\r"
 	}
-	l.write(args...)
+	l.write(tmp)
 }
 
 // TrimToRange is a threshold-limitor:
@@ -273,7 +303,6 @@ func (l *LineEditor) renderCursor(
 	curDirect curDirection,
 ) {
 	payload := make([]any, 0)
-
 	switch curDirect {
 	case CurLeft:
 		if currRow < l.lastRow {
@@ -347,7 +376,6 @@ func (l *LineEditor) jmpToStOfPrevWord() {
 	currPos := len(l.prompt) + pos - ColorCtrlMinusOfs
 	currRow, currCol := currPos/l.MaxCharCntPerLine, currPos%l.MaxCharCntPerLine
 	l.curPos = pos
-
 	l.renderCursor(currRow, currCol, CurLeft)
 }
 
@@ -529,8 +557,10 @@ func (l *LineEditor) handleNewLF(st, n int, tmp []byte) error {
 func (l *LineEditor) checkCtrlSeq(r byte) ([]rune, error) {
 	switch {
 	case r == 0x01: // ctrl + a
+		l.curPos = 0
 		l.renderCursor(0, len(l.prompt)-ColorCtrlMinusOfs, CurLeft)
 	case r == 0x03: // ctrl + c
+		l.curPos = len(l.buf)
 		l.renderCursor(len(l.buf)/l.MaxCharCntPerLine, (len(l.buf)%l.MaxCharCntPerLine)+1, CurRight)
 		if !l.fullCRLF {
 			l.write("^C\r\n")
@@ -615,14 +645,8 @@ func (l *LineEditor) handleMultiBytes4CtrlSeq(
 			return nil, pseudoErrKeepReading
 		}
 	}
-	// pre-calculate these exclusive flags
-	typeUp := tmp[2] == 'A'    // (esc, [, A) <=> up    arrow
-	typeDown := tmp[2] == 'B'  // (esc, [, B) <=> down  arrow
-	typeRight := tmp[2] == 'C' // (esc, [, C) <=> right arrow
-	typeLeft := tmp[2] == 'D'  // (esc, [, D) <=> left arrow
-	typeEnd := tmp[2] == 'F'   // (esc, [, F) <=> end keystroke
-	typeHome := tmp[2] == 'H'  // (esc, [, H) <=> home keystroke
 
+	// pre-calculate these exclusive flags
 	typeDel := n > 3 && string(tmp[2:4]) == "3~" // delete keystroke
 	lPart := n == 6 && string(tmp[2:4]) == "1;" &&
 		(rune(tmp[4]) == '3' || rune(tmp[4]) == '5')
@@ -634,28 +658,30 @@ func (l *LineEditor) handleMultiBytes4CtrlSeq(
 		l.jmpToStOfPrevWord()
 	case flag6ctrlR:
 		l.jmpToEdOfNextWord()
-	case typeUp || typeDown:
+	case tmp[2] == 'A' || tmp[2] == 'B':
+		// (esc, [, A) <=> up    arrow
+		// (esc, [, B) <=> down    arrow
 		// last or next command
-	case typeRight:
+	case tmp[2] == 'C': // typeRight (esc, [, C) <=> right arrow
 		l.moveCursor(1)
 		currPos := l.curPos + len(l.prompt) - ColorCtrlMinusOfs
 		l.renderCursor(currPos/l.MaxCharCntPerLine, currPos%l.MaxCharCntPerLine, CurRight)
-	case typeLeft:
+	case tmp[2] == 'D': // typeLeft (esc, [, D) <=> left arrow
 		l.moveCursor(-1)
 		currPos := l.curPos + len(l.prompt) - ColorCtrlMinusOfs
 		l.renderCursor(currPos/l.MaxCharCntPerLine, currPos%l.MaxCharCntPerLine, CurLeft)
-	case typeHome: // home keystroke
+	case tmp[2] == 'H': // (esc, [, H) <=> home keystroke
 		currPos := len(l.prompt) - ColorCtrlMinusOfs
 		l.curPos = 0
 		l.renderCursor(currPos/l.MaxCharCntPerLine, currPos%l.MaxCharCntPerLine, CurLeft)
-	case typeEnd: // end keystroke
+	case tmp[2] == 'F': // (esc, [, F) <=> end keystroke
 		l.curPos = len(l.buf)
 		currPos := l.curPos + len(l.prompt) - ColorCtrlMinusOfs
 		l.renderCursor(currPos/l.MaxCharCntPerLine, currPos%l.MaxCharCntPerLine, CurRight)
 	case typeDel:
 		l.DeleteCharNearCursor(CurRight)
 	default:
-		return nil, pseudoErrKeepReading
+		res = nil
 	}
 	return res, pseudoErrKeepReading
 }

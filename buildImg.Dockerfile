@@ -1,6 +1,7 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 # this dockerfile hopes to collect the correct dependencies and build b0gus without any error.
+
 FROM golang:1.26 AS builder-env
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< stage-1
 ARG antlr4Tag=4.13.2
@@ -33,7 +34,7 @@ RUN chmod -R +x /b0gus-builder && cp $sourcePath $sourcePath.bak &&             
     echo "\$antlr4Dir/antlr4-maven-plugin/target/antlr4-maven-plugin-$antlr4Tag.jar:\\" >> $antlr4Path &&  \
     echo "\$antlr4Dir/runtime/Java/target/antlr4-runtime-$antlr4Tag.jar:\"" >> $antlr4Path &&              \
     echo "exec java -cp \$classPath org.antlr.v4.Tool \"\$@\"" >> $antlr4Path && chmod a+rx $antlr4Path && \
-	Arch=$arch osType=$osType make release 
+	Arch=$arch osType=$osType make release
 
 FROM alpine:latest AS builder
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< stage-2

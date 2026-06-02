@@ -41,6 +41,7 @@ func init() {
 	)
 	var choice = zap.InfoLevel
 	if strings.Contains(BuildTypeStr, "debug") {
+		/* typically is governed by makefile */
 		choice = zap.DebugLevel
 	}
 	LoggerCore := zapcore.NewCore(loggerEncoder, writeSyncer, choice)
@@ -49,7 +50,6 @@ func init() {
 		zap.AddCaller(),
 		zap.AddCallerSkip(1),
 	))
-
-	// zap.ReplaceGlobals(Logger)
-	// TODO: gain from global configuration and decide writing to which log file.
+	// [TODO]: gain from global configuration and decide writing to which log file
+	//       for further distributed system
 }

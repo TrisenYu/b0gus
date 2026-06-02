@@ -12,4 +12,4 @@ type ShellRules struct {
 	LFisCRLF, FullCRLF bool
 }
 
-// [TODO] shellOpts
+// [TODO] other shellOpts

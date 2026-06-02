@@ -1,6 +1,7 @@
 // Package configs
-// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 package configs
+
+// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
 	"context"

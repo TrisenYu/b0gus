@@ -20,4 +20,4 @@ descript the buggy behavior of b0gus.
 descript steps that will trigger the bug you have met.
 
 ## Attachment or Screenshots
-add screenshots or attachment. 
+add screenshots of error message or panic stack frame or attachment if applicable.

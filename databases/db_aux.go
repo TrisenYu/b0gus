@@ -7,7 +7,6 @@ import (
 	"b0gus/crypto_aux"
 	"context"
 	"errors"
-	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -43,132 +42,6 @@ func GuessAndDetermine(db any) int {
 	}
 }
 
-// SelectDatabaseBackend will attempt to cast dbConfig into proper type
-// by checking its Type member.
-// this function return nil as RuntimeDB if there is any error during
-// execution context.
-//
-// [TODO-other-db]:
-//  1. https://www.cockroachlabs.com/docs/v26.1/build-a-go-app-with-cockroachdb-gorm?
-//  2. https://pkg.go.dev/github.com/gocql/gocql
-//
-// [TODO]:
-//  1. the choice of certain database should integrate into services configuration
-//  2. sslmode=verify-full&sslrootcert=/var/lib/postgresql/ssl/root.crt.
-//     which means configuration can assign a certificate for postgreSQL
-func SelectDatabaseBackend(dbConfig *configs.RecDBConfig) (any, string, error) {
-	switch strings.ToLower(dbConfig.Type) {
-	case "postgresql":
-		return handlePostgreSQL(dbConfig)
-	case "sqlite":
-		// localdatabase as a file?
-		sqlitePath, _ := filepath.Abs(dbConfig.Path)
-		db, err := gorm.Open(gormsqlite.Open(sqlitePath), &gorm.Config{})
-		return db, "sqlite", err
-	case "mongodb":
-		return handleMongoDB(dbConfig)
-	default:
-		payload := configs.GetLocalizedMsg(
-			"configs.UnsupportDatabaseTypeError",
-			map[string]any{"DatabaseType": dbConfig.Type},
-		)
-		configs.Logger().Error(payload)
-		return nil, "", errors.New(payload)
-	}
-}
-
-func handlePostgreSQL(dbConfig *configs.RecDBConfig) (any, string, error) {
-	dbAddr := dbConfig.Addr
-	if net.ParseIP(dbAddr) == nil && dbAddr != "localhost" {
-		payload := configs.GetLocalizedMsg(
-			"configs.InvalidDatabaseAddrError",
-			map[string]any{"DatabaseAddr": dbAddr},
-		)
-		configs.Logger().Fatal(payload)
-		return nil, "", errors.New(payload)
-	}
-	var sb strings.Builder
-	sb.WriteString("host=")
-	sb.WriteString(dbAddr)
-	sb.WriteString(" port=") // deploy on certain port
-	sb.WriteString(strconv.Itoa(int(dbConfig.Port)))
-	sb.WriteString(" user=")
-	sb.WriteString(dbConfig.AdminName)
-	sb.WriteString(" password=")
-	sb.WriteString(dbConfig.AdminPassword)
-	sb.WriteString(" dbname=")
-	sb.WriteString(dbConfig.DBName)
-	sb.WriteString(" search_path=public")
-	if configs.CheckFilePair(dbConfig.TLSCertPath, dbConfig.TLSKeyPath) && len(dbConfig.TLSKeyPath) > 0 {
-		sb.WriteString(" sslmode=verify-full")
-		sb.WriteString(" sslcert=")
-		sb.WriteString(dbConfig.TLSCertPath) // "sslcert=/path/to/client.crt "
-		sb.WriteString(" sslkey=")
-		sb.WriteString(dbConfig.TLSKeyPath) // "sslkey=/path/to/client.key"
-	}
-	pgDbConfig := sb.String()
-	db, err := gorm.Open(
-		gormpg.Open(pgDbConfig),
-		&gorm.Config{
-			// set default timeout
-			DefaultTransactionTimeout: time.Duration(dbConfig.Timeout) * time.Second,
-		},
-	)
-	return db, "postgresql", err
-}
-
-// handleMongoDB
-func handleMongoDB(dbConfig *configs.RecDBConfig) (any, string, error) {
-	dbAddr := dbConfig.Addr
-	// TODO: change to the domain name or common IP
-	if net.ParseIP(dbAddr) == nil && strings.ToLower(dbAddr) != "localhost" {
-		payload := configs.GetLocalizedMsg(
-			"configs.InvalidDatabaseAddrError",
-			map[string]any{"DatabaseAddr": dbAddr},
-		)
-		configs.Logger().Error(payload)
-		return nil, "", errors.New(payload)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	var sb strings.Builder
-	sb.WriteString("mongodb://")
-	sb.WriteString(dbConfig.AdminName)
-	sb.WriteRune(':')
-	sb.WriteString(dbConfig.AdminPassword)
-	sb.WriteRune('@')
-	sb.WriteString(dbAddr)
-	sb.WriteString(strconv.Itoa(int(dbConfig.Port)))
-	// TODO: check configuration
-	// could not include `: / ? # [ ] @` in admin_name or password,
-	// otherwise they need convert in the way that url encoding criterion
-	// that enforces
-	mongoPayload := []*mongoopts.ClientOptions{
-		mongoopts.Client().ApplyURI(sb.String()),
-		mongoopts.Client().SetConnectTimeout(time.Duration(dbConfig.Timeout) * time.Second),
-	}
-	if configs.CheckFilePair(dbConfig.TLSKeyPath, dbConfig.TLSCertPath) && len(dbConfig.TLSKeyPath) > 0 {
-		mongoPayload = append(mongoPayload,
-			mongoopts.Client().SetTLSConfig(crypto_aux.LoadNormalCertAsTLSClient(
-				dbConfig.TLSCertPath, dbConfig.TLSKeyPath, dbAddr,
-			)),
-		)
-	}
-	mongoClient, err := mongo.Connect(mongoPayload...)
-	if err != nil {
-		configs.Logger().Error(err.Error())
-		return nil, "", err
-	}
-	err = mongoClient.Ping(ctx, nil)
-	if err != nil {
-		_ = mongoClient.Disconnect(ctx)
-		configs.Logger().Error(err.Error())
-		return nil, "", err
-	}
-	db := mongoClient.Database("b0gus-db")
-	return db, "mongodb", err
-}
-
 // callback functions and context might be required
 
 type DBstruct interface {
@@ -198,6 +71,10 @@ type DBstruct interface {
 // won't provide querying interface currently, privileges should be kept for O&M
 
 type DBhandler interface {
+	// Setup will extract from given conf and set the corresponding database backend,
+	// and setup table structures
+	Setup(conf *configs.RecDBConfig, structures ...DBstruct) error
+
 	// CreateTable creates table for relation database
 	CreateTable(structures ...DBstruct) error
 
@@ -207,21 +84,46 @@ type DBhandler interface {
 	// CreateOrUpdateItemsInSeq executes multiple inserting /updating tasks
 	CreateOrUpdateItemsInSeq(...DBstruct) error
 
+	// AlterDatabaseHandler typically set the dstDB into one of the member of interfaced structure.
 	AlterDatabaseHandler(dstDB any)
 }
 
 // RuntimeDB is only used as a database **write** descriptor.
 type RuntimeDB struct {
 	// db holds the current database instance address
-	db any
-
+	db                      any
+	TLSKeyPath, TLSCertPath string
 	// Mutex protects the operation upon db specifically targeting at altering database instance
 	Mutex sync.Mutex
+}
+
+func (r *RuntimeDB) Setup(conf *configs.RecDBConfig, structures ...DBstruct) error {
+	dbInstance, str, err := r.SelectDatabaseBackend(conf)
+	if err != nil {
+		configs.Logger().Error(configs.GetLocalizedMsg(
+			"databases.DatabaseConnectionError",
+			map[string]any{
+				"DatabaseStr": str,
+				"ErrInfo":     err.Error(),
+			},
+		))
+		return err
+	} else if dbInstance == nil {
+		configs.Logger().Error(configs.GetLocalizedMsg(
+			"Databases.DatabaseEmptyError", nil,
+		))
+		return errors.New("empty database instance")
+	}
+	r.AlterDatabaseHandler(dbInstance)
+	return r.CreateTable(structures...)
 }
 
 // CreateTable will create table if the target table does not exist
 // or try to mitigate table if possible
 func (r *RuntimeDB) CreateTable(structures ...DBstruct) error {
+	if len(structures) < 1 || structures[0] == nil {
+		return nil
+	}
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	switch GuessAndDetermine(r.db) {
@@ -362,4 +264,125 @@ func (r *RuntimeDB) CreateOrUpdateItemsInSeq(targetItems ...DBstruct) error {
 		}
 	}
 	return err
+}
+
+// SelectDatabaseBackend will attempt to cast dbConfig into proper type
+// by checking its Type member.
+// this function return nil as RuntimeDB if there is any error during
+// execution context.
+//
+// [TODO-other-db]:
+//  1. https://www.cockroachlabs.com/docs/v26.1/build-a-go-app-with-cockroachdb-gorm?
+//  2. https://pkg.go.dev/github.com/gocql/gocql
+//
+// [TODO]:
+//  1. the choice of certain database should integrate into services configuration
+//  2. sslmode=verify-full&sslrootcert=/var/lib/postgresql/ssl/root.crt.
+//     which means configuration can assign a certificate for postgreSQL
+func (r *RuntimeDB) SelectDatabaseBackend(dbConfig *configs.RecDBConfig) (any, string, error) {
+	switch strings.ToLower(dbConfig.DBType) {
+	case "postgresql":
+		return r.handlePostgreSQL(dbConfig)
+	case "sqlite":
+		// localdatabase as a file?
+		sqlitePath, _ := filepath.Abs(dbConfig.DBPath)
+		db, err := gorm.Open(gormsqlite.Open(sqlitePath), &gorm.Config{})
+		return db, "sqlite", err
+	case "mongodb":
+		return r.handleMongoDB(dbConfig)
+	default:
+		payload := configs.GetLocalizedMsg(
+			"configs.UnsupportDatabaseTypeError",
+			map[string]any{"DatabaseType": dbConfig.DBType},
+		)
+		configs.Logger().Error(payload)
+		return nil, "", errors.New(payload)
+	}
+}
+
+func (r *RuntimeDB) handlePostgreSQL(dbConfig *configs.RecDBConfig) (any, string, error) {
+	if !dbConfig.DBSelfCheck() {
+		payload := configs.GetLocalizedMsg(
+			"configs.InvalidDatabaseAddrError",
+			map[string]any{"DatabaseAddr": dbConfig.DBAddr},
+		)
+		configs.Logger().Fatal(payload)
+		return nil, "", errors.New(payload)
+	}
+	var sb strings.Builder
+	sb.WriteString("host=")
+	sb.WriteString(dbConfig.DBAddr)
+	sb.WriteString(" port=") // deploy on certain port
+	sb.WriteString(strconv.Itoa(int(dbConfig.DBPort)))
+	sb.WriteString(" user=")
+	sb.WriteString(dbConfig.DBAdminName)
+	sb.WriteString(" password=")
+	sb.WriteString(dbConfig.DBAdminPassword)
+	sb.WriteString(" dbname=")
+	sb.WriteString(dbConfig.DBName)
+	sb.WriteString(" search_path=public")
+	if configs.CheckFilePair(r.TLSKeyPath, r.TLSCertPath) && len(r.TLSKeyPath) > 0 {
+		sb.WriteString(" sslmode=verify-full")
+		sb.WriteString(" sslcert=")
+		sb.WriteString(r.TLSCertPath) // "sslcert=/path/to/client.crt "
+		sb.WriteString(" sslkey=")
+		sb.WriteString(r.TLSKeyPath) // "sslkey=/path/to/client.key"
+	}
+	pgDbConfig := sb.String()
+	db, err := gorm.Open(
+		gormpg.Open(pgDbConfig),
+		&gorm.Config{
+			// set default timeout
+			DefaultTransactionTimeout: time.Duration(dbConfig.DBTimeout) * time.Second,
+		},
+	)
+	return db, "postgresql", err
+}
+
+// handleMongoDB
+func (r *RuntimeDB) handleMongoDB(dbConfig *configs.RecDBConfig) (any, string, error) {
+	if !dbConfig.DBSelfCheck() {
+		payload := configs.GetLocalizedMsg(
+			"configs.InvalidDatabaseAddrError",
+			map[string]any{"DatabaseAddr": dbConfig.DBAddr},
+		)
+		configs.Logger().Fatal(payload)
+		return nil, "", errors.New(payload)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var sb strings.Builder
+	sb.WriteString("mongodb://")
+	sb.WriteString(dbConfig.DBAdminName)
+	sb.WriteRune(':')
+	sb.WriteString(dbConfig.DBAdminPassword)
+	sb.WriteRune('@')
+	sb.WriteString(dbConfig.DBAddr)
+	sb.WriteString(strconv.Itoa(int(dbConfig.DBPort)))
+
+	mongoPayload := []*mongoopts.ClientOptions{
+		mongoopts.Client().ApplyURI(sb.String()),
+		mongoopts.Client().SetConnectTimeout(time.Duration(dbConfig.DBTimeout) * time.Second),
+	}
+	if configs.CheckFilePair(r.TLSKeyPath, r.TLSCertPath) && len(r.TLSKeyPath) > 0 {
+		mongoPayload = append(mongoPayload,
+			mongoopts.Client().SetTLSConfig(crypto_aux.LoadNormalCertAsTLSClient(
+				r.TLSCertPath, r.TLSKeyPath, dbConfig.DBAddr,
+			)),
+		)
+	}
+	mongoClient, err := mongo.Connect(mongoPayload...)
+	if err != nil {
+		configs.Logger().Error(err.Error())
+		return nil, "", err
+	}
+	err = mongoClient.Ping(ctx, nil)
+	if err != nil {
+		_ = mongoClient.Disconnect(ctx)
+		configs.Logger().Error(err.Error())
+		return nil, "", err
+	}
+	db := mongoClient.Database("b0gus-db")
+	return db, "mongodb", err
 }

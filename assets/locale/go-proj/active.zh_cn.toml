@@ -13,12 +13,6 @@
     other = "运行期间允许通过从远程拉取配置而完成变更的权限设置。"
 
 [main]
-    [main.DatabaseConnectionError]
-    other = "无法连接到数据库{{.DatabaseStr}}。检出错误：<{{.ErrInfo}}>。"
-    [main.DatabaseEmptyError]
-    other = "按给定配置获取到了空的数据库操作符。"
-    [main.DatabaseChangingWarn]
-    other = "因内部错误，不更换当前正在使用的数据库。"
     [main.TerminationSignalWarn]
     other = "捕获到终止运行b0gus服务器的信号<{{.SignalStr}}>。"
 	[main.FailToApplyConfiguration]
@@ -53,6 +47,12 @@
     other = "因错误<{{.ErrInfo}}>无法在路径<{{.PemPath}}>下创建证书，且将不会启动b0gus服务。"
 
 [databases]
+	[databases.DatabaseConnectionError]
+	other = "无法连接到数据库{{.DatabaseStr}}。检出错误：<{{.ErrInfo}}>。"
+	[databases.DatabaseEmptyError]
+	other = "按给定配置获取到了空的数据库操作符。"
+	[databases.DatabaseChangingWarn]
+	other = "因内部错误，不更换当前正在使用的数据库。"
     [databases.DatabaseTypeError]
     other = "发现了不受支持的数据库<{{.Database}}>！"
 	[databases.InvalidMongoDBclientErr]
@@ -77,11 +77,13 @@
 	[services.absTCPIPPortErr]
 	other = "选用了特权端口"
 	[services.absTCPIPUninitErr]
-	other = "使用了没有初始化的ReentrantNetType"
+	other = "使用了没有初始化的ReentrantNetType。"
 	[services.absTCPIPUnknownNetType]
 	other = "使用了未知的网络类型。"
 	[services.absTCPIPUDPConnCastingErr]
 	other = "转换net.UDPConn失败。"
+	[services.absTCPIPunsupportedOSOnICMPErr]
+	other = "windows一般不支持部署为ICMP服务器"
     # SSH
     [services.SSHversionWarn]
     other = "无法生成3个随机字节。将为SSH版本返回一个默认值。"
@@ -94,7 +96,7 @@
     [services.SSHchannelAcceptanceError]
     other = "因错误<{{.ErrInfo}}>无法接受当前提供给远程地址<{{.RemoteAddr}}>的SSH通道。"
     [services.SSHinvalidConfigurationWarn]
-    other = "无效的SSH配置，跳过更新"
+    other = "无效的SSH配置，跳过更新。"
     [services.SSHSwitchListenerError]
     other = "无法切换到给定地址<{{.ListenAddr}}>来重新监听。受此影响不会修改当前的b0gus SSH服务器。"
     [services.SSHSetupListenerError]
@@ -107,17 +109,31 @@
     other = "SSH服务已退出。"
 	[services.SSHConfigLoadingFailure]
 	other = "无法从给定的配置结构体中选出提供给SSH的配置。"
+	[services.SSHInvalidConfigFailure]
+	other = "经检查全局配置为SSH服务提供了无效的配置。"
 	[services.SSHEmptyGlobConfigFailure]
 	other = "提供了空的全局配置。"
 	[services.SSHRequireSignerAsOnlyArgErr]
 	other = "至少需要一个ssh.Signer作为传入参数。"
+	[services.SSHResponseCmdClientSetupErr]
+	other = "因错误<{{.ErrInfo}}>无法启用LLM生成终端命令的响应。"
+	[services.SSHValidationCmdClientSetupErr]
+	other = "因错误<{{.ErrInfo}}>无法启用LLM检查终端命令是否在语法上无误。"
+	[services.SSHInvalidLLMConfigurePathErr]
+	other = "捕获到错误<{{.ErrInfo}}>。提供了错误的配置路径<{{.WrongPath}}>。"
+	[services.SSHLLMRepsJsonUnmarshallingErr]
+	other = "无法从LLM的JSON响应中恢复出结构体。错误<{{.ErrInfo}}>"
+	[services.SSHNoAvailableLLMForResponseErr]
+	other = "没有可用的LLM通信端对外部流量形成伪造响应。"
+	[services.SSHInvalidShellCmdCheckedByParserWarn]
+	other = "由语法解析器检查到语法上无效的终端命令。"
     # NTP
     [services.NTPReceivePayloadFromRemoteInfo]
     other = "NTP服务器接收到来自<{{.IP}}>发来的长度为<{{.Len}}>的时间查询请求。"
     [services.NTPQuitInfo]
     other = "NTP服务已退出。"
 	[services.NTPNullConfErr]
-	other = "提供了空的NTP配置"
+	other = "提供了空的NTP配置。"
     # DNS
 	[services.DNSQuitInfo]
 	other = "DNS服务已退出。"
@@ -129,20 +145,42 @@
 	other = "无法从配置中提取出DNS子配置！"
     # SMTP
 	[services.SMTPQuitInfo]
-	other = "SMTP服务已退出"
+	other = "SMTP服务已退出。"
 	[services.SMTPWrongParamNumErr]
 	other = "传入了错误数量的参数。预期传{{.Expect}}个，实际传{{.Actual}}个。"
 	[services.SMTPNullConfErr]
-	other = "提供了空的SMTP配置"
+	other = "提供了空的SMTP配置。"
 	# HTTP
 	[services.HTTPQuitInfo]
-	other = "HTTP服务已退出"
+	other = "HTTP服务已退出。"
 	[services.HTTPNullConfErr]
-	other = "提供了空的HTTP配置"
+	other = "提供了空的HTTP配置。"
 	[services.HTTPWrongParamNumErr]
 	other = "传入了错误数量的参数。预期传{{.Expect}}个，实际传{{.Actual}}个。"
 	[services.HTTPConfLoadErr]
-	other = "无法加载HTTP配置"
+	other = "无法加载HTTP配置。"
     # ICMP
 	[services.ICMPwindowsUnsupportWarn]
-	other = "windows系统不支持搭建ICMP服务器"
+	other = "windows系统不支持搭建ICMP服务器。"
+
+[llm]
+	[llm.UnableToSetPromptDueToUnkCurrTaskType]
+	other = "因未知的任务类型<{{.TaskType}}>而无法设置提示词。"
+	[llm.UnknownLLMProviderErr]
+	other = "未知的LLM提供商。"
+	[llm.EmptyBaseURLErr]
+	other = "LLM服务提供商的api地址为空。"
+	[llm.InvalidBaseURLErr]
+	other = "所提供的LLM服务提供商的api地址无效。"
+	[llm.EmptyAPIKeyErr]
+	other = "空的api调用令牌。"
+	[llm.EmptyModelNameErr]
+	other = "未指定所使用的模型名称。"
+	[llm.EmptyRolePromptErr]
+	other = "提供了空的系统提示词。"
+	[llm.EmptyLLMResponseErr]
+	other = "获取到了空的响应。"
+	[llm.EmptyLLMChoicesErr]
+	other = "LLM返回的可选结果似乎均为空。"
+	[llm.EmptyLLMRespContentErr]
+	other = "从LLM的返回结果中只找到了空的响应内容。"

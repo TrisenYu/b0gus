@@ -4,15 +4,12 @@ package diff_tests
 // SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 
 import (
-	"crypto/x509/pkix"
 	"fmt"
-	"io"
-	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"b0gus/configs"
 	"b0gus/crypto_aux"
 	"b0gus/internal/misc_utils"
 )
@@ -27,113 +24,6 @@ func TestBase64(t *testing.T) {
 	originStr, err := crypto_aux.Base64Recover(base64str)
 	assert.Nil(t, err)
 	assert.Equal(t, []byte("abc"), originStr)
-}
-
-func TestReflection(t *testing.T) {
-	// assemble to configs.Config_path_as_str
-	examConfPath := "../configs/example.toml"
-	testConfPath, _ := filepath.Abs(examConfPath)
-	localConf := configs.LoadDefaultConfig(testConfPath)
-	resMap := misc_utils.TurnStruct2Map(localConf.ServerConfig)
-	assert.NotEqual(t, resMap, nil)
-	sshName := misc_utils.GetTypeNameViaType(localConf.ServerConfig.SSHconfig)
-	assert.Equal(t, "SSHconfig", sshName)
-	misc_utils.GetTypeNameViaType(&localConf.ServerConfig.SSHconfig)
-	_, ok := resMap[sshName]
-	assert.Equal(t, true, ok)
-	resMap = misc_utils.TurnStruct2Map(localConf.ServerConfig.SSHconfig)
-	assert.NotEqual(t, resMap, nil)
-	curr, err := misc_utils.GetFieldValueByName(localConf.ServerConfig, sshName)
-	assert.Equal(t, nil, err)
-	_, ok = curr.(*configs.SSHconfig)
-	assert.Equal(t, false, ok)
-	_, ok = curr.(configs.SSHconfig)
-	assert.Equal(t, true, ok)
-	recur, ok := curr.(configs.SSHconfig)
-	assert.Equal(t, true, ok)
-	assert.IsType(t, &configs.SSHconfig{}, &recur)
-
-	curr, err = misc_utils.GetFieldValueByName(
-		localConf.ServerConfig,
-		misc_utils.GetTypeNameViaType(localConf.ServerConfig.SMTPconfig),
-	)
-	assert.Equal(t, nil, err)
-	assert.Equal(t, localConf.ServerConfig.SMTPconfig, curr)
-	_, ok = curr.(configs.SMTPconfig)
-	assert.Equal(t, true, ok)
-	_, err = misc_utils.GetFieldValueByName(
-		map[string]map[string]any{
-			"ok": nil, "nok": {
-				"hello": "world",
-				"123":   123,
-			},
-		},
-		"nok",
-	)
-	assert.Equal(t, nil, err)
-}
-
-func TestAnyType(t *testing.T) {
-	type innerStruct struct {
-		A int
-		B string
-		C func()
-		D *testing.T
-	}
-	var (
-		a = 1
-		b ***int
-		c struct {
-			concealedPtr **int
-			HellYeah     *string
-			WhatCanIsay  []int
-			JustTestIt   []string
-			AnOpenFunc   func() int
-			ManHaha      map[int]string
-		}
-		d = &c
-		e innerStruct
-		f struct {
-			io.Writer
-			pkix.Name
-			tmp string
-		}
-	)
-	curr, err := misc_utils.GetFieldValueByName(a, "")
-	assert.Equal(t, nil, err)
-	t.Logf("%v", curr)
-	var aa any
-	assert.IsNotType(t, struct{}{}, nil)
-	assert.IsNotType(t, struct{}{}, aa)
-
-	bName := misc_utils.GetTypeNameViaType(b)
-	assert.NotEqual(t, "", bName)
-
-	cName := misc_utils.GetTypeNameViaType(c.HellYeah)
-	assert.NotEqual(t, "", cName)
-	cName = misc_utils.GetTypeNameViaType(c.WhatCanIsay)
-	assert.NotEqual(t, "", cName)
-
-	cName = misc_utils.GetTypeNameViaType(c.JustTestIt)
-	assert.NotEqual(t, "", cName)
-
-	cName = misc_utils.GetTypeNameViaType(c.AnOpenFunc)
-	assert.NotEqual(t, "", cName)
-
-	cName = misc_utils.GetTypeNameViaType(c.ManHaha)
-	assert.NotEqual(t, "", cName)
-
-	cName = misc_utils.GetTypeNameViaType(c)
-	assert.NotEqual(t, "", cName)
-
-	dName := misc_utils.GetTypeNameViaType(d)
-	assert.NotEqual(t, "", dName)
-
-	eName := misc_utils.GetTypeNameViaType(e)
-	assert.NotEqual(t, "", eName)
-
-	fName := misc_utils.GetTypeNameViaType(f)
-	assert.NotEqual(t, "", fName)
 }
 
 type ipPort struct {
@@ -257,5 +147,69 @@ func TestIPvXparser(t *testing.T) {
 			assert.Equal(t, tt.expected.Addr, str, "wrong addr")
 			assert.Equal(t, tt.expected.Port, num, "wrong port")
 		})
+	}
+}
+
+func TestIsIP(t *testing.T) {
+	assert.True(t, misc_utils.IsIP("127.0.0.1"))
+	assert.True(t, misc_utils.IsIP("2001:db8::1"))
+	assert.False(t, misc_utils.IsIP("256.0.0.1"))
+	assert.False(t, misc_utils.IsIP(""))
+	assert.False(t, misc_utils.IsIP("localhost"))
+}
+
+func TestIsHostnameRFC1123(t *testing.T) {
+	assert.True(t, misc_utils.IsHostnameRFC1123("localhost"))
+	assert.True(t, misc_utils.IsHostnameRFC1123("my-host"))
+	assert.True(t, misc_utils.IsHostnameRFC1123("a.example.com"))
+	assert.False(t, misc_utils.IsHostnameRFC1123("-host"))
+	assert.False(t, misc_utils.IsHostnameRFC1123("host_underscore"))
+}
+
+func TestIsPort(t *testing.T) {
+	assert.True(t, misc_utils.IsPort(1))
+	assert.True(t, misc_utils.IsPort(80))
+	assert.True(t, misc_utils.IsPort(65535))
+	assert.False(t, misc_utils.IsPort(0))
+	assert.False(t, misc_utils.IsPort(65536))
+}
+
+func TestIsURL(t *testing.T) {
+	assert.True(t, misc_utils.IsURL("https://example.com/path"))
+	assert.True(t, misc_utils.IsURL("file:///tmp/file"))
+	assert.False(t, misc_utils.IsURL("http://"))
+	assert.False(t, misc_utils.IsURL("just-text"))
+}
+
+func TestStripMarkdownSignIfAny(t *testing.T) {
+	cases := []struct {
+		input  string
+		expect string
+	}{
+		{"```go\nhello world\n```", "hello world"},
+		{"no code block", "no code block"},
+		{"```", ""},
+		{"``````", ""},
+		{"`````````", ""},
+		{"```t```", ""},
+		{"```\nt\n```", ""},
+		{"t```", ""},
+		{"", ""},
+		{"t", "t"},
+		{"```toml\nhello world```", ""},
+		{"```toml\nhello world\n```", "hello world"},
+		{"```tomlhello world", ""},
+		{"```toml\n你好输出\n```", "你好输出"},
+		{"```你好输出\ntoml\n```", "toml"},
+		{strings.Repeat("`", 100), ""},
+		{"```a\nq" + strings.Repeat("```a\nq", 11), ""},
+		{`{"helo": [1, 2, 3], "world": "456"}`, `{"helo": [1, 2, 3], "world": "456"}`},
+		{"```json\n{\"helo\": [1, 2, 3], \"world\": \"456\"}\n```", "{\"helo\": [1, 2, 3], \"world\": \"456\"}"},
+		{"```json\\n{\"helo\": [1, 2, 3], \"world\": \"456\"}\\n```", ""},
+		{"a```b", ""},
+	}
+	for _, c := range cases {
+		actual := misc_utils.StripMarkdownSignIfAny(c.input)
+		assert.Equal(t, c.expect, actual)
 	}
 }

@@ -1,14 +1,15 @@
 ## Installation
 
 ```shell
-# apt install postgresql
-# nano /etc/postgresql/17/main/pg_hba.conf # edit configuration of PostgreSQL 
+# operation under root privilege
+apt install postgresql
+nano /etc/postgresql/17/main/pg_hba.conf # edit configuration of PostgreSQL
 ```
 
 ## Basic Usage
 log into PostgreSQL by client application<psql>.
 ```shell
-$ sudo -u postgres psql
+sudo -u postgres psql
 ```
 |                command name                 | functionality of the command |
 |:-------------------------------------------:|:----------------------------:|

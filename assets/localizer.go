@@ -10,20 +10,23 @@ import (
 	"golang.org/x/text/language"
 )
 
-//go:embed locale/*.toml
-var localDescription embed.FS
+var (
+	//go:embed locale/go-proj/*.toml
+	localDescription embed.FS
 
-var Bundle *i18n.Bundle
+	localeDir = "locale/go-proj/"
+	Bundle *i18n.Bundle
+)
 
 func init() {
 	Bundle = i18n.NewBundle(language.English)
 	Bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
-	entries, _ := localDescription.ReadDir("locale")
+	entries, _ := localDescription.ReadDir(localeDir[:len(localeDir)-1])
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		content, err := localDescription.ReadFile("locale/" + e.Name())
+		content, err := localDescription.ReadFile(localeDir + e.Name())
 		if err != nil {
 			continue
 		}

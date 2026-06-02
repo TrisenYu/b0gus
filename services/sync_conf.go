@@ -5,6 +5,7 @@ package services
 import (
 	"b0gus/configs"
 	"b0gus/crypto_aux"
+
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -28,10 +29,6 @@ func PullUpdatesFromRemote(
 
 	// notice that this interface will provide distributed communication ability
 	// so encryption is required
-	// var clientAux = NetType{}
-	// clientAux.Init(configs.RawEnum)
-	// ConcurrentEventDispatcher(&clientAux, )
-	// clientAux.AlterNetFd(TCPEnum)
 	tmpConf := crypto_aux.LoadLocalCertAsTLSServ(rootCaPath, signedCertPath, signedKeyPath)
 	if tmpConf == nil {
 		configs.Logger().Error("empty tlsConfig!")
@@ -71,6 +68,7 @@ func PullUpdatesFromRemote(
 	}
 }
 
+// handleTrustUpdateClients
 // Currently, only used in pem_op_test.go
 //
 //nolint:unused
@@ -83,7 +81,7 @@ func handleTrustUpdateClients(tlsConn net.Conn) {
 			configs.Logger().Warn(err.Error())
 			return
 		}
-		// we have to deal with a private protocol
+		// we have to deal with a private protocol or wrapped JSON files
 		// otherwise we can only collect limited string at one time
 		configs.Logger().Info(string(bytes.Trim(buf, "\x00")))
 	}

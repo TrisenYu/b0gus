@@ -1,25 +1,25 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/05/20 星期三 22:04:34
-b0gus_name=b0gus
-b0gus_ver=0.2.0
+# Last modified at 2026/06/02 星期二 14:24:45
+b0gus_name = b0gus
+# milestone.major.minor, no patch at present
+b0gus_ver = 0.3.0
+Arch =
+osType =
 
-phony=
+phony =
 
-Arch=
-osType=
-
-cc=gcc
-cxx=g++
-striper=strip
-dock=docker
-
+cc = gcc
+cxx = g++
+striper = strip
+dock = docker
+go_install_path := $(shell go env GOPATH)/bin/
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- set up the name of program and build time
 ifeq ($(OS),Windows_NT)
 define build_time_payload
 	powershell -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'"
 endef
 	b0gus_name+=.exe
-	build_username:=$(shell cmd /c "echo %USERNAME%")
+	build_username := $(shell cmd /c "echo %USERNAME%")
 	gen_script:= powershell gen.ps1
 	# compiler toolchain
 	clang_check := $(shell where clang >nul 2>&1)
@@ -36,8 +36,8 @@ else # linux/darwin
 define build_time_payload
 	command date +"%Y-%m-%d %H:%M:%S.%3N"
 endef
-	build_username:=$(shell echo $$USER)
-	gen_script:=bash gen.sh
+	build_username := $(shell echo $$USER)
+	gen_script := bash gen.sh
 	# compiler toolchain
 	clang_check := $(shell command -v clang &>/dev/null)
 	clangxx_check := $(shell command -v clang++ &>/dev/null)
@@ -50,7 +50,6 @@ endef
 	pyenv_check := $(shell ls .venv 2>/dev/null)
 	activate_pyenv := . .venv/bin/activate
 endif # OS check
-
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- compiler toolchain check
 ifneq ($(clang_check),) # check clang
@@ -75,11 +74,11 @@ else
 endif # dock_check
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- set up compiler settings
-build_time_str=$(shell $(build_time_payload))
+build_time_str = $(shell $(build_time_payload))
 # docker-built will use uncalculatable because we exclude the .git directory in .dockerignore
-b0gus_hash=$(shell git describe --long --tags --always --abbrev=40 --dirty || echo "uncalculatable")
+b0gus_hash = $(shell git describe --long --tags --always --abbrev=40 --dirty || echo "uncalculatable")
 
-passing_params=CC=$(cc) CXX=$(cxx) CGO_ENABLED=0
+passing_params = CC=$(cc) CXX=$(cxx) CGO_ENABLED=0
 ifneq ($(osType),)
 	passing_params+="GOOS=$(osType)"
 endif
@@ -87,73 +86,85 @@ ifneq ($(Arch),)
 	passing_params+="GOARCH=$(Arch)"
 endif
 
-### set up link flags
-# well, $(b0gus_name) has to be precompiled so that the shell pipeline command below can work.
-## go tool nm $(b0gus_name) | grep -in "versionStr" | awk '{print $NF}'
-must_set_flag=-X 'main.versionStr=$(b0gus_ver)'        \
-              -X 'main.buildTimeStr=$(build_time_str)' \
-              -X 'main.hashValStr=$(b0gus_hash)'       \
-			  -X 'main.builtByStr=$(build_username)'
-
+# help first.
 help:
-	@echo "[makefile] usages:\n"                                        \
-	"    help      - (default) print this help\n\n"                     \
-	"    debug     - compile b0gus for debugging\n" 		            \
-	"    release   - compile b0gus for releasing\n\n" 		            \
-	"    mock      - generate internal/mock structure for diff_tests\n" \
-	"    test      - test testcases under ./diff_tests/\n" 	            \
-	"    dry-run   - trial\n" 								            \
-	"    perf      - evaluate performance\n"                            \
-	"    clean     - clean build files and registered files\n"          \
-	"    fuzz      - use {go fuzz} to fuzz available testcases\n"       \
-	"    golint    - use golint-cli to lint current codes\n\n"          \
-	"docker-build  - build b0gus by docker\n\n"                         \
-	"uv-fresh-dep  - update the dependencies in requirements.txt\n"     \
-	"    pylint    - lint for python scripts or codes\n"                \
-	"    pytest    - test for python scripts or codes\n\n"              \
-	"   test-all   - test all testcases\n"                              \
-	"   lint-all   - lint all available codes"
-phony += help
+# bake-format off
+	@echo "[makefile] usages:\n"                                            \
+	"    help         - (default) print this help\n\n"                      \
+	"    debug        - compile b0gus for debugging\n"                      \
+	"    release      - compile b0gus for releasing\n\n"                    \
+	"    mock         - generate internal/mock structure for diff_tests/\n" \
+	"    test         - test testcases under diff_tests/\n"                 \
+	"    dry-run      - trial\n"                                            \
+	"    perf         - evaluate performance\n"                             \
+	"    clean        - clean build files and registered files\n"           \
+	"    fuzz         - use {go fuzz} to fuzz available testcases\n"        \
+	"    golint       - use golint-cli to lint current codes\n\n"           \
+	"    docker-build - build b0gus by docker\n\n"                          \
+	"    uv-fresh-dep - update the dependencies in requirements.txt\n"      \
+	"    pylint       - lint for python scripts\n"                          \
+	"    pytest       - test for python scripts\n\n"                        \
+	"    test-all     - test all testcases\n"                               \
+	"    lint-all     - lint all available codes\n\n"                       \
+	"optional parameters:\n"                                                \
+	"    Arch         - Target ISA architecture\n"                          \
+	"    osType       - Target OS binary format"
+# bake-format on
 
+phony += help
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- debug setting for address/thread sanitizer.
 # add `-x` flag to audit how go generates b0gus
 # -asan for checking latent memory accessing error
 # -race for checking race condition whether exists or not
 # 	go: may not use -race and -asan simultaneously
-debug_link_opts=-gcflags="-l -m" \
+
+### set up link flags
+# well, $(b0gus_name) has to be precompiled so that the shell pipeline command below can work.
+## go tool nm $(b0gus_name) | grep -in "versionStr" | awk '{print $NF}'
+# bake-format off
+must_set_flag = -X 'b0gus/configs.versionStr=$(b0gus_ver)'      \
+              -X 'b0gus/configs.buildTimeStr=$(build_time_str)' \
+              -X 'b0gus/configs.hashValStr=$(b0gus_hash)'       \
+              -X 'b0gus/configs.builtByStr=$(build_username)'
+# bake-format on
+
+debug_link_opts = -gcflags="-l -m" \
 			 -ldflags="$(must_set_flag) -X 'b0gus/configs.BuildTypeStr=debug'"
 debug: deps
 	-$(passing_params) go build $(debug_link_opts) -o $(b0gus_name)
 phony += debug
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- release setting for production environment.
-# influenced by .gopclntab
-release_link_opts=-trimpath -pgo=off            \
-	-buildvcs=false -buildmode=pie              \
-	-gcflags="-l -linkshared -smallframes"      \
-	-ldflags="-s -w $(must_set_flag)            \
-        -X 'b0gus/configs.BuildTypeStr=release' \
-        -buildid= "
+# bake-format off
+release_link_opts = -trimpath -pgo=off      \
+	-buildvcs=false -buildmode=pie          \
+	-gcflags="-l -linkshared -smallframes"  \
+	-ldflags="-s -w $(must_set_flag)        \
+	-X 'b0gus/configs.BuildTypeStr=release' \
+	-buildid= "
+# bake-format on
 
 release: deps
 	-$(passing_params) go build $(release_link_opts) -o $(b0gus_name)
 # yes, strip the symbols
 	-$(striper) --strip-all $(b0gus_name)
+	-$(striper) -R .go.buildinfo $(b0gus_name)
 phony += release
 
 # better not execute if there happens to be any error
-invoke_protoc=protoc --go_out=. http_aux.proto; \
-			  protoc --go_out=. services.proto
+invoke_protoc = protoc --go_out=. http_aux.proto; \
+				protoc --go_out=. --go-grpc_out=. services.proto;
 deps: clean
 	@go mod tidy
 	$(passing_params) go mod download
-	@-cd databases/rdt-parser && $(gen_script) || echo 			  \
-	"\033[1;33mantlr4 failed. If having not yet installed antlr4 (version >= 4.13), \
+	@-cd tools/rdt-parser && $(gen_script) || echo \
+	"\033[1;33m'antlr4' failed. If having not yet installed antlr4 (version >= 4.13), \
 	then it will be better follow the installation tutorial on its official website\033[0m"
-	@-cd services && ( $(invoke_protoc) ) || echo 				  \
-	"\033[1;33mprotoc failed. If having not yet installed protoc, \
-	command 'sudo apt install protoc-gen-go' is recommended in Debian-based distributions...\033[0m"
+	@-cd services && ( $(invoke_protoc) ) || echo  \
+	"\033[1;33m'protoc' or 'protoc-gen-grpc' might failed. If having not yet installed protoc or \
+	protoc-gen-go-grpc, command 'sudo apt install protoc-gen-go protoc-gen-go-grpc' is recommended \
+	in Debian-based distributions...\033[0m"
 phony += deps
 
 dry-run: release
@@ -161,15 +172,15 @@ dry-run: release
 phony += dry-run
 
 test:
-	-go test -race -v              \
-		-count=1 -failfast         \
+# bake-format off
+	go test -timeout=300s -race -v \
+		-failfast -count=1         \
 		-covermode=atomic          \
 		-coverprofile=coverage.out \
 		-coverpkg=./... ./... &&   \
-	go tool cover -func=coverage.out | grep -iI "total"
-
+		go tool cover -func=coverage.out | grep -iI "total"
+# bake-format on
 phony += test
-
 
 clean:
 	@-rm $(b0gus_name)
@@ -183,24 +194,28 @@ phony += perf
 fuzz: test
 # fuzz in 2 minutes
 # [TODO]: that is weird... we can not run go fuzzing test sequentially
+# bake-format off
 	cd diff_tests &&                                                  \
 	go test -v -fuzz=FuzzShell -fuzztime=120s -parallel=2 -run=^$$ && \
 	go test -v -fuzz=FuzzHash -fuzztime=120s -parallel=4 -run=^$$
+# bake-format on
 phony += fuzz
 
 mock:
-	-$(shell go env GOPATH)/bin/mockgen             \
-		-source=services/abstract_tcpip.go          \
+# bake-format off
+	-$(go_install_path)mockgen                      \
+		-source=net_aux/abstract_tcpip.go           \
 		-destination=internal/mock/mock_net_serv.go \
 		-package=mock
-	-$(shell go env GOPATH)/bin/mockgen       \
+	-$(go_install_path)mockgen                \
 		-source=databases/db_aux.go           \
 		-destination=internal/mock/mock_db.go \
 		-package=mock
+# bake-format on
 phony += mock
 
 golint:
-	-$(shell go env GOPATH)/bin/golangci-lint run ./...
+	-$(go_install_path)golangci-lint run ./...
 phony += golint
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- docker related
@@ -223,6 +238,7 @@ phony += __uv-check
 
 __pyenv-check: __uv-check
 ifeq ($(strip $(pyenv_check)),)
+# if this command failed, reinstall uv instead
 	@uv venv && uv sync && $(activate_pyenv)
 else
 	@$(activate_pyenv)

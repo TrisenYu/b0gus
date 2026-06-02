@@ -1,6 +1,6 @@
 annotated-types==0.7.0
 anyio==4.13.0
-certifi==2026.2.25
+certifi==2026.5.20
 distro==1.9.0
 h11==0.16.0
 httpcore==1.0.9
@@ -12,8 +12,8 @@ loguru==0.7.3
 openai==2.38.0
 packaging==26.2
 pluggy==1.6.0
-pydantic==2.13.3
-pydantic-core==2.46.3
+pydantic==2.13.4
+pydantic-core==2.46.4
 pygments==2.20.0
 pytest==9.0.3
 python-dotenv==1.2.2
