@@ -2,9 +2,9 @@ package llm
 
 /// SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
 /// Last modified at 2026/05/12 星期二 12:29:13
+
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -19,34 +19,50 @@ import (
 
 	"b0gus/assets"
 	"b0gus/configs"
+	"b0gus/internal/misc_utils"
 )
 
 // configuration of LLM should be accessed from config.toml
 // including API and which content to interact with
 // https://github.com/0x4D31/galah/blob/main/pkg/llm/llm.go
 
-type llmTaskType int
+type (
+	LLMtaskType     int
+	llmProviderType int
+)
 
 const (
-	cmdValidation llmTaskType = iota
-	cmdResponse
-	translation
+	ValidateCmd LLMtaskType = iota
+	ResponseCmd
+	Translation
+)
+
+const (
+	providerUnk llmProviderType = iota
+	providerOllama
+	providerOpenAI
+	providerGoogle
+	providerAmazon
+	providerAzure
+	providerAnthropic
+	providerDeepSeek
+	providerMoonshot
+	providerByteDance
+	providerAlibaba
 )
 
 var (
-	llmTaskDispatcher = map[llmTaskType]string{
-		cmdValidation: assets.RequestForCmdValidation,
-		cmdResponse:   assets.RequestForCmdResponse,
-		translation:   assets.RequestForTranslation,
+	llmTaskDispatcher = map[LLMtaskType]string{
+		ValidateCmd: assets.RequestToValidateCmd,
+		ResponseCmd: assets.RequestToResponseCmd,
+		Translation: assets.RequestToTranslate,
 	}
 )
 
 // Wrap will convert the current input string `i` into
 // `[ProtocolSt] i [ProtocolEd]`, whereas both [ProtocolSt] and [ProtocolEd]
 // are defined by specific protocol.
-func (i InputForLLM) Wrap(
-	ProtocolSt, ProtocolEd string,
-) string {
+func (i InputForLLM) Wrap(ProtocolSt, ProtocolEd string) string {
 	var sb strings.Builder
 	sb.WriteString(ProtocolSt)
 	sb.WriteString(string(i))
@@ -56,84 +72,52 @@ func (i InputForLLM) Wrap(
 
 type HttpHeaderSetAuthFn func(*http.Request, string)
 
-// WithBearerAuth will set http header with `Authorization: Bearer [APIKey]`
-// Typically will be utilized by Deepseek or Kimi.
-func WithBearerAuth(req *http.Request, key string) {
-	var sb strings.Builder
-	sb.WriteString("Bearer ")
-	sb.WriteString(key)
-	req.Header.Set("Authorization", sb.String())
-}
-
-// WithXapiAuth will set http header with `x-api-key: [APIKey]`
-// Typically will be utilized by Anthropic.
-func WithXapiAuth(req *http.Request, key string) {
-	req.Header.Set("x-api-key", key)
-}
-
-func (l *LLMconfig) CheckBalance(PtrOfRes any, headerOpt HttpHeaderSetAuthFn) error {
-	// [TODO]: define the structure of <PtrOfRes>
-	if len(l.BalanceAPI) == 0 || len(l.APIKey) == 0 {
-		return errors.New("balance api or api_key is empty")
-	}
-	var sb strings.Builder
-	sb.WriteString(l.BaseURL)
-	sb.WriteString(l.BalanceAPI)
-	req, err := http.NewRequest(http.MethodGet, sb.String(), nil)
-	if err != nil {
-		return err
-	}
-	headerOpt(req, l.APIKey)
-	resp, err := (&http.Client{}).Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	return json.NewDecoder(resp.Body).Decode(PtrOfRes)
-}
-
-func (l *LLMconfig) AlterPrompt(taskType llmTaskType) {
+func (l *LLMcli) AlterPrompt(taskType LLMtaskType) {
 	content, ok := llmTaskDispatcher[taskType]
 	if !ok {
-		var sb strings.Builder
-		sb.WriteString("unable to set prompt by current taskType<")
-		sb.WriteString(strconv.Itoa(int(taskType)))
-		sb.WriteRune('>')
-		configs.Logger().Warn(sb.String())
+		payload := configs.GetLocalizedMsg(
+			"llm.UnableToSetPromptDueToUnkCurrTaskType",
+			map[string]any{"TaskType": strconv.Itoa(int(taskType))},
+		)
+		configs.Logger().Warn(payload)
 		return
 	}
 	l.RolePrompt = content
 }
 
-func (l *LLMconfig) initCheck() error {
+func (l *LLMcli) initCheck() error {
 	switch {
 	case len(l.BaseURL) == 0:
-		return errors.New("base url is empty")
+		return errors.New(configs.GetLocalizedMsg("llm.EmptyBaseURLErr", nil))
 	case len(l.APIKey) == 0:
-		return errors.New("api key is empty")
+		return errors.New(configs.GetLocalizedMsg("llm.EmptyAPIKeyErr", nil))
 	case len(l.ModelName) == 0:
-		return errors.New("model name is empty")
+		return errors.New(configs.GetLocalizedMsg("llm.EmptyModelNameErr", nil))
 	case len(l.RolePrompt) == 0:
-		return errors.New("role prompt is empty")
+		return errors.New(configs.GetLocalizedMsg("llm.EmptyRolePromptErr", nil))
 	}
 	return nil
 }
-func (l *LLMconfig) initOpenAI() error {
+func (l *LLMcli) initOpenAI(providerType llmProviderType) error {
+	l.providerType = providerType
 	if err := l.initCheck(); err != nil {
 		return err
 	}
 	opts := []openai.Option{
 		openai.WithBaseURL(l.BaseURL),
 		openai.WithModel(l.ModelName),
+		openai.WithToken(l.APIKey),
 	}
 	m, err := openai.New(opts...)
 	if err != nil {
 		return err
 	}
+	l.mu.Lock()
 	l.model = m
+	l.mu.Unlock()
 	return nil
 }
-func (l *LLMconfig) initOllama() error {
+func (l *LLMcli) initOllama() error {
 	if err := l.initCheck(); err != nil {
 		return err
 	}
@@ -145,11 +129,13 @@ func (l *LLMconfig) initOllama() error {
 	if err != nil {
 		return err
 	}
+	l.mu.Lock()
 	l.model = m
+	l.mu.Unlock()
 	return nil
 }
 
-func (l *LLMconfig) initAnthropic() error {
+func (l *LLMcli) initAnthropic() error {
 	if err := l.initCheck(); err != nil {
 		return err
 	}
@@ -162,42 +148,83 @@ func (l *LLMconfig) initAnthropic() error {
 	if err != nil {
 		return err
 	}
+	l.mu.Lock()
 	l.model = m
+	l.mu.Unlock()
 	return nil
 }
 
-func (l *LLMconfig) SelectBackend(providerName string) error {
-	providerName = strings.ToLower(providerName)
-	switch providerName {
-	// case "googleai":
-	//	return l.initGoogleAI()
-	case "ollama":
+func (l *LLMcli) SelectBackend(modelName string) error {
+	modelName = strings.ToLower(modelName)
+	// [TODO] only test deepseek
+	switch {
+	case strings.Contains(modelName, "google"):
+		l.providerType = providerGoogle
+	case strings.Contains(modelName, "amazon"): // ?
+		l.providerType = providerAmazon
+	case strings.Contains(modelName, "azure"): // ?
+		l.providerType = providerAzure
+	case strings.Contains(modelName, "ollama"):
+		l.providerType = providerOllama
 		return l.initOllama()
-	case "anthropic":
+	case strings.Contains(modelName, "anthropic"):
+		l.providerType = providerAnthropic
 		return l.initAnthropic()
-	case "deepseek", "kimi", "qwen":
-		fallthrough
-	case "openai":
-		return l.initOpenAI()
+	case strings.Contains(modelName, "deepseek"):
+		return l.initOpenAI(providerDeepSeek)
+	case strings.Contains(modelName, "kimi"):
+		return l.initOpenAI(providerMoonshot)
+	case strings.Contains(modelName, "doubao"):
+		return l.initOpenAI(providerByteDance)
+	case strings.Contains(modelName, "qwen"):
+		return l.initOpenAI(providerAlibaba)
+	case strings.Contains(modelName, "openai"):
+		return l.initOpenAI(providerOpenAI)
+	default:
+		l.providerType = providerUnk
 	}
-	return errors.New("unknown provider")
+	return errors.New(configs.GetLocalizedMsg("llm.UnknownLLMProviderErr", nil))
 }
 
-func (l *LLMconfig) SetMsg(msg string) []llms.MessageContent {
+// SetMsg builds a message slice consisting of system prompt and user content.
+// It uses l.RolePrompt as the system role definition and combines it with the input message.
+// This method is designed to work with GenerateResponse. Using them together resets chat history,
+// ensuring the LLM generates responses strictly based on the current prompt and message.
+//
+// Parameters:
+//
+//	msg - User input text content
+//
+// Returns:
+//
+//	[]llms.MessageContent - Standard message slice for LLM request
+//
+// Example:
+//
+//	resp, err := cli.GenerateResponse(cli.SetMsg("abc"), nil)
+func (l *LLMcli) SetMsg(msg string) []llms.MessageContent {
+	// only read for l.RolePrompt
 	return []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeSystem, l.RolePrompt),
 		llms.TextParts(llms.ChatMessageTypeHuman, msg),
 	}
 }
 
-func (l *LLMconfig) GenerateResponse( // GenerateResponse(SetMsg(...), nil)
+// GenerateResponse must be used together with the SetMsg function.
+// For example: GenerateResponse(SetMsg("abc"), nil).
+// This approach clears the chat history, enabling the LLM to generate
+// responses strictly based on the given prompt.
+func (l *LLMcli) GenerateResponse(
 	msg []llms.MessageContent,
 	streamFn func(context.Context, []byte) error,
+	contentOpts ...func(x string) string,
 ) (string, error) {
-	// [TODO]: concurrent rate-limit and balance limit.
-	// it seems that Most LLM providers lack official public APIs for directly querying account balance and
-	// remaining credits.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	// it seems that Most LLM providers lack official public APIs for
+	// directly querying account balance and remaining credits.
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Second*time.Duration(l.Timeout),
+	)
 	defer cancel()
 	payload := []llms.CallOption{
 		llms.WithTemperature(l.Temperature),
@@ -205,31 +232,34 @@ func (l *LLMconfig) GenerateResponse( // GenerateResponse(SetMsg(...), nil)
 	if streamFn != nil {
 		payload = append(payload, llms.WithStreamingFunc(streamFn))
 	}
+	l.mu.Lock()
 	if l.model == nil {
-		return "", errors.New("model is empty")
+		l.mu.Unlock()
+		return "", errors.New(configs.GetLocalizedMsg("llm.EmptyModelNameErr", nil))
 	}
-	resp, err := l.model.GenerateContent(
-		ctx, msg,
-		payload...,
-	)
+	resp, err := l.model.GenerateContent(ctx, msg, payload...)
+	l.mu.Unlock()
+
 	if err != nil {
 		return "", err
 	} else if resp == nil {
-		return "", errors.New("nil response")
+		return "", errors.New(configs.GetLocalizedMsg("llm.EmptyLLMResponseErr", nil))
 	}
 	if len(resp.Choices) < 1 {
-		return "", errors.New("no choices found")
+		return "", errors.New(configs.GetLocalizedMsg("llm.EmptyLLMChoicesErr", nil))
 	}
-	content := resp.Choices[0].Content
+	// strip the sign of code block in Markdown if possible
+	var content = resp.Choices[0].Content
+	for _, opt := range contentOpts {
+		content = opt(content)
+	}
 	if len(content) == 0 {
-		return "", errors.New("no content found")
+		return "", errors.New(configs.GetLocalizedMsg("llm.EmptyLLMRespContentErr", nil))
 	}
 	return content, nil
 }
 
-func (l *LLMconfig) ResetModel() { l.model = nil }
-
-func (l *LLMconfig) LoadFromFile(path string) error {
+func (l *LLMcli) LoadFromFile(path string) error {
 	viper.SetConfigFile(path)
 	viper.SetConfigType("toml")
 	err := viper.ReadInConfig()
@@ -240,12 +270,21 @@ func (l *LLMconfig) LoadFromFile(path string) error {
 	return err
 }
 
-func (l *LLMconfig) ValidateShellCmd(x string) (string, error) {
-	err := l.LoadFromFile("[TODO]")
+func NewLLMcli(filePath string) (*LLMcli, error) {
+	ret := &LLMcli{}
+	err := ret.LoadFromFile(filePath)
 	if err != nil {
-		// handle by other shell command checking functions.
-		return "", err
-	} // unavailable
-	l.AlterPrompt(cmdValidation)
-	return l.GenerateResponse(l.SetMsg(x), nil)
+		return nil, err
+	}
+	if !misc_utils.IsURL(ret.BaseURL) {
+		return nil, errors.New(configs.GetLocalizedMsg("llm.InvalidBaseURLErr", nil))
+	} else if len(ret.APIKey) == 0 {
+		return nil, errors.New(configs.GetLocalizedMsg("llm.EmptyAPIKeyErr", nil))
+	} else if len(ret.ModelName) == 0 {
+		return nil, errors.New(configs.GetLocalizedMsg("llm.EmptyModelNameErr", nil))
+	}
+	if ret.Timeout == 0 {
+		ret.Timeout = 120
+	}
+	return ret, ret.SelectBackend(ret.ModelName)
 }

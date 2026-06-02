@@ -1,15 +1,48 @@
 syntax = "proto3";
 option go_package = ".;services";
-service ServRPC {
-    rpc PublishUpdate (ServConf) returns (ServReply) {}
+
+import "google/protobuf/any.proto";
+package rpc;
+
+/*
+const (
+	RawEnum ServEnum = iota + 1
+	SSHEnum
+	NTPEnum
+	DNSEnum
+	SMTPEnum
+	HTTPEnum
+	SIPEnum
+	ENDofEnum
+)
+*/
+
+message ServicesRequest {
+	enum AvailableService {
+		Raw = 0;
+		SSH = 1;
+		NTP = 2;
+		DNS = 3;
+		SMTP = 4;
+		HTTP = 5;
+	}
+	AvailableService servEnum = 1;
+	google.protobuf.Any config = 2;
+	bytes payload = 3; // payload like command or packet
 }
 
-message ServConf {
-    uint64 id = 1;
-    bytes serializedInfo = 2;
+message ServicesResponse {
+	enum ServingStatus {
+		OK = 0;
+		InternalErr = 1;
+		RequestErr = 2;
+	}
+	ServingStatus ok = 1;
+	string msg = 2;
 }
 
-message ServReply {
-    uint64 code = 1;
-    string errInfo = 2;
+service TaskCheck {
+	rpc Start(ServicesRequest) returns (ServicesResponse);
+	rpc Terminate(ServicesRequest) returns (ServicesResponse);
+	rpc UpdateConf(ServicesRequest) returns (ServicesResponse);
 }

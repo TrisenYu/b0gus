@@ -1,8 +1,8 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause
-# Last modified at 2026/05/10 星期日 23:51:10
-# TODO: yet to be tested
-#       do not apply in production environment!
-version: "0.1.2" # TODO: should be determined by makefile
+
+## WARNING: yet to be tested! DO NOT apply in production environment!
+
+version: "0.1.2" # [TODO]: should be determined by makefile
 
 services:
   app:
@@ -10,7 +10,7 @@ services:
       context: .
       dockerfile: buildImg.Dockerfile
     container_name: b0gus-in-nutshell
-    # TODO: modify the copied config.toml. And do not require service-restart
+    # [TODO]: modify the copied config.toml. And do not require auto service-restart
     ports:
       - "2022:22"      # ssh
       - "1234:123/udp" # ntp
@@ -29,7 +29,7 @@ services:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=b0gus
-      # TODO: change the password plaintext or use configuration center instead
+      # [TODO]: change the password plaintext or use configuration center instead
       - POSTGRES_PASSWORD=StrongDBPass#2025
       - POSTGRES_DB=db_for_b0gus
       ## mongoDB is also optional
@@ -41,7 +41,8 @@ services:
       - MONGO_DB=db_for_b0gus
     depends_on:
       - postgres
-      - mongodb
+      - mongodb # actually optional
+      - consul
     networks:
       - b0gus-network
 
@@ -72,11 +73,18 @@ services:
     networks:
       - b0gus-network
 
+  consul: # rpc services discovery
+    image: consul:latest
+    container_name: consul-for-b0gus
+    restart: always
+    networks:
+      - b0gus-network
 
 # persistence
 volumes:
   postgres_data:
   mongo_data:
+  consul_data:
 
 # isolated network
 networks:

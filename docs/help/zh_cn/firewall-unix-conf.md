@@ -6,11 +6,11 @@
 
 ```shell
 # # 这里的操作涉及root权限。
-# systemctl status firewalld # 状态
-# systemctl enable firewalld # 防火墙使能情况
-# systemctl start firewalld  # 开启防火墙服务
-# systemctl reload firewalld # 重载防火墙服务
-# systemctl stop firewalld   # 停止防火墙
+systemctl status firewalld # 状态
+systemctl enable firewalld # 防火墙使能情况
+systemctl start firewalld  # 开启防火墙服务
+systemctl reload firewalld # 重载防火墙服务
+systemctl stop firewalld   # 停止防火墙
 ```
 
 防火墙正常运行时，可以在root权限下通过`firewall-cmd --list-ports`来看当前所有暴露于公网的端口。
@@ -18,8 +18,8 @@
 
 而想持久化某个端口状态时，可以执行下面的命令。
 ```shell
-# firewall-cmd --add-port=8080/tcp --permanent
-# firewall-cmd --reload
+firewall-cmd --add-port=8080/tcp --permanent
+firewall-cmd --reload
 ```
 对于端口转发，使能命令是：`echo 1 > /proc/sys/net/ipv4/ip_forward`。
 ipv6则是：`echo 1 > /proc/sys/net/ipv6/conf/all/forwarding`。
@@ -30,29 +30,29 @@ ipv6则是：`echo 1 > /proc/sys/net/ipv6/conf/all/forwarding`。
 
 ```shell
 ## for ssh
-# iptables -t nat -A PREROUTING -p tcp --dport 22 -j REDIRECT --to-port 2222
+iptables -t nat -A PREROUTING -p tcp --dport 22 -j REDIRECT --to-port 2222
 ## for ntp
-# iptables -t nat -A PREROUTING -p udp --dport 123 -j REDIRECT --to-port 1234
+iptables -t nat -A PREROUTING -p udp --dport 123 -j REDIRECT --to-port 1234
 ## for ftp
-# iptables -t nat -A PREROUTING -p tcp --dport 21 -j REDIRECT --to-port 2121
+iptables -t nat -A PREROUTING -p tcp --dport 21 -j REDIRECT --to-port 2121
 ## for smtp
-# iptables -t nat -A PREROUTING -p tcp --dport 25 -j REDIRECT --to-port 2525
+iptables -t nat -A PREROUTING -p tcp --dport 25 -j REDIRECT --to-port 2525
 ## for dns
-# iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5353
+iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5353
 ## for http
-# iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 ```
 
 也可以用firewalld来完成这一操作。不过，firewalld端口转发必须开启NAT伪装。
 ```shell
-# firewall-cmd --permanent --add-masquerade
+firewall-cmd --permanent --add-masquerade
 ```
 转发的写法类似于
 ```shell
 ## 添加 TCP 端口转发规则
-# firewall-cmd --permanent --add-forward-port=port=10001:proto=tcp:toaddr=1.2.3.4:toport=30553
+firewall-cmd --permanent --add-forward-port=port=10001:proto=tcp:toaddr=1.2.3.4:toport=30553
 ## 添加 UDP 端口转发规则
-# firewall-cmd --permanent --add-forward-port=port=10001:proto=udp:toaddr=5.6.7.8:toport=30553
+firewall-cmd --permanent --add-forward-port=port=10001:proto=udp:toaddr=5.6.7.8:toport=30553
 ```
 
 注意： 

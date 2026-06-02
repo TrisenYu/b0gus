@@ -14,8 +14,6 @@ go的程序计数器行号表(Program Counter Line Number Table, PCLNTAB)是gola
 
 一方面，这有利于线上生产程序进行符号解析和栈回溯分析。另一方面，这也便于逆向分析恢复函数符号以及分析软件依赖。
 
-![](../../../_future-feats/anti-dbg/imgs/gopclntab.png)
-
 ## 编码规则
 gopclntab内部结构体与字段默认使用目标机器原生字节序。
 go直接通过结构体指针映射内存读取数据，无需额外序列化/反序列化。

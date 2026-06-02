@@ -49,6 +49,7 @@ func SHA1OnceDigest(key, payload []byte) []byte {
 	d := sha1.Sum(append(key, payload...))
 	return d[:]
 }
+
 func SHA224OnceDigest(key, payload []byte) []byte {
 	d := sha256.Sum224(append(key, payload...))
 	return d[:]

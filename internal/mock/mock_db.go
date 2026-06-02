@@ -5,6 +5,7 @@
 package mock
 
 import (
+	configs "b0gus/configs"
 	databases "b0gus/databases"
 	reflect "reflect"
 
@@ -213,4 +214,23 @@ func (m *MockDBhandler) CreateTable(structures ...databases.DBstruct) error {
 func (mr *MockDBhandlerMockRecorder) CreateTable(structures ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTable", reflect.TypeOf((*MockDBhandler)(nil).CreateTable), structures...)
+}
+
+// Setup mocks base method.
+func (m *MockDBhandler) Setup(conf *configs.RecDBConfig, structures ...databases.DBstruct) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{conf}
+	for _, a := range structures {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Setup", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Setup indicates an expected call of Setup.
+func (mr *MockDBhandlerMockRecorder) Setup(conf interface{}, structures ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{conf}, structures...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Setup", reflect.TypeOf((*MockDBhandler)(nil).Setup), varargs...)
 }

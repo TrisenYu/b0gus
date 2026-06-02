@@ -9,10 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout dev
+      - name: checkout branch
         uses: actions/checkout@v5
-        # with:
-        #   ref: dev
 
       - name: setup go
         uses: actions/setup-go@v5
@@ -22,7 +20,7 @@ jobs:
 
       - name: install other dependencies
         run: |
-          sudo apt install make
+          sudo apt install make protoc-gen-go-grpc protoc-gen-go-1-5
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: test

@@ -8,10 +8,10 @@ import _ "embed"
 // 2. translation demand on natural language text
 
 //go:embed prompts/cmd-validate.txt
-var RequestForCmdValidation string
+var RequestToValidateCmd string
 
 //go:embed prompts/cmd-response.txt
-var RequestForCmdResponse string
+var RequestToResponseCmd string
 
 //go:embed prompts/translation-demand.txt
-var RequestForTranslation string
+var RequestToTranslate string

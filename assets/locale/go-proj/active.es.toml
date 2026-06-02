@@ -1,0 +1,186 @@
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "Establecer el directorio de recursos estáticos."
+    [meta_conf.ConfPath]
+    other = "Ruta del archivo de configuración local."
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "Permitir cambios en la configuración durante la ejecución."
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "Permitir que la configuración se modifique a sí misma durante la ejecución."
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "Permiso para modificar la configuración mediante comandos en el shell durante la ejecución."
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "Permiso para modificar la configuración extrayéndola de forma remota durante la ejecución."
+
+[main]
+    [main.TerminationSignalWarn]
+    other = "Se ha capturado la señal de terminación del servidor b0gus <{{.SignalStr}}>."
+    [main.FailToApplyConfiguration]
+    other = "No se pudo aplicar el archivo de configuración dado a la configuración actual."
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "No se pudo abrir el archivo PEM <{{.PemPath}}> para configurar la clave pública SSH local."
+    [crypto_aux.PemFileReadFailure]
+    other = "No se pudo leer el archivo PEM dado."
+    [crypto_aux.PemFileDecodeFailure]
+    other = "No se pudo decodificar correctamente el archivo PEM."
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "Tipo de archivo PEM no compatible."
+    [crypto_aux.PemFileFormatError]
+    other = "Formato de certificado de firma no compatible."
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "La longitud de la clave pública proporcionada <{{.PemLen}}> no es válida para los algoritmos de curva elíptica conocidos."
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "La longitud de la clave pública proporcionada <{{.PemLen}}> no es válida para el algoritmo RSA."
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "No se pudo generar la clave privada SSH debido al error <{{.ErrInfo}}>."
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "No se pudo establecer la clave privada para el servicio SSH debido al error <{{.ErrInfo}}>."
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "No se pudo crear el certificado en la ruta especificada <{{.PemPath}}>."
+    [crypto_aux.Base64EncodeFailure]
+    other = "No se pudo codificar correctamente el certificado a una cadena Base64."
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "Se utilizó un certificado no válido o no compatible. Detalles: <{{.ErrInfo}}>. b0gus intentará generar un certificado según la configuración."
+    [crypto_aux.PemFileCreateFailure]
+    other = "No se pudo crear el certificado en la ruta <{{.PemPath}}> debido al error <{{.ErrInfo}}>, y no se iniciará el servicio b0gus."
+
+[databases]
+    [databases.DatabaseConnectionError]
+    other = "No se pudo conectar a la base de datos {{.DatabaseStr}}. Error detectado: <{{.ErrInfo}}>."
+    [databases.DatabaseEmptyError]
+    other = "Se obtuvo un operador de base de datos vacío según la configuración dada."
+    [databases.DatabaseChangingWarn]
+    other = "Debido a un error interno, no se cambiará la base de datos actual en uso."
+    [databases.DatabaseTypeError]
+    other = "Se detectó una base de datos no compatible <{{.Database}}>."
+    [databases.InvalidMongoDBclientErr]
+    other = "Cliente de MongoDB no válido."
+
+[configs]
+    # Base de datos
+    [configs.InvalidDatabaseAddrError]
+    other = "Se proporcionó una dirección de conexión a la base de datos no válida <{{.DatabaseAddr}}> en el archivo de configuración."
+    [configs.UnsupportDatabaseTypeError]
+    other = "Se detectó un tipo de base de datos desconocido. Actualmente b0gus admite PostgreSQL, SQLite y MongoDB, y usted seleccionó <{{.DatabaseType}}>."
+    # Configuración global
+    [configs.ReadingConfigurationFailure]
+    other = "No se pudo leer la configuración. Motivo del fallo: <{{.ErrInfo}}>."
+    [configs.ReloadingConfigurationFailure]
+    other = "No se pudo recargar el archivo de configuración. No se cambiará la configuración actual. Motivo del fallo: <{{.ErrInfo}}>."
+    [configs.UnmarshallingConfigurationFailure]
+    other = "No se pudo analizar el archivo de configuración. Motivo del fallo: <{{.ErrInfo}}>."
+
+[services]
+    # abstract_tcpip
+    [services.absTCPIPPortErr]
+    other = "Se seleccionó un puerto privilegiado."
+    [services.absTCPIPUninitErr]
+    other = "Se utilizó un ReentrantNetType no inicializado."
+    [services.absTCPIPUnknownNetType]
+    other = "Se utilizó un tipo de red desconocido."
+    [services.absTCPIPUDPConnCastingErr]
+    other = "Falló la conversión de net.UDPConn."
+    [services.absTCPIPunsupportedOSOnICMPErr]
+    other = "Windows generalmente no admite la implementación como servidor ICMP."
+    # SSH
+    [services.SSHversionWarn]
+    other = "No se pudieron generar 3 bytes aleatorios. Se devolverá un valor predeterminado para la versión SSH."
+    [services.SSHWriteResponseError]
+    other = "Se encontró un error <{{.ErrInfo}}> al escribir el resultado del comando."
+    [services.SSHsetTimeoutError]
+    other = "No se pudo establecer un tiempo de espera para la próxima conexión debido al error <{{.ErrInfo}}>."
+    [services.SSHEstablishConnectionFailure]
+    other = "No se pudo establecer la conexión SSH. (Dirección remota, versión SSH actual, motivo del fallo): (<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>)."
+    [services.SSHchannelAcceptanceError]
+    other = "No se pudo aceptar el canal SSH proporcionado a la dirección remota <{{.RemoteAddr}}> debido al error <{{.ErrInfo}}>."
+    [services.SSHinvalidConfigurationWarn]
+    other = "Configuración SSH no válida, se omite la actualización."
+    [services.SSHSwitchListenerError]
+    other = "No se pudo cambiar a la dirección dada <{{.ListenAddr}}> para volver a escuchar. Como resultado, no se modificará el servidor SSH b0gus actual."
+    [services.SSHSetupListenerError]
+    other = "No se pudo hacer que el servidor SSH escuche en la dirección dada <{{.ListenAddr}}>."
+    [services.SSHAcceptConnWarn]
+    other = "No se pudo aceptar la solicitud de conexión SSH externa debido al error <{{.ErrInfo}}>."
+    [services.SSHCanNotUseSigner]
+    other = "No se puede utilizar el certificado dado <{{.Signer}}> para firmar durante la interacción del protocolo SSH."
+    [services.SSHQuitInfo]
+    other = "El servicio SSH ha finalizado."
+    [services.SSHConfigLoadingFailure]
+    other = "No se pudo seleccionar la configuración para SSH desde la estructura de configuración dada."
+    [services.SSHInvalidConfigFailure]
+    other = "Tras la revisión, la configuración global proporciona una configuración no válida para el servicio SSH."
+    [services.SSHEmptyGlobConfigFailure]
+    other = "Se proporcionó una configuración global vacía."
+    [services.SSHRequireSignerAsOnlyArgErr]
+    other = "Se requiere al menos un ssh.Signer como parámetro de entrada."
+    [services.SSHResponseCmdClientSetupErr]
+    other = "No se pudo habilitar la generación de respuestas de comandos de terminal por LLM debido al error <{{.ErrInfo}}>."
+    [services.SSHValidationCmdClientSetupErr]
+    other = "No se pudo habilitar la verificación de la sintaxis de comandos de terminal por LLM debido al error <{{.ErrInfo}}>."
+    [services.SSHInvalidLLMConfigurePathErr]
+    other = "Se detectó el error <{{.ErrInfo}}>. Se proporcionó una ruta de configuración incorrecta <{{.WrongPath}}>."
+    [services.SSHLLMRepsJsonUnmarshallingErr]
+    other = "No se pudo recuperar la estructura de la respuesta JSON del LLM. Error <{{.ErrInfo}}>."
+    [services.SSHNoAvailableLLMForResponseErr]
+    other = "No hay un extremo de comunicación LLM disponible para generar respuestas falsas al tráfico externo."
+    [services.SSHInvalidShellCmdCheckedByParserWarn]
+    other = "El analizador sintáctico detectó un comando de terminal sintácticamente no válido."
+    # NTP
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "El servidor NTP recibió una solicitud de consulta de tiempo de <{{.IP}}> con una longitud de <{{.Len}}>."
+    [services.NTPQuitInfo]
+    other = "El servicio NTP ha finalizado."
+    [services.NTPNullConfErr]
+    other = "Se proporcionó una configuración NTP vacía."
+    # DNS
+    [services.DNSQuitInfo]
+    other = "El servicio DNS ha finalizado."
+    [services.DNSNullConfErr]
+    other = "Se proporcionó una configuración DNS vacía."
+    [services.DNSWrongParamNumErr]
+    other = "Se pasó un número incorrecto de parámetros. Se esperaban {{.Expect}}, pero se recibieron {{.Actual}}."
+    [services.DNSConfLoadErr]
+    other = "No se pudo extraer la subconfiguración DNS de la configuración."
+    # SMTP
+    [services.SMTPQuitInfo]
+    other = "El servicio SMTP ha finalizado."
+    [services.SMTPWrongParamNumErr]
+    other = "Se pasó un número incorrecto de parámetros. Se esperaban {{.Expect}}, pero se recibieron {{.Actual}}."
+    [services.SMTPNullConfErr]
+    other = "Se proporcionó una configuración SMTP vacía."
+    # HTTP
+    [services.HTTPQuitInfo]
+    other = "El servicio HTTP ha finalizado."
+    [services.HTTPNullConfErr]
+    other = "Se proporcionó una configuración HTTP vacía."
+    [services.HTTPWrongParamNumErr]
+    other = "Se pasó un número incorrecto de parámetros. Se esperaban {{.Expect}}, pero se recibieron {{.Actual}}."
+    [services.HTTPConfLoadErr]
+    other = "No se pudo cargar la configuración HTTP."
+    # ICMP
+    [services.ICMPwindowsUnsupportWarn]
+    other = "El sistema Windows no admite la implementación de un servidor ICMP."
+
+[llm]
+    [llm.UnableToSetPromptDueToUnkCurrTaskType]
+    other = "No se pudo establecer el prompt debido al tipo de tarea desconocido <{{.TaskType}}>."
+    [llm.UnknownLLMProviderErr]
+    other = "Proveedor de LLM desconocido."
+    [llm.EmptyBaseURLErr]
+    other = "La URL base de la API del proveedor de servicios LLM está vacía."
+    [llm.InvalidBaseURLErr]
+    other = "La URL base de la API del proveedor de servicios LLM proporcionada no es válida."
+    [llm.EmptyAPIKeyErr]
+    other = "Token de llamada a la API vacío."
+    [llm.EmptyModelNameErr]
+    other = "No se especificó el nombre del modelo a utilizar."
+    [llm.EmptyRolePromptErr]
+    other = "Se proporcionó un prompt de sistema vacío."
+    [llm.EmptyLLMResponseErr]
+    other = "Se obtuvo una respuesta vacía."
+    [llm.EmptyLLMChoicesErr]
+    other = "Los resultados opcionales devueltos por el LLM parecen estar vacíos."
+    [llm.EmptyLLMRespContentErr]
+    other = "Solo se encontró contenido de respuesta vacío en los resultados devueltos por el LLM."

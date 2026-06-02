@@ -61,7 +61,7 @@ func (s *Shell) bufCheck() bool {
 	s.tmpDanglingBuf = ""
 	s.shouldContinued = false
 	s.quoted = ""
-	s.editor.Writeln(ColorError, "command too long", ColorReset)
+	s.editor.WriteOrderly(ColorError, "command too long", ColorReset)
 	return true
 }
 
@@ -86,7 +86,7 @@ func (s *Shell) Run() error {
 		currLine, err := s.editor.Readline(s.shouldContinued)
 
 		if errors.Is(err, io.EOF) {
-			s.editor.Writeln("bye")
+			s.editor.WriteOrderly("bye")
 			s.editor.ResetBuf()
 			return nil
 		} else if errors.Is(err, pseudoErrNewLine) {
@@ -106,13 +106,13 @@ func (s *Shell) Run() error {
 		// s.editor.GlitchCharCnt = 0
 		if len(s.tmpDanglingBuf) <= len("logout") &&
 			quitSet.Contains(strings.ToLower(s.tmpDanglingBuf)) {
-			s.editor.Writeln("bye")
+			s.editor.WriteOrderly("bye")
 			s.editor.ResetBuf()
 			return nil
 		}
 		if !s.needCmdChan {
 			// [TODO]: Enhance This. though there is not any better idea...
-			s.editor.Writeln(
+			s.editor.WriteOrderly(
 				ColorError, "command not found: ", s.tmpDanglingBuf, ColorReset,
 			)
 			s.editor.ResetBuf()
@@ -128,11 +128,12 @@ func (s *Shell) Run() error {
 		case resp := <-s.currResp:
 			// wait for response
 			cancel()
-			s.editor.Writeln(resp)
+			// configs.Logger().Debug(misc_utils.DumpCharsInString(resp))
+			s.editor.WriteOrderly(resp)
 		case <-time.After(time.Second * 5):
 			// otherwise fall into timeout mode
 			cancel()
-			s.editor.Writeln(
+			s.editor.WriteOrderly(
 				ColorError, "command not found: ", s.tmpDanglingBuf, ColorReset,
 			)
 		}
@@ -193,7 +194,7 @@ func (s *Shell) FlipPromptCheck(currLine string) bool {
 		// or indeed an odd number of backslash
 		test := backslashSeqChecker(currLine)
 		if test < 0 {
-			s.editor.Writeln(
+			s.editor.WriteOrderly(
 				ColorError, "invalid command found: ", s.tmpDanglingBuf,
 				currLine[:lenBuf-1], ColorReset,
 			)

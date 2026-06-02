@@ -14,22 +14,21 @@ import (
 
 	"b0gus/configs"
 	"b0gus/internal/mock"
-	"b0gus/services"
+	"b0gus/net_aux"
 )
 
 func TestNet(t *testing.T) {
 	mockConf := atomic.Pointer[configs.LocalConfig]{}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	obj := services.ReentrantNetType{}
+	obj := net_aux.ReentrantNetType{}
 	restore := zap.ReplaceGlobals(zap.NewNop())
 	defer restore()
 	go func() {
 		obj.Init(configs.RawEnum, nil) // temporarily set callback to nil
-		obj.AlterNetFd(services.TCPEnum, &mockConf)
-		obj.EventMonitor(&mockConf, &configs.ServConcurrentCtrl{Ctx: ctx})
+		obj.AlterNetFd(net_aux.TCPEnum, &mockConf)
+		obj.EventMonitor(&mockConf, &configs.ServConcurrentCtrl{TerminatedCtx: ctx})
 	}()
-
 	cancel()
 }
 
@@ -41,12 +40,12 @@ func TestMock(t *testing.T) {
 	// 1. test with quit signal
 	syncCh := make(chan struct{})
 	for i := configs.RawEnum; i < configs.ENDofEnum; i++ {
-		for j := services.TCPEnum; j <= services.OtherEnum; j++ {
+		for j := net_aux.TCPEnum; j <= net_aux.OtherEnum; j++ {
 			ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(rand.Int64N(6))*time.Second)
 			var (
 				tmp    configs.LocalConfig
 				ptrTmp atomic.Pointer[configs.LocalConfig]
-				obj    services.ReentrantNetType
+				obj    net_aux.ReentrantNetType
 			)
 			go func() {
 				err := gofakeit.Struct(&tmp)
@@ -54,11 +53,11 @@ func TestMock(t *testing.T) {
 				ptrTmp.Store(&tmp)
 				syncCh <- struct{}{}
 			}()
-			go func(x configs.ServEnum, y services.NetTypeEnum) {
+			go func(x configs.ServEnum, y net_aux.NetTypeEnum) {
 				<-syncCh
 				obj.Init(x, absServ)
 				obj.AlterNetFd(y, &ptrTmp)
-				obj.EventMonitor(&ptrTmp, &configs.ServConcurrentCtrl{Ctx: ctx})
+				obj.EventMonitor(&ptrTmp, &configs.ServConcurrentCtrl{TerminatedCtx: ctx})
 			}(i, j)
 			// TODO: requirements of ports and filepath...
 			select {

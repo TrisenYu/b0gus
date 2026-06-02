@@ -29,6 +29,7 @@ import (
 	"b0gus/configs"
 	"b0gus/crypto_aux"
 	"b0gus/databases"
+	"b0gus/net_aux"
 	"b0gus/terminal"
 )
 
@@ -224,10 +225,9 @@ func (s *SMTPClientCtx) upgradeToTLS(
 	conn net.Conn,
 ) (*tls.Conn, error) {
 	cert, err := tls.LoadX509KeyPair(
-		currSMTPconf.LocalTLSCertPath,
-		currSMTPconf.LocalTLSKeyPath,
+		currSMTPconf.TLSCertPath,
+		currSMTPconf.TLSKeyPath,
 	)
-
 	if err != nil {
 		var sb strings.Builder
 		sb.WriteString("unable to load cert due to err: ")
@@ -386,7 +386,7 @@ func (s *SMTPClientCtx) tlsHandler(
 		s.SendResp(ctx, SMTPApplyParamFail, "already TLS enabled")
 		return SMTPApplyParamFail
 	}
-	if len(currSMTPconf.LocalTLSCertPath) == 0 || len(currSMTPconf.LocalTLSKeyPath) == 0 {
+	if len(currSMTPconf.TLSCertPath) == 0 || len(currSMTPconf.TLSKeyPath) == 0 {
 		s.SendResp(ctx, SMTPApplyParamFail, "unable to set up TLS connection at present")
 		return SMTPApplyParamFail
 	}
@@ -525,9 +525,7 @@ func (s *SMTPServConf) InvokeForICMPtask(net.Addr, []byte) {}
 // When the `confObj.SMTPconfig.NaturalTLS` is true, the function will run SMTPS for the first time.
 func (s *SMTPServConf) Run(
 	confObj *atomic.Pointer[configs.LocalConfig],
-	scc *configs.ServConcurrentCtrl,
-	db databases.DBhandler,
-	args ...any,
+	scc *configs.ServConcurrentCtrl, args ...any,
 ) {
 	defer func() {
 		configs.Logger().Info(configs.GetLocalizedMsg(
@@ -549,16 +547,30 @@ func (s *SMTPServConf) Run(
 		))
 		return
 	}
-	_, ok := confObj.Load().SelectTerm(configs.SMTPEnum).(configs.SMTPconfig)
+	snapshot, ok := confObj.Load().SelectTerm(configs.SMTPEnum).(configs.SMTPconfig)
 	if !ok {
 		return
 	}
-	s.ConfOptions, s.DbFd = confObj, db
-	_ = db.CreateTable(
-		&databases.UsernameInfo{}, &databases.PasswordInfo{},
-	)
-	var clientAux ReentrantNetType
+	s.ConfOptions = confObj
+	if s.DbFd == nil {
+		if err := s.handleDB(snapshot); err != nil {
+			configs.Logger().Error(err.Error())
+			return
+		}
+	}
+	var clientAux net_aux.ReentrantNetType
 	clientAux.Init(configs.SMTPEnum, s)
 	go clientAux.EventMonitor(confObj, scc)
-	clientAux.AlterNetFd(TCPEnum, confObj)
+	clientAux.AlterNetFd(net_aux.TCPEnum, confObj)
+}
+
+func (s *SMTPServConf) handleDB(snapshot configs.SMTPconfig) error {
+	s.DbFd = &databases.RuntimeDB{
+		TLSKeyPath:  snapshot.TLSKeyPath,
+		TLSCertPath: snapshot.TLSCertPath,
+	}
+	return s.DbFd.Setup(
+		&snapshot.RecDBConfig,
+		&databases.UsernameInfo{}, &databases.PasswordInfo{},
+	)
 }

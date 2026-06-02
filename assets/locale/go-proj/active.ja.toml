@@ -1,0 +1,186 @@
+[meta_conf]
+    [meta_conf.AssetsDir]
+    other = "静的リソースの格納先を設定します。"
+    [meta_conf.ConfPath]
+    other = "ローカル設定ファイルのパス。"
+    [meta_conf.PermitConfAlterInRuntime]
+    other = "実行時に設定変更を許可する設定。"
+    [meta_conf.PermitSelfAlterInRuntime]
+    other = "実行時に設定の自己変更を許可する設定。"
+    [meta_conf.PermitShellAlterInRuntime]
+    other = "実行時にシェルへのコマンド入力による設定変更を許可する権限設定。"
+    [meta_conf.PermitRemotePullInRuntime]
+    other = "実行時にリモートからの設定取得による変更を許可する権限設定。"
+
+[main]
+    [main.TerminationSignalWarn]
+    other = "b0gusサーバーの停止シグナル<{{.SignalStr}}>を捕捉しました。"
+    [main.FailToApplyConfiguration]
+    other = "与えられた設定ファイルを現在の設定に適用できません。"
+
+[crypto_aux]
+    [crypto_aux.PemFileOpenFailure]
+    other = "ローカルのSSH公開鍵を設定するためPEMファイル<{{.PemPath}}>を開けません！"
+    [crypto_aux.PemFileReadFailure]
+    other = "与えられたPEMファイルを読み取れません！"
+    [crypto_aux.PemFileDecodeFailure]
+    other = "PEMファイルを正しく復号できません！"
+    [crypto_aux.PemFileUnsupportedTypeError]
+    other = "サポートされていないPEMファイルです！"
+    [crypto_aux.PemFileFormatError]
+    other = "この種の署名証明書の書式はサポートされていません。"
+    [crypto_aux.InvalidLengthForEllipticCurveError]
+    other = "提供された公開鍵の長さ<{{.PemLen}}>は既知の楕円曲線暗号アルゴリズムには不適切です。"
+    [crypto_aux.InvalidLengthForRSAError]
+    other = "提供された公開鍵の長さ<{{.PemLen}}>はRSA暗号アルゴリズムには不適切です。"
+    [crypto_aux.SSHPrivateKeyGenFailure]
+    other = "エラー<{{.ErrInfo}}>により、与えられたアルゴリズムでSSH秘密鍵を生成できません。"
+    [crypto_aux.SSHPrivateKeySetFailure]
+    other = "エラー<{{.ErrInfo}}>により、SSHサービスに秘密鍵を設定できません。"
+    [crypto_aux.CreatePemToGivenPathError]
+    other = "指定されたパス<{{.PemPath}}>に証明書を作成できません。"
+    [crypto_aux.Base64EncodeFailure]
+    other = "証明書をBase64文字列に正しくエンコードできません。"
+    [crypto_aux.UnsupportedOrInvalidPemWarn]
+    other = "無効またはサポートされていない証明書が使用されました。詳細：<{{.ErrInfo}}>。b0gusは設定に応じて証明書の生成を試みます。"
+    [crypto_aux.PemFileCreateFailure]
+    other = "エラー<{{.ErrInfo}}>により、パス<{{.PemPath}}>に証明書を作成できません。b0gusサービスは起動しません。"
+
+[databases]
+    [databases.DatabaseConnectionError]
+    other = "データベース{{.DatabaseStr}}に接続できません。エラー：<{{.ErrInfo}}>。"
+    [databases.DatabaseEmptyError]
+    other = "与えられた設定から空のデータベース操作子が取得されました。"
+    [databases.DatabaseChangingWarn]
+    other = "内部エラーのため、現在使用中のデータベースを変更しません。"
+    [databases.DatabaseTypeError]
+    other = "サポートされていないデータベース<{{.Database}}>が見つかりました！"
+    [databases.InvalidMongoDBclientErr]
+    other = "無効なMongoDBクライアントです！"
+
+[configs]
+    # データベース
+    [configs.InvalidDatabaseAddrError]
+    other = "設定ファイルに無効なデータベース接続アドレス<{{.DatabaseAddr}}>が指定されています！"
+    [configs.UnsupportDatabaseTypeError]
+    other = "未知のデータベースタイプが見つかりました。現在b0gusはPostgreSQL、SQLite、MongoDBをサポートしていますが、<{{.DatabaseType}}>が選択されました。"
+    # グローバル設定情報
+    [configs.ReadingConfigurationFailure]
+    other = "設定を読み取れません。失敗理由：<{{.ErrInfo}}>。"
+    [configs.ReloadingConfigurationFailure]
+    other = "設定ファイルの再読み込みに失敗しました！現在の設定は変更されません。失敗理由：<{{.ErrInfo}}>。"
+    [configs.UnmarshallingConfigurationFailure]
+    other = "設定ファイルを解析できません。失敗理由：<{{.ErrInfo}}>。"
+
+[services]
+    # abstract_tcpip
+    [services.absTCPIPPortErr]
+    other = "特権ポートが選択されました。"
+    [services.absTCPIPUninitErr]
+    other = "初期化されていないReentrantNetTypeが使用されました。"
+    [services.absTCPIPUnknownNetType]
+    other = "未知のネットワークタイプが使用されました。"
+    [services.absTCPIPUDPConnCastingErr]
+    other = "net.UDPConnの変換に失敗しました。"
+    [services.absTCPIPunsupportedOSOnICMPErr]
+    other = "Windowsでは通常ICMPサーバーとしての配備はサポートされていません。"
+    # SSH
+    [services.SSHversionWarn]
+    other = "3つのランダムバイトを生成できません。SSHバージョンにデフォルト値を返します。"
+    [services.SSHWriteResponseError]
+    other = "コマンド結果の書き戻し中にエラー<{{.ErrInfo}}>が発生しました。"
+    [services.SSHsetTimeoutError]
+    other = "エラー<{{.ErrInfo}}>により、到来する接続にタイムアウトを設定できません。"
+    [services.SSHEstablishConnectionFailure]
+    other = "SSH接続を確立できません。（リモートアドレス、現在のSSHバージョン、失敗理由）：（<{{.RemoteAddr}}>, <{{.CurrSSHver}}>, <{{.ErrInfo}}>）。"
+    [services.SSHchannelAcceptanceError]
+    other = "エラー<{{.ErrInfo}}>により、リモートアドレス<{{.RemoteAddr}}>に提供するSSHチャンネルを受け入れられません。"
+    [services.SSHinvalidConfigurationWarn]
+    other = "無効なSSH設定です。更新をスキップします。"
+    [services.SSHSwitchListenerError]
+    other = "指定されたアドレス<{{.ListenAddr}}>での再リスンに失敗しました。現在のb0gus SSHサーバーは変更されません。"
+    [services.SSHSetupListenerError]
+    other = "指定されたアドレス<{{.ListenAddr}}>でSSHサーバーをリスンさせることができません。"
+    [services.SSHAcceptConnWarn]
+    other = "エラー<{{.ErrInfo}}>により、外部からのSSH接続要求を受け入れられません。"
+    [services.SSHCanNotUseSigner]
+    other = "与えられた証明書<{{.Signer}}>をSSHプロトコル対話中の署名に使用できません。"
+    [services.SSHQuitInfo]
+    other = "SSHサービスが終了しました。"
+    [services.SSHConfigLoadingFailure]
+    other = "与えられた設定構造体からSSH用の設定を選択できません。"
+    [services.SSHInvalidConfigFailure]
+    other = "グローバル設定を確認した結果、SSHサービスに無効な設定が提供されました。"
+    [services.SSHEmptyGlobConfigFailure]
+    other = "空のグローバル設定が提供されました。"
+    [services.SSHRequireSignerAsOnlyArgErr]
+    other = "少なくとも1つのssh.Signerが引数として必要です。"
+    [services.SSHResponseCmdClientSetupErr]
+    other = "エラー<{{.ErrInfo}}>により、LLMによる端末コマンド応答生成を有効化できません。"
+    [services.SSHValidationCmdClientSetupErr]
+    other = "エラー<{{.ErrInfo}}>により、LLMによる端末コマンドの文法チェックを有効化できません。"
+    [services.SSHInvalidLLMConfigurePathErr]
+    other = "エラー<{{.ErrInfo}}>を捕捉しました。誤った設定パス<{{.WrongPath}}>が指定されました。"
+    [services.SSHLLMRepsJsonUnmarshallingErr]
+    other = "LLMのJSON応答から構造体を復元できません。エラー<{{.ErrInfo}}>"
+    [services.SSHNoAvailableLLMForResponseErr]
+    other = "外部トラフィックに対する偽装応答を生成するための利用可能なLLM通信端がありません。"
+    [services.SSHInvalidShellCmdCheckedByParserWarn]
+    other = "構文解析器により、文法的に無効な端末コマンドが検出されました。"
+    # NTP
+    [services.NTPReceivePayloadFromRemoteInfo]
+    other = "NTPサーバーが<{{.IP}}>から長さ<{{.Len}}>の時刻問い合わせ要求を受信しました。"
+    [services.NTPQuitInfo]
+    other = "NTPサービスが終了しました。"
+    [services.NTPNullConfErr]
+    other = "空のNTP設定が提供されました。"
+    # DNS
+    [services.DNSQuitInfo]
+    other = "DNSサービスが終了しました。"
+    [services.DNSNullConfErr]
+    other = "空のDNS設定が提供されました。"
+    [services.DNSWrongParamNumErr]
+    other = "誤った数の引数が渡されました。期待数は{{.Expect}}個、実際は{{.Actual}}個です。"
+    [services.DNSConfLoadErr]
+    other = "設定からDNSサブ設定を抽出できません！"
+    # SMTP
+    [services.SMTPQuitInfo]
+    other = "SMTPサービスが終了しました。"
+    [services.SMTPWrongParamNumErr]
+    other = "誤った数の引数が渡されました。期待数は{{.Expect}}個、実際は{{.Actual}}個です。"
+    [services.SMTPNullConfErr]
+    other = "空のSMTP設定が提供されました。"
+    # HTTP
+    [services.HTTPQuitInfo]
+    other = "HTTPサービスが終了しました。"
+    [services.HTTPNullConfErr]
+    other = "空のHTTP設定が提供されました。"
+    [services.HTTPWrongParamNumErr]
+    other = "誤った数の引数が渡されました。期待数は{{.Expect}}個、実際は{{.Actual}}個です。"
+    [services.HTTPConfLoadErr]
+    other = "HTTP設定を読み込めません。"
+    # ICMP
+    [services.ICMPwindowsUnsupportWarn]
+    other = "WindowsシステムではICMPサーバーの構築はサポートされていません。"
+
+[llm]
+    [llm.UnableToSetPromptDueToUnkCurrTaskType]
+    other = "未知のタスクタイプ<{{.TaskType}}>のため、プロンプトを設定できません。"
+    [llm.UnknownLLMProviderErr]
+    other = "未知のLLMプロバイダーです。"
+    [llm.EmptyBaseURLErr]
+    other = "LLMサービスプロバイダーのapiアドレスが空です。"
+    [llm.InvalidBaseURLErr]
+    other = "提供されたLLMサービスプロバイダーのapiアドレスが無効です。"
+    [llm.EmptyAPIKeyErr]
+    other = "空のapi呼び出しトークンです。"
+    [llm.EmptyModelNameErr]
+    other = "使用するモデル名が指定されていません。"
+    [llm.EmptyRolePromptErr]
+    other = "空のシステムプロンプトが提供されました。"
+    [llm.EmptyLLMResponseErr]
+    other = "空の応答が取得されました。"
+    [llm.EmptyLLMChoicesErr]
+    other = "LLMが返した選択肢はすべて空のようです。"
+    [llm.EmptyLLMRespContentErr]
+    other = "LLMの応答結果からは空の応答内容だけが見つかりました。"
