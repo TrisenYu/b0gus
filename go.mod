@@ -14,7 +14,7 @@ require (
 	github.com/gobeam/stringy v0.0.7
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/consul/api/v2 v2.0.0
-	github.com/mattn/go-runewidth v0.0.23
+	github.com/mattn/go-runewidth v0.0.24
 	github.com/miekg/dns v1.1.72
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/pelletier/go-toml v1.9.5
