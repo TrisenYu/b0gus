@@ -27,7 +27,7 @@ dependencies = [
     "packaging==26.2",
     "pluggy==1.6.0",
     "pydantic==2.13.4",
-    "pydantic-core==2.46.4",
+    "pydantic-core==2.47.0",
     "pygments==2.20.0",
     "pytest==9.0.3",
     "python-dotenv==1.2.2",
