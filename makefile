@@ -1,5 +1,5 @@
 # SPDX-LICENSE-IDENTIFIER: BSD 3-Clause License
-# Last modified at 2026/06/02 星期二 14:24:45
+# Last modified at 2026/06/04 星期四 23:42:13
 b0gus_name = b0gus
 # milestone.major.minor, no patch at present
 b0gus_ver = 0.3.0
@@ -177,7 +177,7 @@ test:
 		-failfast -count=1         \
 		-covermode=atomic          \
 		-coverprofile=coverage.out \
-		-coverpkg=./... ./... &&   \
+		-coverpkg=./... ./diff_tests &&   \
 		go tool cover -func=coverage.out | grep -iI "total"
 # bake-format on
 phony += test

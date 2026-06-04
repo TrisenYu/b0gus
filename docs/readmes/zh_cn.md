@@ -4,6 +4,29 @@
 
 ![](../../assets/design/zh_cn/arch-design.png)
 
+此外，项目结构按下表所组织。
+
+|         目录/文件         | 功能                                  |
+|:---------------------:|:------------------------------------|
+|       `.github`       | github ci/dependentBot配置与少量说明文档     |
+|      `_examples`      | 部分模块单独编译为可执行程序的示例                   |
+|    `_future-feats`    | 未来的新特性                              |
+|       `assets`        | 存放i18n、prompt等静态文件，并作为接口暴露给其它模块使用的包 |
+|       `configs`       | 配置目录以及对其余模块暴露服务配置结构体或日志记录           |
+|     `crypto_aux`      | 与密码学相关的模块                           |
+|      `databases`      | 用于与数据库形成交互的模块                       |
+|     `diff_tests`      | 测试代码包                               |
+|        `docs`         | 主要用于存放说明文档的目录                       |
+|      `internal`       | 内部功能函数模块                            |
+|         `llm`         | 用于作为llm客户端与llm服务提供商交互的模块            |
+|       `net_aux`       | 用于简化socket编程的模块                     |
+|      `services`       | 存放蜜罐管理服务与具体服务定义的模块                  |
+|      `terminal`       | 用于模拟终端的模块                           |
+|        `tools`        | 自动生成代码定义或者静态资源文件的工具包                |
+|      `b0gus.go`       | 目前的整个程序的入口程序                        |
+|      `makefile`       | 用于简化操作命令                            |
+| `buildImg.Dockerfile` | 用于编译程序的dockerfile                   |
+
 ### 可用功能
 
 目前b0gus仍处在活跃开发的阶段。支持将`SSH`、`HTTP`、`DNS`、`NTP`等服务部署在指定非特权端口并转发到特权端口上作为蜜罐。
@@ -147,7 +170,6 @@ void retry(
 );
 ```
 
-
 ### 参考在线文档
 以及其它于代码内提及的参考。
 - [golang.halfiisland.com/community/pkgs/orm/gorm.html#外键](https://golang.halfiisland.com/community/pkgs/orm/gorm.html#%E9%92%A9%E5%AD%90)
@@ -156,7 +178,7 @@ void retry(
 - [Debian 打包教程](https://www.debian.org/doc/manuals/packaging-tutorial/packaging-tutorial.zh_CN.pdf)
 
 ### 关于许可证
-b0gus按三条款BSD许可证分发。中译文具体如下。
+b0gus按三条项BSD许可证分发。中译文具体如下。
 
 版权所有© 2025年，<kisfg@hotmail.com>与<jajune257@gmail.com>以及其余对b0gus产出贡献的可敬贡献者。
 

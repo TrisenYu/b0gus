@@ -8,6 +8,30 @@ b0gus is a Low-interactive, Configuration-Directed golang Honeypot.
 
 ![arch.png](../assets/design/en/arch-design.png)
 
+In addition, the meaning of the project structure is shown in the table below.
+
+|    Directory/File     | Function                                                                                                     |
+|:---------------------:|:-------------------------------------------------------------------------------------------------------------|
+|       `.github`       | GitHub CI/DependentBot configuration and a small number of explanatory documents                             |
+|      `_examples`      | Examples of individual modules compiled separately into executable programs                                  |
+|    `_future-feats`    | Future new features                                                                                          |
+|       `assets`        | A package that stores static files such as i18n and prompts, and is exposed as an interface to other modules |
+|       `configs`       | Configuration directory, and exposes service configuration structures or logging to other modules            |
+|     `crypto_aux`      | Cryptography-related modules                                                                                 |
+|      `databases`      | Modules for interacting with databases                                                                       |
+|     `diff_tests`      | Test code package                                                                                            |
+|        `docs`         | Directory mainly used for storing explanatory documents                                                      |
+|      `internal`       | Internal functional function modules                                                                         |
+|         `llm`         | Module used as an LLM client to interact with LLM service providers                                          |
+|       `net_aux`       | Module for simplifying socket programming                                                                    |
+|      `services`       | Module for storing honeypot management services and specific service definitions                             |
+|      `terminal`       | Module for terminal simulation                                                                               |
+|        `tools`        | Toolkit for automatically generating code definitions or static resource files                               |
+|      `b0gus.go`       | Current entry point of the entire program                                                                    |
+|      `makefile`       | Used to simplify operation commands                                                                          |
+| `buildImg.Dockerfile` | Dockerfile for compiling the program                                                                         |
+
+
 ### Capacities
 Currently, **bogus** is still under active development stage.
 Some business functions are not yet fully developed.
@@ -174,7 +198,6 @@ void retry(
     void *b2
 );
 ```
-
 
 ### References
 mentioned in code or the documentations.
